@@ -32,7 +32,7 @@
                     <input type="number" name="jaggrok_max_tokens" value="<?php echo get_option( 'jaggrok_max_tokens', 2000 ); ?>" min="500" max="8000" class="small-text" /> tokens
                     <p class="description">Higher = more detailed pages</p></td></tr>
 
-            <!-- NEW v1.2.1: GROK MODEL SELECTOR -->
+            <!-- GROK MODEL SELECTOR -->
             <tr><th>Grok Model</th><td>
                     <?php $model = get_option( 'jaggrok_model', 'grok-beta' ); ?>
                     <select name="jaggrok_model" class="regular-text">
@@ -45,6 +45,29 @@
         <?php submit_button(); ?>
     </form>
     <?php if ( get_option( 'jaggrok_api_tested' ) ): ?><div class="notice notice-success"><p>✅ API Connected!</p></div><?php endif; ?>
+
+    <!-- PRETTY ERROR LOG DISPLAY (v1.3.0) -->
+    <h2>Error Log</h2>
+    <table class="widefat striped">
+        <thead>
+        <tr><th>Timestamp</th><th>Error Message</th></tr>
+        </thead>
+        <tbody>
+        <?php
+        $log_file = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
+        if ( file_exists( $log_file ) ) {
+            $logs = array_reverse( file( $log_file ) );
+            $logs = array_slice( $logs, 0, 10 ); // Last 10 errors
+            foreach ( $logs as $log ) {
+                list( $timestamp, $message ) = explode( ' - ', trim( $log ), 2 );
+                echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
+            }
+        } else {
+            echo '<tr><td colspan="2">No errors logged yet.</td></tr>';
+        }
+        ?>
+        </tbody>
+    </table>
 </div>
 
 <style>.required { color: #d63638; }</style>

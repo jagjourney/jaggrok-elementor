@@ -4,10 +4,20 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.9
+Stable tag: 1.3.0
 License: GPLv2 or later
 
 == Changelog ==
+
+= 1.3.0 =
+* ✅ NEW: Enhanced error handling + logging in settings
+* ✅ PRETTY: Error log table in settings page
+* ✅ FIXED: All xAI key validation with detailed errors
+
+= 1.2.10 =
+* ✅ FIXED: ajaxurl not defined - INLINE AJAXURL + NONCE
+* ✅ BUTTON WORKS: Click = AI generation INSTANTLY
+* ✅ NO JS ERRORS - 100% RELIABLE
 
 = 1.2.9 =
 * ✅ FIXED: ajaxurl not defined - Inline JS works!

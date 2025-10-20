@@ -38,18 +38,18 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                     }
                     $('#output-<?php echo $id; ?>').html('<p>Generating...</p>');
                     $(this).prop('disabled', true).text('Generating...');
-                    $.post(ajaxurl, {
+                    $.post('<?php echo admin_url( 'admin-ajax.php' ); ?>', {
                         action: 'jaggrok_generate_page',
                         prompt: prompt,
                         nonce: '<?php echo wp_create_nonce( 'jaggrok_generate' ); ?>'
                     }, function(r) {
-                        $('#btn-<?php echo $id; ?>').prop('disabled', false).text('Generate Again');
+                        $(this).prop('disabled', false).text('Generate with Grok');
                         if (r.success) {
                             $('#output-<?php echo $id; ?>').html(r.data.html);
                         } else {
                             $('#output-<?php echo $id; ?>').html('<p style="color:red">Error: ' + r.data + '</p>');
                         }
-                    });
+                    }.bind(this));
                 });
             })(jQuery);
         </script>
