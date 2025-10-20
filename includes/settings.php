@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// JAGJourney SETTINGS PAGE v1.0.0
+// JAGJourney SETTINGS PAGE v1.2.1 (GROK MODELS + BUG FIXED)
 // ============================================================================
 
 function jaggrok_add_settings_page() {
@@ -19,6 +19,7 @@ function jaggrok_register_settings() {
 	register_setting( 'jaggrok_settings', 'jaggrok_auto_insert', 'yes' );
 	register_setting( 'jaggrok_settings', 'jaggrok_theme_style', 'modern' );
 	register_setting( 'jaggrok_settings', 'jaggrok_max_tokens', 2000 );
+	register_setting( 'jaggrok_settings', 'jaggrok_model', 'grok-beta' ); // NEW v1.2.1
 }
 add_action( 'admin_init', 'jaggrok_register_settings' );
 
@@ -51,9 +52,4 @@ function jaggrok_test_api_connection() {
 }
 add_action( 'wp_ajax_jaggrok_test_api', 'jaggrok_test_api_connection' );
 
-function jaggrok_settings_link( $links ) {
-	$settings_link = '<a href="options-general.php?page=jaggrok-settings">Settings</a>';
-	array_unshift( $links, $settings_link );
-	return $links;
-}
-add_filter( 'plugin_action_links_' . plugin_basename( dirname(__FILE__) . '/jaggrok-elementor.php' ), 'jaggrok_settings_link' );
+// REMOVED: jaggrok_settings_link() - ALREADY IN MAIN FILE (BUG FIX v1.2.1)
