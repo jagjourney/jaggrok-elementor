@@ -27,7 +27,7 @@
                     <?php $auto = get_option( 'jaggrok_auto_insert', 'yes' ); ?>
                     <label><input type="radio" name="jaggrok_auto_insert" value="yes" <?php checked( $auto, 'yes' ); ?>> Yes</label>
                     <label><input type="radio" name="jaggrok_auto_insert" value="no" <?php checked( $auto, 'no' ); ?>> No</label>
-                    <p class="description">Auto-add generated sections to canvas</p></th></td></tr>
+                    <p class="description">Auto-add generated sections to canvas</p></td></tr>
 
             <tr><th>Default Style</th><td>
                     <?php $style = get_option( 'jaggrok_theme_style', 'modern' ); ?>
@@ -42,12 +42,16 @@
                     <p class="description">Higher = more detailed pages</p></td></tr>
 
             <tr><th>Grok Model</th><td>
-                    <?php $model = get_option( 'jaggrok_model', 'grok-3-beta' ); ?>
+                    <?php $model = get_option( 'jaggrok_model', 'grok-3-mini' ); ?>
                     <select name="jaggrok_model" class="regular-text">
-                        <option value="grok-3-beta" <?php selected( $model, 'grok-3-beta' ); ?>>Grok 3 Beta (Current Standard)</option>
-                        <option value="grok-3-fast-beta" <?php selected( $model, 'grok-3-fast-beta' ); ?>>Grok 3 Fast Beta (Faster)</option>
+                        <option value="grok-3-mini" <?php selected( $model, 'grok-3-mini' ); ?>>Grok 3 Mini (Lightweight)</option>
+                        <option value="grok-3" <?php selected( $model, 'grok-3' ); ?>>Grok 3 (Flagship)</option>
+                        <option value="grok-4" <?php selected( $model, 'grok-4' ); ?>>Grok 4 (Best)</option>
+                        <option value="grok-4-fast-reasoning" <?php selected( $model, 'grok-4-fast-reasoning' ); ?>>Grok 4 Fast Reasoning</option>
+                        <option value="grok-4-fast-non-reasoning" <?php selected( $model, 'grok-4-fast-non-reasoning' ); ?>>Grok 4 Fast Non-Reasoning</option>
+                        <option value="grok-code-fast-1" <?php selected( $model, 'grok-code-fast-1' ); ?>>Grok Code Fast 1</option>
                     </select>
-                    <p class="description">Grok-beta is deprecated - use Grok 3 models</p></td></tr>
+                    <p class="description">Choose Grok model for content generation (updated as of 2025)</p></td></tr>
         </table>
         <?php submit_button(); ?>
     </form>
@@ -64,9 +68,7 @@
             $logs = array_reverse( file( $log_file ) );
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
-                $parts = explode( ' - ', trim( $log ), 2 );
-                $timestamp = isset( $parts[0] ) ? trim( $parts[0] ) : 'Unknown';
-                $message = isset( $parts[1] ) ? trim( $parts[1] ) : $log;
+                list( $timestamp, $message ) = explode( ' - ', trim( $log ), 2 );
                 echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
             }
         } else {
