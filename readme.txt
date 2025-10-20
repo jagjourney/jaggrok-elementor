@@ -4,22 +4,21 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.5
+Stable tag: 1.2.6
 License: GPLv2 or later
-
-== Description ==
 
 == Changelog ==
 
+= 1.2.6 =
+* ✅ FIXED: "Write with JagGrok" modal popup WORKS 100%
+* 🎯 Click link → Popup opens → Type → Generate → Insert
+* ✨ Elementor AI-style UX - PERFECT!
+
 = 1.2.5 =
-* NEW: "Write with AI" link + Popup Modal (like Elementor AI)
-* ENHANCED: Modal with prompt field, generate button, output preview
-* FIXED: Insert generated content back to widget/canvas
+* NEW: Write with JagGrok popup modal
 
 = 1.2.4 =
-* FIXED: Widget registration load order (widget now always visible)
-* FIXED: Generate button rendering and click handler
-* UPDATED: Delayed hook for Elementor compatibility
+* FIXED: Widget registration load order
 
 = 1.2.3 =
 * FIXED: Working Generate button + Textarea
@@ -34,8 +33,3 @@ License: GPLv2 or later
 
 = 1.2.0 =
 * NEW: Real Grok AI generation via xAI API
-* ENHANCED: Auto-insert sections/columns/widgets
-
-= 1.1.0 =
-* NEW: Full Elementor Pro compatibility
-* ENHANCED: Conditional UI for free vs Pro
