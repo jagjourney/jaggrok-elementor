@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// JAGJourney SETTINGS PAGE v1.3.0 (ERROR HANDLING + LOG)
+// JAGJourney SETTINGS PAGE v1.3.2 (ENHANCED LOGGING + ENDPOINT ERROR)
 // ============================================================================
 
 function jaggrok_add_settings_page() {
@@ -27,20 +27,21 @@ function jaggrok_settings_page_callback() {
 	include plugin_dir_path( __FILE__ ) . 'settings-template.php';
 }
 
-// AJAX Test API (v1.3.0 - ERROR HANDLING + LOG)
+// AJAX Test API (v1.3.2 - ENHANCED LOGGING)
 function jaggrok_test_api_connection() {
 	check_ajax_referer( 'jaggrok_test', 'nonce' );
-	$api_key = sanitize_text_field( $_POST['api_key' ] );
+	$api_key = sanitize_text_field( $_POST['api_key'] );
 	update_option( 'jaggrok_xai_api_key', $api_key );
 
-	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
+	$endpoint = 'https://api.grok.xai.com/v1/chat/completions'; // FIXED: CORRECT ENDPOINT
+	$response = wp_remote_post( $endpoint, [
 		'headers' => [ 'Authorization' => 'Bearer ' . $api_key, 'Content-Type' => 'application/json' ],
 		'body' => json_encode( [ 'model' => 'grok-beta', 'messages' => [ ['role' => 'user', 'content' => 'Hello JagGrok!' ] ], 'max_tokens' => 10 ] )
 	]);
 
 	if ( is_wp_error( $response ) ) {
 		$error = $response->get_error_message();
-		jaggrok_log_error( 'API Test Failed: ' . $error ); // LOG
+		jaggrok_log_error( 'API Test Failed: ' . $error );
 		wp_send_json_error( 'Connection failed: ' . $error );
 	}
 
@@ -48,8 +49,8 @@ function jaggrok_test_api_connection() {
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 	if ( $code !== 200 ) {
-		$error = 'HTTP ' . $code . ' - Invalid API key or service issue.';
-		jaggrok_log_error( $error ); // LOG
+		$error = 'HTTP ' . $code . ' - ' . ( $body['error']['message'] ?? 'Unknown error' );
+		jaggrok_log_error( 'API Test Response Error: ' . $error . ' | Full Body: ' . print_r( $body, true ) );
 		wp_send_json_error( $error );
 	}
 
@@ -58,15 +59,15 @@ function jaggrok_test_api_connection() {
 		wp_send_json_success();
 	} else {
 		$error = 'Invalid response: ' . print_r( $body, true );
-		jaggrok_log_error( $error ); // LOG
+		jaggrok_log_error( 'API Test Invalid Response: ' . $error );
 		wp_send_json_error( 'Invalid API key' );
 	}
 }
 add_action( 'wp_ajax_jaggrok_test_api', 'jaggrok_test_api_connection' );
 
-// ERROR LOGGING FUNCTION (v1.3.0)
+// ERROR LOGGING FUNCTION (v1.3.2)
 function jaggrok_log_error( $message ) {
 	$log_file = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
 	$timestamp = gmdate( 'Y-m-d H:i:s' );
-	file_put_contents( $log_file, $timestamp . ' - ' . $message . "\n", FILE_APPEND );
+	file_put_contents( $log_file, $timestamp . ' - ' . $message . "\n", FILE_APPEND | LOCK_EX );
 }
