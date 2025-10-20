@@ -4,10 +4,14 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.6
+Stable tag: 1.3.10
 License: GPLv2 or later
 
 == Changelog ==
+= 1.3.10 =
+* FIXED: Array key warnings (safe explode)
+* ADDED: Emergency widget registration
+* FIXED: Model default (grok-3-mini)
 
 = 1.3.9 =
 * ✅ FINAL: All models + timeout fixes complete

@@ -68,7 +68,10 @@
             $logs = array_reverse( file( $log_file ) );
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
-                list( $timestamp, $message ) = explode( ' - ', trim( $log ), 2 );
+                // FIXED v1.3.10: Safe array access (NO MORE WARNINGS!)
+                $parts = explode( ' - ', trim( $log ), 2 );
+                $timestamp = isset( $parts[0] ) ? trim( $parts[0] ) : 'Unknown';
+                $message = isset( $parts[1] ) ? trim( $parts[1] ) : $log;
                 echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
             }
         } else {

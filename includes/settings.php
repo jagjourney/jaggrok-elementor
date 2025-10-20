@@ -19,7 +19,7 @@ function jaggrok_register_settings() {
 	register_setting( 'jaggrok_settings', 'jaggrok_auto_insert', 'yes' );
 	register_setting( 'jaggrok_settings', 'jaggrok_theme_style', 'modern' );
 	register_setting( 'jaggrok_settings', 'jaggrok_max_tokens', 2000 );
-	register_setting( 'jaggrok_settings', 'jaggrok_model', 'grok-3-mini' ); // FIXED: Default non-deprecated
+	register_setting( 'jaggrok_settings', 'jaggrok_model', 'grok-3-mini' ); // FIXED v1.3.10: Non-deprecated
 }
 add_action( 'admin_init', 'jaggrok_register_settings' );
 

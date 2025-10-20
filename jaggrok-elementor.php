@@ -3,7 +3,7 @@
  * Plugin Name: JagGrok Elementor
  * Plugin URI: https://jagjourney.com/
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages! By Jag Journey, LLC.
- * Version: 1.3.8
+ * Version: 1.3.10
  * Author: Jag Journey, LLC
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -135,3 +135,13 @@ function jaggrok_generate_page_ajax() {
 
 // Include uninstall
 register_uninstall_hook( __FILE__, 'jaggrok_uninstall' );
+
+// EMERGENCY WIDGET REGISTRATION (if hook fails) - ADDED BACK v1.3.10
+add_action( 'init', function() {
+	if ( did_action( 'elementor/loaded' ) && ! did_action( 'elementor/widgets/register' ) ) {
+		add_action( 'elementor/widgets/register', function( $widgets_manager ) {
+			require_once __DIR__ . '/includes/elementor-widget.php';
+			$widgets_manager->register( new JagGrok_AI_Generator_Widget() );
+		}, 999 );
+	}
+});
