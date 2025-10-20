@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai, artificial intelligence, wordpress
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -51,6 +51,12 @@ Plugin checks https://jaggrok-elementor.jagjourney.com for updates automatically
 3. Generated page preview
 
 == Changelog ==
+
+= 1.2.0 =
+* 🚀 NEW: REAL Grok AI generation via xAI API
+* ✨ ENHANCED: Auto-insert sections/columns/widgets into canvas
+* 🔥 PRO: Dynamic content + forms integration
+* 💡 Free: Clean HTML sections
 
 = 1.1.0 =
 * NEW: Full compatibility with Elementor Pro (dynamic content, forms, etc.)
