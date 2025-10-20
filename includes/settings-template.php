@@ -9,10 +9,12 @@
         <table class="form-table">
             <tr><th><label for="jaggrok_xai_api_key">xAI API Key <span class="required">*</span></label></th>
                 <td>
-                    <div style="position:relative;">
+                    <div class="jaggrok-api-key-container" style="display: flex; align-items: center; gap: 8px;">
                         <input type="password" id="jaggrok_xai_api_key" name="jaggrok_xai_api_key"
-                               value="<?php echo esc_attr( get_option( 'jaggrok_xai_api_key' ) ); ?>" class="regular-text" />
-                        <button type="button" id="toggle-api-key" style="position:absolute;right:10px;top:8px;background:none;border:none;cursor:pointer;font-size:16px;">
+                               value="<?php echo esc_attr( get_option( 'jaggrok_xai_api_key' ) ); ?>"
+                               class="regular-text jaggrok-api-input"
+                               style="width: auto; flex: 1; min-width: 200px;" />
+                        <button type="button" id="toggle-api-key" class="jaggrok-eye-btn" style="margin-left: 8px;">
                             👁️
                         </button>
                     </div>
@@ -25,7 +27,7 @@
                     <?php $auto = get_option( 'jaggrok_auto_insert', 'yes' ); ?>
                     <label><input type="radio" name="jaggrok_auto_insert" value="yes" <?php checked( $auto, 'yes' ); ?>> Yes</label>
                     <label><input type="radio" name="jaggrok_auto_insert" value="no" <?php checked( $auto, 'no' ); ?>> No</label>
-                    <p class="description">Auto-add generated sections to canvas</p></td></tr>
+                    <p class="description">Auto-add generated sections to canvas</p></th></td></tr>
 
             <tr><th>Default Style</th><td>
                     <?php $style = get_option( 'jaggrok_theme_style', 'modern' ); ?>
@@ -40,19 +42,12 @@
                     <p class="description">Higher = more detailed pages</p></td></tr>
 
             <tr><th>Grok Model</th><td>
-                    <?php $model = get_option( 'jaggrok_model', 'grok-beta' ); ?>
+                    <?php $model = get_option( 'jaggrok_model', 'grok-3-beta' ); ?>
                     <select name="jaggrok_model" class="regular-text">
-                        <option value="grok-beta" <?php selected( $model, 'grok-beta' ); ?>>Grok Beta (Fast)</option>
-                        <option value="grok-2" <?php selected( $model, 'grok-2' ); ?>>Grok 2 (Balanced)</option>
-                        <option value="grok-3" <?php selected( $model, 'grok-3' ); ?>>Grok 3 (Advanced)</option>
+                        <option value="grok-3-beta" <?php selected( $model, 'grok-3-beta' ); ?>>Grok 3 Beta (Current Standard)</option>
+                        <option value="grok-3-fast-beta" <?php selected( $model, 'grok-3-fast-beta' ); ?>>Grok 3 Fast Beta (Faster)</option>
                     </select>
-                    <p class="description">Choose Grok model for content generation</p></td></tr>
-
-            <!-- NEW: SSL BYPASS TOGGLE -->
-            <tr><th>Disable SSL Verification</th><td>
-                    <?php $ssl_bypass = get_option( 'jaggrok_ssl_bypass', false ); ?>
-                    <label><input type="checkbox" name="jaggrok_ssl_bypass" value="1" <?php checked( $ssl_bypass, 1 ); ?>> Enable (for local dev - insecure)</label>
-                    <p class="description">Bypass SSL for local testing (not recommended for production)</p></td></tr>
+                    <p class="description">Grok-beta is deprecated - use Grok 3 models</p></td></tr>
         </table>
         <?php submit_button(); ?>
     </form>
@@ -69,8 +64,10 @@
             $logs = array_reverse( file( $log_file ) );
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
-                list( $timestamp, $message ) = explode( ' - ', trim( $log ), 2 );
-                echo '<tr><td>' . esc_html( $timestamp ) . '</td><th>' . esc_html( $message ) . '</th></tr>';
+                $parts = explode( ' - ', trim( $log ), 2 );
+                $timestamp = isset( $parts[0] ) ? trim( $parts[0] ) : 'Unknown';
+                $message = isset( $parts[1] ) ? trim( $parts[1] ) : $log;
+                echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
             }
         } else {
             echo '<tr><td colspan="2">No errors logged yet.</td></tr>';

@@ -1,18 +1,17 @@
 <?php
 // ============================================================================
-// JAGJourney GITHUB UPDATER v1.0.4 (FULL WP COMPATIBILITY)
+// JAGJourney GITHUB UPDATER v1.3.6
 // ============================================================================
 
 if ( ! class_exists( 'JagGrok_Updater' ) ) {
 	class JagGrok_Updater {
-		// PHP 8.2+ FIX: Explicitly declare properties
 		public string $repo;
 		public string $slug;
 		public string $manifest_url;
 
 		public function __construct( $repo, $slug ) {
-			$this->repo = $repo; // e.g., 'jagjourney/jaggrok-elementor'
-			$this->slug = $slug; // 'jaggrok-elementor'
+			$this->repo = $repo;
+			$this->slug = $slug;
 			$this->manifest_url = 'https://jaggrok-elementor.jagjourney.com/plugin-info.json';
 
 			add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
@@ -25,12 +24,10 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 			$remote = $this->get_remote_info();
 			if ( ! $remote ) return $transient;
 
-			// FIXED PATH: Use WP_PLUGIN_DIR for correct main file location
 			$main_file = WP_PLUGIN_DIR . '/jaggrok-elementor/jaggrok-elementor.php';
 			$current = get_plugin_data( $main_file );
 
 			if ( version_compare( $remote->version, $current['Version'], 'gt' ) ) {
-				// CRITICAL FIX v1.0.4: WP requires 'new_version' property
 				$remote->new_version = $remote->version;
 				$remote->plugin = $this->slug . '/' . $this->slug . '.php';
 				$remote->package = $remote->download_link;
@@ -47,7 +44,6 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 			$remote = $this->get_remote_info();
 			if ( ! $remote ) return $result;
 
-			// WP Plugin API format
 			return (object) array(
 				'name' => $remote->name,
 				'slug' => $remote->slug,
@@ -79,7 +75,7 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 	}
 }
 
-// Initialize updater (v1.0.4)
+// Initialize updater
 add_action( 'plugins_loaded', function() {
 	if ( class_exists( 'JagGrok_Updater' ) ) {
 		new JagGrok_Updater( 'jagjourney/jaggrok-elementor', 'jaggrok-elementor' );
