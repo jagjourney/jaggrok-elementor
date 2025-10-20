@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai, artificial intelligence, wordpress
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.6
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,6 +20,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 * Automatic updates from GitHub
 * Settings page with API key management
 * PHP 8.2+ compatible
+* Full compatibility with Elementor Free & Pro (dynamic content, forms in Pro)
 
 Get your FREE xAI API key at https://x.ai/api
 
@@ -38,7 +39,7 @@ Get your FREE xAI API key at https://x.ai/api
 Visit https://x.ai/api to sign up and get your free API key.
 
 = Does this require Elementor Pro? =
-No! Works with free Elementor.
+No! Works with free Elementor. Pro unlocks advanced features like forms & dynamic content.
 
 = How does auto-update work? =
 Plugin checks https://jaggrok-elementor.jagjourney.com for updates automatically.
@@ -51,8 +52,13 @@ Plugin checks https://jaggrok-elementor.jagjourney.com for updates automatically
 
 == Changelog ==
 
+= 1.1.0 =
+* NEW: Full compatibility with Elementor Pro (dynamic content, forms, etc.)
+* ENHANCED: Conditional controls for free vs Pro users
+* OPTIMIZED: Pro-enhanced prompt and render logic for advanced features
+
 = 1.0.6 =
-* VERSION: Complete sync to v1.0.6 across all files
+* VERSION: Complete sync to v1.0.6
 * READY: Production stable release
 
 = 1.0.5 =
@@ -80,8 +86,8 @@ Plugin checks https://jaggrok-elementor.jagjourney.com for updates automatically
 
 == Upgrade Notice ==
 
-= 1.0.6 =
-Production stable release. Update immediately.
+= 1.1.0 =
+New Pro compatibility! Update for enhanced features in Elementor Pro.
 
 == Support Forums ==
 https://jagjourney.com/support/
