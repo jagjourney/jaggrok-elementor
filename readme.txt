@@ -4,10 +4,15 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: GPLv2 or later
 
 == Changelog ==
+= 1.4.2 =
+* UX FIX: Canvas insert (middle) + left input persistent
+* No header/footer unless specified
+* Focus on page type only
+
 = 1.4.1 =
 * EMERGENCY WIDGET GUARANTEED - Robot icon ALWAYS visible
 * 141 LINES RESTORED - No more missing code
