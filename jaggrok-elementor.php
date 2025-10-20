@@ -3,7 +3,7 @@
  * Plugin Name: JagGrok Elementor
  * Plugin URI: https://jagjourney.com/
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages! By Jag Journey, LLC.
- * Version: 1.2.2
+ * Version: 1.2.3
  * Author: Jag Journey, LLC
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -19,7 +19,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ============================================================================
-// JAGJourney v1.2.1 - CORE PLUGIN (ASSETS + SETTINGS LINK + MODELS)
+// JAGJourney v1.2.3 - CORE PLUGIN (WORKING WIDGET BUTTON)
 // ============================================================================
 
 // Check Elementor
@@ -39,7 +39,7 @@ function jaggrok_is_pro_active() {
 	return class_exists( '\ElementorPro\Plugin' ) || defined( 'ELEMENTOR_PRO_VERSION' );
 }
 
-// SETTINGS LINK under plugin name (v1.2.1)
+// SETTINGS LINK under plugin name (v1.2.3)
 function jaggrok_settings_link( $actions, $plugin_file ) {
 	if ( $plugin_file === plugin_basename( __FILE__ ) ) {
 		$settings_link = '<a href="' . admin_url( 'options-general.php?page=jaggrok-settings' ) . '">Settings</a>';
@@ -49,10 +49,10 @@ function jaggrok_settings_link( $actions, $plugin_file ) {
 }
 add_filter( 'plugin_action_links', 'jaggrok_settings_link', 10, 2 );
 
-// Enqueue JS files (v1.2.1)
+// Enqueue JS files (v1.2.3)
 function jaggrok_enqueue_assets( $hook ) {
-	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.2.1', true );
-	wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.2.1', true );
+	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.2.3', true );
+	wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.2.3', true );
 	wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', array(
 		'ajaxurl' => admin_url( 'admin-ajax.php' ),
 		'nonce' => wp_create_nonce( 'jaggrok_generate' )
@@ -60,36 +60,35 @@ function jaggrok_enqueue_assets( $hook ) {
 }
 add_action( 'admin_enqueue_scripts', 'jaggrok_enqueue_assets' );
 
-// Include settings page (v1.2.1)
+// Include settings page (v1.2.3)
 require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
 
-// Include Elementor widget (v1.2.1)
-add_action( 'elementor/widgets/register', function() {
+// Include Elementor widget (v1.2.3) - CORRECT HOOK
+add_action( 'elementor/widgets/widgets_registered', function( $widgets_manager ) {
 	if ( jaggrok_check_dependencies() ) {
 		require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
 	}
-});
+}, 10, 1 );
 
-// Include updater (v1.2.1)
+// Include updater (v1.2.3)
 if ( jaggrok_check_dependencies() ) {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
 }
 
-// AJAX: Generate Page with Grok (v1.2.1 - USES SELECTED MODEL)
+// AJAX: Generate Page with Grok (v1.2.3)
 add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
 function jaggrok_generate_page_ajax() {
 	check_ajax_referer( 'jaggrok_generate', 'nonce' );
 
 	$prompt = sanitize_textarea_field( $_POST['prompt'] );
 	$api_key = get_option( 'jaggrok_xai_api_key' );
-	$model = get_option( 'jaggrok_model', 'grok-beta' ); // NEW: Selected model
+	$model = get_option( 'jaggrok_model', 'grok-beta' );
 	$is_pro = jaggrok_is_pro_active();
 
 	if ( empty( $api_key ) ) {
 		wp_send_json_error( 'API key not configured' );
 	}
 
-	// Enhance prompt for Pro
 	if ( $is_pro && ! empty( $_POST['pro_features'] ) ) {
 		$prompt .= ' Output as structured Elementor JSON with dynamic content and forms.';
 	} else {
@@ -102,7 +101,7 @@ function jaggrok_generate_page_ajax() {
 			'Content-Type' => 'application/json'
 		],
 		'body' => json_encode( [
-			'model' => $model, // NEW: Dynamic model
+			'model' => $model,
 			'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
 			'max_tokens' => get_option( 'jaggrok_max_tokens', 2000 )
 		] )

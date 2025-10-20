@@ -1,38 +1,42 @@
 // ============================================================================
-// JAGJourney ELEMENTOR WIDGET JS v1.2.0 (REAL AI GENERATION)
+// JAGJourney ELEMENTOR WIDGET JS v1.2.3 (BUTTON CLICK FIXED)
 // ============================================================================
 
-jQuery(document).on('elementor/init', function() {
-    // Generate button handler
-    elementor.hooks.addAction( 'panel/widgets/jaggrok-ai-generator/controls/generate_button/event', function( controlView ) {
-        var settings = controlView.container.settings;
-        var prompt = settings.get( 'prompt' );
-        var proFeatures = settings.get( 'pro_features' ) || 'no';
+jQuery(document).ready(function($) {
+    // Generate button click handler
+    $(document).on('click', '.jaggrok-generate-btn', function() {
+        var $btn = $(this);
+        var widgetId = $btn.attr('id').replace('jaggrok-btn-', '');
+        var prompt = $('#jaggrok-prompt-' + widgetId).val();
+        var $output = $('#jaggrok-output-' + widgetId);
 
-        // Show loading
-        controlView.$el.find( '.jaggrok-generated-content' ).html( '<p>🤖 Generating with Grok...</p>' );
+        if (!prompt) {
+            $output.html('<p style="color:red">Please enter a prompt!</p>');
+            return;
+        }
 
-        jQuery.ajax({
+        $btn.prop('disabled', true).html('<i class="eicon-loading"></i> Generating...');
+        $output.html('<p>🤖 Generating with Grok AI...</p>');
+
+        $.ajax({
             url: jaggrokAjax.ajaxurl,
             type: 'POST',
             data: {
                 action: 'jaggrok_generate_page',
                 prompt: prompt,
-                pro_features: proFeatures,
                 nonce: jaggrokAjax.nonce
             },
-            success: function( response ) {
-                if ( response.success ) {
-                    if ( response.data.canvas_json ) {
-                        // Pro: Insert Elementor JSON
-                        elementorFrontend.elementsHandler.addElements( response.data.canvas_json );
-                    } else {
-                        // Free: Insert HTML
-                        controlView.$el.find( '.jaggrok-generated-content' ).html( response.data.html );
-                    }
+            success: function(response) {
+                $btn.prop('disabled', false).html('<i class="eicon-brain"></i> Generate Again');
+                if (response.success) {
+                    $output.html('<div class="jaggrok-success">' + response.data.html + '</div>');
                 } else {
-                    controlView.$el.find( '.jaggrok-generated-content' ).html( '<p style="color:red">Error: ' + response.data + '</p>' );
+                    $output.html('<p style="color:red">Error: ' + response.data + '</p>');
                 }
+            },
+            error: function() {
+                $btn.prop('disabled', false).html('<i class="eicon-brain"></i> Generate Again');
+                $output.html('<p style="color:red">Connection failed!</p>');
             }
         });
     });
