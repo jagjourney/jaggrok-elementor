@@ -8,11 +8,18 @@
         <?php settings_fields( 'jaggrok_settings' ); ?>
         <table class="form-table">
             <tr><th><label for="jaggrok_xai_api_key">xAI API Key <span class="required">*</span></label></th>
-                <td><input type="password" id="jaggrok_xai_api_key" name="jaggrok_xai_api_key"
-                           value="<?php echo esc_attr( get_option( 'jaggrok_xai_api_key' ) ); ?>" class="regular-text" />
+                <td>
+                    <div style="position:relative;">
+                        <input type="password" id="jaggrok_xai_api_key" name="jaggrok_xai_api_key"
+                               value="<?php echo esc_attr( get_option( 'jaggrok_xai_api_key' ) ); ?>" class="regular-text" />
+                        <button type="button" id="toggle-api-key" style="position:absolute;right:10px;top:8px;background:none;border:none;cursor:pointer;font-size:16px;">
+                            👁️
+                        </button>
+                    </div>
                     <p class="description"><a href="https://x.ai/api" target="_blank">Get key</a> |
                         <button type="button" class="button" id="jaggrok-test-api">Test Connection</button>
-                        <span id="jaggrok-api-status"></span></p></td></tr>
+                        <span id="jaggrok-api-status"></span></p>
+                </td></tr>
 
             <tr><th>Auto-Insert</th><td>
                     <?php $auto = get_option( 'jaggrok_auto_insert', 'yes' ); ?>
@@ -32,7 +39,6 @@
                     <input type="number" name="jaggrok_max_tokens" value="<?php echo get_option( 'jaggrok_max_tokens', 2000 ); ?>" min="500" max="8000" class="small-text" /> tokens
                     <p class="description">Higher = more detailed pages</p></td></tr>
 
-            <!-- GROK MODEL SELECTOR -->
             <tr><th>Grok Model</th><td>
                     <?php $model = get_option( 'jaggrok_model', 'grok-beta' ); ?>
                     <select name="jaggrok_model" class="regular-text">
@@ -46,18 +52,16 @@
     </form>
     <?php if ( get_option( 'jaggrok_api_tested' ) ): ?><div class="notice notice-success"><p>✅ API Connected!</p></div><?php endif; ?>
 
-    <!-- PRETTY ERROR LOG DISPLAY (v1.3.0) -->
+    <!-- ERROR LOG TABLE -->
     <h2>Error Log</h2>
     <table class="widefat striped">
-        <thead>
-        <tr><th>Timestamp</th><th>Error Message</th></tr>
-        </thead>
+        <thead><tr><th>Timestamp</th><th>Error Message</th></tr></thead>
         <tbody>
         <?php
         $log_file = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
         if ( file_exists( $log_file ) ) {
             $logs = array_reverse( file( $log_file ) );
-            $logs = array_slice( $logs, 0, 10 ); // Last 10 errors
+            $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
                 list( $timestamp, $message ) = explode( ' - ', trim( $log ), 2 );
                 echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
@@ -74,6 +78,20 @@
 
 <script>
     jQuery(document).ready(function($) {
+        // EYE TOGGLE FOR API KEY (v1.3.2)
+        $('#toggle-api-key').click(function() {
+            var $input = $('#jaggrok_xai_api_key');
+            var $eye = $(this);
+            if ($input.attr('type') === 'password') {
+                $input.attr('type', 'text');
+                $eye.html('🙈');
+            } else {
+                $input.attr('type', 'password');
+                $eye.html('👁️');
+            }
+        });
+
+        // TEST API BUTTON
         $('#jaggrok-test-api').click(function() {
             var apiKey = $('#jaggrok_xai_api_key').val();
             var status = $('#jaggrok-api-status');
