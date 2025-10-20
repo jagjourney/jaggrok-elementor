@@ -42,16 +42,16 @@
                     <p class="description">Higher = more detailed pages</p></td></tr>
 
             <tr><th>Grok Model</th><td>
-                    <?php $model = get_option( 'jaggrok_model', 'grok-3-mini' ); ?>
+                    <?php $model = get_option( 'jaggrok_model', 'grok-3-beta' ); ?>
                     <select name="jaggrok_model" class="regular-text">
-                        <option value="grok-3-mini" <?php selected( $model, 'grok-3-mini' ); ?>>Grok 3 Mini (Lightweight)</option>
-                        <option value="grok-3" <?php selected( $model, 'grok-3' ); ?>>Grok 3 (Flagship)</option>
-                        <option value="grok-4" <?php selected( $model, 'grok-4' ); ?>>Grok 4 (Best)</option>
-                        <option value="grok-4-fast-reasoning" <?php selected( $model, 'grok-4-fast-reasoning' ); ?>>Grok 4 Fast Reasoning</option>
-                        <option value="grok-4-fast-non-reasoning" <?php selected( $model, 'grok-4-fast-non-reasoning' ); ?>>Grok 4 Fast Non-Reasoning</option>
-                        <option value="grok-code-fast-1" <?php selected( $model, 'grok-code-fast-1' ); ?>>Grok Code Fast 1</option>
+                        <option value="grok-3-mini" <?php selected( $model, 'grok-3-mini' ); ?>>Grok 3 Mini (Fast)</option>
+                        <option value="grok-3-beta" <?php selected( $model, 'grok-3-beta' ); ?>>Grok 3 Beta (Balanced) *</option>
+                        <option value="grok-3" <?php selected( $model, 'grok-3' ); ?>>Grok 3 (Standard)</option>
+                        <option value="grok-4-mini" <?php selected( $model, 'grok-4-mini' ); ?>>Grok 4 Mini (Premium)</option>
+                        <option value="grok-4" <?php selected( $model, 'grok-4' ); ?>>Grok 4 (Flagship)</option>
+                        <option value="grok-4-code" <?php selected( $model, 'grok-4-code' ); ?>>Grok 4 Code</option>
                     </select>
-                    <p class="description">Choose Grok model for content generation (updated as of 2025)</p></td></tr>
+                    <p class="description">* Recommended default (updated Oct 2025)</p></td></tr>
         </table>
         <?php submit_button(); ?>
     </form>

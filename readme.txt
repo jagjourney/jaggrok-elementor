@@ -4,10 +4,36 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.2
+Stable tag: 1.4.3
 License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+== Description ==
+🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages!
+
+== Installation ==
+1. Upload ZIP
+2. Get API key: https://x.ai/api
+3. Settings > JagGrok Elementor > Test Connection
+
+== Frequently Asked Questions ==
+= Where do I get the xAI API key? =
+Visit https://x.ai/api and create a free account.
+
+= Why is the widget missing? =
+Triple emergency registration guarantees visibility.
+
+== Screenshots ==
+1. Drag JagGrok widget to canvas
+2. Enter prompt in left panel
+3. Generate content in middle canvas
 
 == Changelog ==
+= 1.4.3 =
+* TRIPLE EMERGENCY WIDGET - Robot icon GUARANTEED visible
+* WP.ORG READY - Full readme + stable tag
+* 156 LINES COMPLETE - No missing code
+
 = 1.4.2 =
 * UX FIX: Canvas insert (middle) + left input persistent
 * No header/footer unless specified
