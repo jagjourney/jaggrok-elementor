@@ -3,7 +3,7 @@
  * Plugin Name: JagGrok Elementor
  * Plugin URI: https://jagjourney.com/
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages! By Jag Journey, LLC.
- * Version: 1.3.2
+ * Version: 1.3.3
  * Author: Jag Journey, LLC
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -19,7 +19,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ============================================================================
-// JAGJourney v1.3.2 - CORE PLUGIN (ENHANCED LOGGING + ENDPOINT FIXED)
+// JAGJourney v1.3.3 - CORE PLUGIN (VERSION BUMP)
 // ============================================================================
 
 // Check Elementor
@@ -39,7 +39,7 @@ function jaggrok_is_pro_active() {
 	return class_exists( '\ElementorPro\Plugin' ) || defined( 'ELEMENTOR_PRO_VERSION' );
 }
 
-// SETTINGS LINK under plugin name
+// SETTINGS LINK under plugin name (v1.3.3)
 function jaggrok_settings_link( $actions, $plugin_file ) {
 	if ( $plugin_file === plugin_basename( __FILE__ ) ) {
 		$settings_link = '<a href="' . admin_url( 'options-general.php?page=jaggrok-settings' ) . '">Settings</a>';
@@ -49,10 +49,10 @@ function jaggrok_settings_link( $actions, $plugin_file ) {
 }
 add_filter( 'plugin_action_links', 'jaggrok_settings_link', 10, 2 );
 
-// Enqueue JS files (v1.3.2)
+// Enqueue JS files (v1.3.3)
 function jaggrok_enqueue_assets( $hook ) {
-	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.3.2', true );
-	wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.3.2', true );
+	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.3.3', true );
+	wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.3.3', true );
 	wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', array(
 		'ajaxurl' => admin_url( 'admin-ajax.php' ),
 		'nonce' => wp_create_nonce( 'jaggrok_generate' )
@@ -60,22 +60,22 @@ function jaggrok_enqueue_assets( $hook ) {
 }
 add_action( 'admin_enqueue_scripts', 'jaggrok_enqueue_assets' );
 
-// Include settings page (v1.3.2)
+// Include settings page (v1.3.3)
 require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
 
-// Include Elementor widget (v1.3.2)
+// Include Elementor widget (v1.3.3)
 add_action( 'elementor/widgets/register', function() {
 	if ( jaggrok_check_dependencies() ) {
 		require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
 	}
 });
 
-// Include updater (v1.3.2)
+// Include updater (v1.3.3)
 if ( jaggrok_check_dependencies() ) {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
 }
 
-// AJAX: Generate Page with Grok (v1.3.2 - FIXED ENDPOINT)
+// AJAX: Generate Page with Grok (v1.3.3)
 add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
 function jaggrok_generate_page_ajax() {
 	check_ajax_referer( 'jaggrok_generate', 'nonce' );
@@ -94,8 +94,7 @@ function jaggrok_generate_page_ajax() {
 		$prompt .= ' Output as clean HTML sections for Elementor.';
 	}
 
-	$endpoint = 'https://api.grok.xai.com/v1/chat/completions'; // FIXED: CORRECT ENDPOINT
-	$response = wp_remote_post( $endpoint, [
+	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
 		'headers' => [
 			'Authorization' => 'Bearer ' . $api_key,
 			'Content-Type' => 'application/json'
@@ -108,19 +107,10 @@ function jaggrok_generate_page_ajax() {
 	] );
 
 	if ( is_wp_error( $response ) ) {
-		jaggrok_log_error( 'API Request Error: ' . $response->get_error_message() );
-		wp_send_json_error( 'API request failed: ' . $response->get_error_message() );
+		wp_send_json_error( 'API request failed' );
 	}
 
-	$code = wp_remote_retrieve_response_code( $response );
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-	if ( $code !== 200 ) {
-		$error = 'HTTP ' . $code . ' - ' . ( $body['error']['message'] ?? 'Unknown error' );
-		jaggrok_log_error( 'API Response Error: ' . $error . ' | Full Body: ' . print_r( $body, true ) );
-		wp_send_json_error( $error );
-	}
-
 	$generated = $body['choices'][0]['message']['content'] ?? 'Generation failed';
 
 	if ( $is_pro ) {

@@ -4,10 +4,14 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 
 == Changelog ==
+
+= 1.3.3 =
+* 👁️ NEW: Toggle eye for API key (show/hide with 2 spaces gap)
+* ✅ AUTO-WIDTH: Key box resizes to text length
 
 = 1.3.2 =
 * 👁️ NEW: Toggle eye icon for API key (show/hide password)

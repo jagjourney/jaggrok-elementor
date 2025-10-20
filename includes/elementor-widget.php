@@ -1,4 +1,8 @@
 <?php
+// ============================================================================
+// JAGJourney ELEMENTOR WIDGET v1.3.3
+// ============================================================================
+
 use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 
@@ -13,8 +17,7 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
         $this->add_control( 'prompt', [
                 'label' => 'Describe your page',
                 'type' => Controls_Manager::TEXTAREA,
-                'default' => 'Create a modern homepage with hero, features, and contact form',
-                'placeholder' => 'e.g., "Landing page with blue hero and contact form"'
+                'default' => 'Create a modern homepage with hero, features, and contact form'
         ]);
         $this->end_controls_section();
     }
