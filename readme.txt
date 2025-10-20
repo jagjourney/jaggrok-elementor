@@ -4,10 +4,15 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.8
+Stable tag: 1.2.9
 License: GPLv2 or later
 
 == Changelog ==
+
+= 1.2.9 =
+* ✅ FIXED: ajaxurl not defined - Inline JS works!
+* ✅ BUTTON WORKS: Type prompt + Click = AI CONTENT
+* ✅ ERROR HANDLING: Clear messages for API issues
 
 = 1.2.8 =
 * ✅ SIMPLIFIED: Direct Generate button INSIDE widget

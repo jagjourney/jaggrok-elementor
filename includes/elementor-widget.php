@@ -13,13 +13,8 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
         $this->add_control( 'prompt', [
                 'label' => 'Describe your page',
                 'type' => Controls_Manager::TEXTAREA,
-                'default' => 'Create a modern homepage with hero section'
-        ]);
-        $this->add_control( 'generate', [
-                'label' => 'Generate',
-                'type' => Controls_Manager::BUTTON,
-                'text' => 'Generate with Grok',
-                'event' => 'generate'
+                'default' => 'Create a modern homepage with hero, features, and contact form',
+                'placeholder' => 'e.g., "Landing page with blue hero and contact form"'
         ]);
         $this->end_controls_section();
     }
@@ -34,17 +29,29 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
             <div id="output-<?php echo $id; ?>" style="padding:10px;background:#f1f3f5;border-radius:3px;"></div>
         </div>
         <script>
-            jQuery('#btn-<?php echo $id; ?>').click(function() {
-                var prompt = jQuery('#prompt-<?php echo $id; ?>').val();
-                jQuery('#output-<?php echo $id; ?>').html('Generating...');
-                jQuery.post(ajaxurl, {
-                    action: 'jaggrok_generate_page',
-                    prompt: prompt,
-                    nonce: '<?php echo wp_create_nonce( 'jaggrok_generate' ); ?>'
-                }, function(r) {
-                    jQuery('#output-<?php echo $id; ?>').html(r.data.html);
+            (function($) {
+                $('#btn-<?php echo $id; ?>').on('click', function() {
+                    var prompt = $('#prompt-<?php echo $id; ?>').val().trim();
+                    if (!prompt) {
+                        $('#output-<?php echo $id; ?>').html('<p style="color:red">Enter a prompt!</p>');
+                        return;
+                    }
+                    $('#output-<?php echo $id; ?>').html('<p>Generating...</p>');
+                    $(this).prop('disabled', true).text('Generating...');
+                    $.post(ajaxurl, {
+                        action: 'jaggrok_generate_page',
+                        prompt: prompt,
+                        nonce: '<?php echo wp_create_nonce( 'jaggrok_generate' ); ?>'
+                    }, function(r) {
+                        $('#btn-<?php echo $id; ?>').prop('disabled', false).text('Generate Again');
+                        if (r.success) {
+                            $('#output-<?php echo $id; ?>').html(r.data.html);
+                        } else {
+                            $('#output-<?php echo $id; ?>').html('<p style="color:red">Error: ' + r.data + '</p>');
+                        }
+                    });
                 });
-            });
+            })(jQuery);
         </script>
         <?php
     }
