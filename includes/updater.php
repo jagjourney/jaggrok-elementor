@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// JAGJourney GITHUB UPDATER v1.0.3 (PHP 8.2+ + PATH FIXED)
+// JAGJourney GITHUB UPDATER v1.0.4 (FULL WP COMPATIBILITY)
 // ============================================================================
 
 if ( ! class_exists( 'JagGrok_Updater' ) ) {
@@ -30,6 +30,12 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 			$current = get_plugin_data( $main_file );
 
 			if ( version_compare( $remote->version, $current['Version'], 'gt' ) ) {
+				// CRITICAL FIX v1.0.4: WP requires 'new_version' property
+				$remote->new_version = $remote->version;
+				$remote->plugin = $this->slug . '/' . $this->slug . '.php';
+				$remote->package = $remote->download_link;
+				$remote->upgrade_notice = '';
+
 				$transient->response[ $this->slug . '/' . $this->slug . '.php' ] = $remote;
 			}
 			return $transient;
@@ -38,7 +44,24 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 		public function plugin_info( $result, $action, $args ) {
 			if ( $action !== 'plugin_information' || $args->slug !== $this->slug ) return $result;
 
-			return $this->get_remote_info();
+			$remote = $this->get_remote_info();
+			if ( ! $remote ) return $result;
+
+			// WP Plugin API format
+			return (object) array(
+				'name' => $remote->name,
+				'slug' => $remote->slug,
+				'version' => $remote->version,
+				'author' => $remote->author,
+				'requires' => $remote->requires,
+				'tested' => $remote->tested,
+				'requires_php' => $remote->requires_php,
+				'download_link' => $remote->download_link,
+				'homepage' => $remote->homepage,
+				'sections' => $remote->sections,
+				'banners' => $remote->banners,
+				'icons' => $remote->icons
+			);
 		}
 
 		private function get_remote_info() {
@@ -56,7 +79,7 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 	}
 }
 
-// Initialize updater (v1.0.3)
+// Initialize updater (v1.0.4)
 add_action( 'plugins_loaded', function() {
 	if ( class_exists( 'JagGrok_Updater' ) ) {
 		new JagGrok_Updater( 'jagjourney/jaggrok-elementor', 'jaggrok-elementor' );
