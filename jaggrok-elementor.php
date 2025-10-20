@@ -19,7 +19,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ============================================================================
-// JAGJourney v1.3.3 - CORE PLUGIN (VERSION BUMP)
+// JAGJourney v1.3.3 - CORE PLUGIN (SSL BYPASS + ENHANCED LOGGING)
 // ============================================================================
 
 // Check Elementor
@@ -39,7 +39,7 @@ function jaggrok_is_pro_active() {
 	return class_exists( '\ElementorPro\Plugin' ) || defined( 'ELEMENTOR_PRO_VERSION' );
 }
 
-// SETTINGS LINK under plugin name (v1.3.3)
+// SETTINGS LINK under plugin name
 function jaggrok_settings_link( $actions, $plugin_file ) {
 	if ( $plugin_file === plugin_basename( __FILE__ ) ) {
 		$settings_link = '<a href="' . admin_url( 'options-general.php?page=jaggrok-settings' ) . '">Settings</a>';
@@ -75,7 +75,7 @@ if ( jaggrok_check_dependencies() ) {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
 }
 
-// AJAX: Generate Page with Grok (v1.3.3)
+// AJAX: Generate Page with Grok (v1.3.3 - SSL BYPASS OPTION)
 add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
 function jaggrok_generate_page_ajax() {
 	check_ajax_referer( 'jaggrok_generate', 'nonce' );
@@ -83,6 +83,7 @@ function jaggrok_generate_page_ajax() {
 	$prompt = sanitize_textarea_field( $_POST['prompt'] );
 	$api_key = get_option( 'jaggrok_xai_api_key' );
 	$is_pro = jaggrok_is_pro_active();
+	$ssl_bypass = get_option( 'jaggrok_ssl_bypass', false ); // New option for local dev
 
 	if ( empty( $api_key ) ) {
 		wp_send_json_error( 'API key not configured' );
@@ -94,23 +95,36 @@ function jaggrok_generate_page_ajax() {
 		$prompt .= ' Output as clean HTML sections for Elementor.';
 	}
 
-	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
-		'headers' => [
+	$args = array(
+		'headers' => array(
 			'Authorization' => 'Bearer ' . $api_key,
 			'Content-Type' => 'application/json'
-		],
-		'body' => json_encode( [
+		),
+		'body' => json_encode( array(
 			'model' => get_option( 'jaggrok_model', 'grok-beta' ),
-			'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
+			'messages' => array( array( 'role' => 'user', 'content' => $prompt ) ),
 			'max_tokens' => get_option( 'jaggrok_max_tokens', 2000 )
-		] )
-	] );
+		) ),
+		'sslverify' => ! $ssl_bypass // BYPASS SSL FOR LOCAL DEV
+	);
+
+	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', $args );
 
 	if ( is_wp_error( $response ) ) {
-		wp_send_json_error( 'API request failed' );
+		$error = $response->get_error_message();
+		jaggrok_log_error( 'API Request Error: ' . $error );
+		wp_send_json_error( 'API request failed: ' . $error );
 	}
 
+	$code = wp_remote_retrieve_response_code( $response );
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+	if ( $code !== 200 ) {
+		$error = 'HTTP ' . $code . ' - ' . ( $body['error']['message'] ?? 'Unknown error' );
+		jaggrok_log_error( 'API Response Error: ' . $error . ' | Full Body: ' . print_r( $body, true ) );
+		wp_send_json_error( $error );
+	}
+
 	$generated = $body['choices'][0]['message']['content'] ?? 'Generation failed';
 
 	if ( $is_pro ) {

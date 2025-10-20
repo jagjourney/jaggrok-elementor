@@ -4,14 +4,18 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 License: GPLv2 or later
 
 == Changelog ==
 
+= 1.3.5 =
+* ✅ COMPLETE: All fixes + eye toggle + auto-width + logging
+
 = 1.3.4 =
 * ✅ FIXED: Fatal error - Duplicate jaggrok_settings_link() removed
 * ✅ NO MORE CRASHES - Settings page loads perfectly
+* ✅ ENHANCED: SSL Bypass toggle for local dev
 
 = 1.3.3 =
 * 👁️ NEW: Toggle eye for API key (show/hide with 2 spaces gap)

@@ -47,6 +47,12 @@
                         <option value="grok-3" <?php selected( $model, 'grok-3' ); ?>>Grok 3 (Advanced)</option>
                     </select>
                     <p class="description">Choose Grok model for content generation</p></td></tr>
+
+            <!-- NEW: SSL BYPASS TOGGLE -->
+            <tr><th>Disable SSL Verification</th><td>
+                    <?php $ssl_bypass = get_option( 'jaggrok_ssl_bypass', false ); ?>
+                    <label><input type="checkbox" name="jaggrok_ssl_bypass" value="1" <?php checked( $ssl_bypass, 1 ); ?>> Enable (for local dev - insecure)</label>
+                    <p class="description">Bypass SSL for local testing (not recommended for production)</p></td></tr>
         </table>
         <?php submit_button(); ?>
     </form>
@@ -64,7 +70,7 @@
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
                 list( $timestamp, $message ) = explode( ' - ', trim( $log ), 2 );
-                echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
+                echo '<tr><td>' . esc_html( $timestamp ) . '</td><th>' . esc_html( $message ) . '</th></tr>';
             }
         } else {
             echo '<tr><td colspan="2">No errors logged yet.</td></tr>';
@@ -78,16 +84,15 @@
 
 <script>
     jQuery(document).ready(function($) {
-        // EYE TOGGLE FOR API KEY (v1.3.2)
+        // EYE TOGGLE FOR API KEY
         $('#toggle-api-key').click(function() {
             var $input = $('#jaggrok_xai_api_key');
-            var $eye = $(this);
             if ($input.attr('type') === 'password') {
                 $input.attr('type', 'text');
-                $eye.html('🙈');
+                $(this).html('🙈');
             } else {
                 $input.attr('type', 'password');
-                $eye.html('👁️');
+                $(this).html('👁️');
             }
         });
 
@@ -95,9 +100,7 @@
         $('#jaggrok-test-api').click(function() {
             var apiKey = $('#jaggrok_xai_api_key').val();
             var status = $('#jaggrok-api-status');
-
             if (!apiKey) return status.html('<span style="color:red">Enter API key!</span>');
-
             status.html('Testing...');
             $.post(ajaxurl, {
                 action: 'jaggrok_test_api',
