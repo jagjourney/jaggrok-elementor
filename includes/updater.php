@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// JAGJourney GITHUB UPDATER v1.0.1 (PHP 8.2+ COMPATIBLE)
+// JAGJourney GITHUB UPDATER v1.0.3 (PHP 8.2+ + PATH FIXED)
 // ============================================================================
 
 if ( ! class_exists( 'JagGrok_Updater' ) ) {
@@ -25,7 +25,10 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 			$remote = $this->get_remote_info();
 			if ( ! $remote ) return $transient;
 
-			$current = get_plugin_data( plugin_dir_path( __DIR__ ) . '../jaggrok-elementor.php' );
+			// FIXED PATH: Use WP_PLUGIN_DIR for correct main file location
+			$main_file = WP_PLUGIN_DIR . '/jaggrok-elementor/jaggrok-elementor.php';
+			$current = get_plugin_data( $main_file );
+
 			if ( version_compare( $remote->version, $current['Version'], 'gt' ) ) {
 				$transient->response[ $this->slug . '/' . $this->slug . '.php' ] = $remote;
 			}
@@ -53,7 +56,7 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 	}
 }
 
-// Initialize updater (v1.0.1)
+// Initialize updater (v1.0.3)
 add_action( 'plugins_loaded', function() {
 	if ( class_exists( 'JagGrok_Updater' ) ) {
 		new JagGrok_Updater( 'jagjourney/jaggrok-elementor', 'jaggrok-elementor' );
