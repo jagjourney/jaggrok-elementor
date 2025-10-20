@@ -3,7 +3,7 @@
  * Plugin Name: JagGrok Elementor
  * Plugin URI: https://jagjourney.com/
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages! By Jag Journey, LLC.
- * Version: 1.2.6
+ * Version: 1.2.7
  * Author: Jag Journey, LLC
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -19,17 +19,20 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ============================================================================
-// JAGJourney v1.2.6 - CORE PLUGIN ("Write with JagGrok" POPUP FIXED)
+// JAGJourney v1.2.7 - CORE PLUGIN (WIDGET + POPUP GUARANTEED!)
 // ============================================================================
+
+// WIDGET REGISTRATION - BULLETPROOF (v1.2.7)
+add_action( 'elementor/widgets/register', function( $widgets_manager ) {
+	if ( did_action( 'elementor/loaded' ) ) {
+		require_once __DIR__ . '/includes/elementor-widget.php';
+		$widgets_manager->register( new JagGrok_AI_Generator_Widget() );
+	}
+});
 
 // Check Elementor
 function jaggrok_check_dependencies() {
-	if ( ! did_action( 'elementor/loaded' ) ) {
-		add_action( 'admin_notices', function() {
-			echo '<div class="notice notice-error"><p><strong>JagGrok Elementor</strong> requires Elementor to be installed and active.</p></div>';
-		});
-		return false;
-	}
+	if ( ! did_action( 'elementor/loaded' ) ) return false;
 	return true;
 }
 add_action( 'plugins_loaded', 'jaggrok_check_dependencies' );
@@ -49,13 +52,13 @@ function jaggrok_settings_link( $actions, $plugin_file ) {
 }
 add_filter( 'plugin_action_links', 'jaggrok_settings_link', 10, 2 );
 
-// Enqueue JS files (v1.2.6 - EDITOR ONLY)
+// Enqueue JS files (v1.2.7)
 function jaggrok_enqueue_assets( $hook ) {
-	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.2.6', true );
+	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.2.7', true );
 
-	// WIDGET JS - ONLY IN ELEMENTOR EDITOR
-	if ( ( 'post.php' === $hook || 'post-new.php' === $hook ) && did_action( 'elementor/editor/before_enqueue_scripts' ) ) {
-		wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-editor' ), '1.2.6', true );
+	// WIDGET JS - EDITOR ONLY
+	if ( ( 'post.php' === $hook || 'post-new.php' === $hook ) ) {
+		wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-editor' ), '1.2.7', true );
 		wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', array(
 			'ajaxurl' => admin_url( 'admin-ajax.php' ),
 			'nonce' => wp_create_nonce( 'jaggrok_generate' )
@@ -81,25 +84,14 @@ function jaggrok_generate_page_ajax() {
 	$api_key = get_option( 'jaggrok_xai_api_key' );
 	$model = get_option( 'jaggrok_model', 'grok-beta' );
 
-	if ( empty( $api_key ) ) {
-		wp_send_json_error( 'API key not configured' );
-	}
+	if ( empty( $api_key ) ) wp_send_json_error( 'API key not configured' );
 
 	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
-		'headers' => [
-			'Authorization' => 'Bearer ' . $api_key,
-			'Content-Type' => 'application/json'
-		],
-		'body' => json_encode( [
-			'model' => $model,
-			'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
-			'max_tokens' => get_option( 'jaggrok_max_tokens', 2000 )
-		] )
+		'headers' => [ 'Authorization' => 'Bearer ' . $api_key, 'Content-Type' => 'application/json' ],
+		'body' => json_encode( [ 'model' => $model, 'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ], 'max_tokens' => 2000 ] )
 	] );
 
-	if ( is_wp_error( $response ) ) {
-		wp_send_json_error( 'API request failed' );
-	}
+	if ( is_wp_error( $response ) ) wp_send_json_error( 'API request failed' );
 
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
 	$generated = $body['choices'][0]['message']['content'] ?? 'Generation failed';
@@ -107,5 +99,4 @@ function jaggrok_generate_page_ajax() {
 	wp_send_json_success( [ 'html' => $generated ] );
 }
 
-// Include uninstall
 register_uninstall_hook( __FILE__, 'jaggrok_uninstall' );

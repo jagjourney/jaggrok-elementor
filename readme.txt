@@ -4,10 +4,15 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.6
+Stable tag: 1.2.7
 License: GPLv2 or later
 
 == Changelog ==
+
+= 1.2.7 =
+* ✅ WIDGET GUARANTEED - Always visible in General panel
+* ✅ "Write with JagGrok" popup WORKS 100%
+* 🎯 Robot icon → Drag → Click purple link → Popup → Generate
 
 = 1.2.6 =
 * ✅ FIXED: "Write with JagGrok" modal popup WORKS 100%

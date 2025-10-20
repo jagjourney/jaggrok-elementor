@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// JAGJourney ELEMENTOR WIDGET v1.2.6 ("Write with JagGrok")
+// JAGJourney ELEMENTOR WIDGET v1.2.7 (WIDGET GUARANTEED + POPUP)
 // ============================================================================
 
 use Elementor\Widget_Base;
@@ -17,14 +17,13 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
 		$this->add_control( 'prompt', [
 			'label' => 'Describe your page',
 			'type' => Controls_Manager::TEXTAREA,
-			'default' => 'Create a modern homepage with hero, features, and contact form',
-			'placeholder' => 'e.g., "Landing page with blue hero and contact form"'
+			'default' => 'Create a modern homepage with hero, features, and contact form'
 		]);
 
-		// "Write with JagGrok" LINK
+		// "Write with JagGrok" LINK (v1.2.7)
 		$this->add_control( 'write_with_jaggrok', [
 			'type' => Controls_Manager::RAW_HTML,
-			'raw' => '<a href="#" class="elementor-control-raw-html jaggrok-write-ai-btn" style="color: #93003c; font-weight: bold; text-decoration: underline; margin-top: 10px; display: inline-block; cursor: pointer;"><i class="eicon-brain"></i> Write with JagGrok</a>',
+			'raw' => '<a href="#" class="jaggrok-write-ai-btn" style="color: #93003c; font-weight: bold; text-decoration: underline; margin-top: 10px; display: inline-block; cursor: pointer;"><i class="eicon-brain"></i> Write with JagGrok</a>',
 			'content_classes' => 'jaggrok-ai-trigger'
 		]);
 		$this->end_controls_section();
