@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// JAGJourney ELEMENTOR WIDGET v1.2.3 (WORKING BUTTON + TEXTAREA)
+// JAGJourney ELEMENTOR WIDGET v1.2.5 ( "Write with AI" POPUP LIKE ELEMENTOR)
 // ============================================================================
 
 use Elementor\Widget_Base;
@@ -21,6 +21,13 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
 			'default' => 'Create a modern homepage with hero, features, and contact form',
 			'placeholder' => 'e.g., "Landing page with blue hero and contact form"'
 		]);
+
+		// "Write with AI" LINK (v1.2.5 - Like Elementor)
+		$this->add_control( 'write_with_ai', [
+			'type' => Controls_Manager::RAW_HTML,
+			'raw' => '<a href="#" class="elementor-button elementor-button-success jaggrok-write-ai" style="font-size: 12px; padding: 5px 10px; margin-top: 10px; display: inline-block;"><i class="eicon-brain"></i> Write with AI</a>',
+			'content_classes' => 'jaggrok-ai-link'
+		]);
 		$this->end_controls_section();
 
 		// ADVANCED OPTIONS
@@ -40,23 +47,8 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
 		$widget_id = $this->get_id();
 		?>
 		<div class="jaggrok-widget">
-			<div class="jaggrok-prompt-area">
-                <textarea class="elementor-control-textarea jaggrok-prompt"
-                          id="jaggrok-prompt-<?php echo $widget_id; ?>"
-                          rows="3"><?php echo esc_textarea( $settings['prompt'] ); ?></textarea>
-			</div>
-			<button class="jaggrok-generate-btn elementor-button elementor-button-success"
-			        id="jaggrok-btn-<?php echo $widget_id; ?>">
-				<i class="eicon-brain"></i> Generate with Grok
-			</button>
 			<div class="jaggrok-output" id="jaggrok-output-<?php echo $widget_id; ?>"></div>
 		</div>
 		<?php
 	}
 }
-
-// REGISTER WIDGET (v1.2.3 - CORRECT HOOK)
-add_action( 'elementor/widgets/widgets_registered', function( $widgets_manager ) {
-	require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
-	$widgets_manager->register( new JagGrok_AI_Generator_Widget() );
-}, 10, 1 );
