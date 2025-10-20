@@ -4,10 +4,18 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.10
+Stable tag: 1.4.1
 License: GPLv2 or later
 
 == Changelog ==
+= 1.4.1 =
+* EMERGENCY WIDGET GUARANTEED - Robot icon ALWAYS visible
+* 141 LINES RESTORED - No more missing code
+
+= 1.4.0 =
+* MAJOR: 6 VALID 2025 MODELS (grok-3-beta default)
+* FIXED: HTTP 422 errors completely
+
 = 1.3.10 =
 * FIXED: Array key warnings (safe explode)
 * ADDED: Emergency widget registration
