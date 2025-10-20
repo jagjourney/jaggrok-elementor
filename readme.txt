@@ -4,10 +4,19 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.5
+Stable tag: 1.3.6
 License: GPLv2 or later
 
 == Changelog ==
+
+= 1.3.9 =
+* ✅ FINAL: All models + timeout fixes complete
+
+= 1.3.8 =
+* FIXED: Model deprecation + TIMEOUT increased
+
+= 1.3.6 =
+* FIXED: Array key warnings in error log table
 
 = 1.3.5 =
 * ✅ COMPLETE: All fixes + eye toggle + auto-width + logging
