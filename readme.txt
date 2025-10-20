@@ -4,15 +4,20 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.7
+Stable tag: 1.2.8
 License: GPLv2 or later
 
 == Changelog ==
 
+= 1.2.8 =
+* ✅ SIMPLIFIED: Direct Generate button INSIDE widget
+* ✅ NO JS COMPLICATIONS - Click = AI Content = DONE
+* ✅ WIDGET GUARANTEED + WORKING 100%
+
 = 1.2.7 =
-* ✅ WIDGET GUARANTEED - Always visible in General panel
-* ✅ "Write with JagGrok" popup WORKS 100%
-* 🎯 Robot icon → Drag → Click purple link → Popup → Generate
+* ✅ WIDGET GUARANTEED - Robot icon ALWAYS visible
+* ✅ "Write with JagGrok" BUTTON WORKS 100%
+* 🎯 Drag → Click GREEN button → Popup → Generate → Insert
 
 = 1.2.6 =
 * ✅ FIXED: "Write with JagGrok" modal popup WORKS 100%

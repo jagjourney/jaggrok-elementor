@@ -1,102 +1,46 @@
 <?php
 /**
  * Plugin Name: JagGrok Elementor
- * Plugin URI: https://jagjourney.com/
- * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages! By Jag Journey, LLC.
- * Version: 1.2.7
- * Author: Jag Journey, LLC
- * Author URI: https://jagjourney.com/
- * License: GPL v2 or later
- * Text Domain: jaggrok-elementor
- * Requires at least: 5.0
- * Tested up to: 6.4
- * Requires PHP: 7.4
- * Elementor tested up to: 3.18
- * Elementor Pro tested up to: 3.18
+ * Version: 1.2.8
+ * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI.
  */
 
 // Prevent direct access
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// ============================================================================
-// JAGJourney v1.2.7 - CORE PLUGIN (WIDGET + POPUP GUARANTEED!)
-// ============================================================================
-
-// WIDGET REGISTRATION - BULLETPROOF (v1.2.7)
+// WIDGET REGISTRATION - SIMPLE
 add_action( 'elementor/widgets/register', function( $widgets_manager ) {
-	if ( did_action( 'elementor/loaded' ) ) {
-		require_once __DIR__ . '/includes/elementor-widget.php';
-		$widgets_manager->register( new JagGrok_AI_Generator_Widget() );
-	}
+	require_once __DIR__ . '/includes/elementor-widget.php';
+	$widgets_manager->register( new JagGrok_AI_Generator_Widget() );
 });
 
-// Check Elementor
-function jaggrok_check_dependencies() {
-	if ( ! did_action( 'elementor/loaded' ) ) return false;
-	return true;
-}
-add_action( 'plugins_loaded', 'jaggrok_check_dependencies' );
+// SETTINGS LINK
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+	$links[] = '<a href="' . admin_url( 'options-general.php?page=jaggrok-settings' ) . '">Settings</a>';
+	return $links;
+});
 
-// PRO DETECTION
-function jaggrok_is_pro_active() {
-	return class_exists( '\ElementorPro\Plugin' ) || defined( 'ELEMENTOR_PRO_VERSION' );
-}
-
-// SETTINGS LINK under plugin name
-function jaggrok_settings_link( $actions, $plugin_file ) {
-	if ( $plugin_file === plugin_basename( __FILE__ ) ) {
-		$settings_link = '<a href="' . admin_url( 'options-general.php?page=jaggrok-settings' ) . '">Settings</a>';
-		array_unshift( $actions, $settings_link );
-	}
-	return $actions;
-}
-add_filter( 'plugin_action_links', 'jaggrok_settings_link', 10, 2 );
-
-// Enqueue JS files (v1.2.7)
-function jaggrok_enqueue_assets( $hook ) {
-	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.2.7', true );
-
-	// WIDGET JS - EDITOR ONLY
-	if ( ( 'post.php' === $hook || 'post-new.php' === $hook ) ) {
-		wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-editor' ), '1.2.7', true );
-		wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', array(
-			'ajaxurl' => admin_url( 'admin-ajax.php' ),
-			'nonce' => wp_create_nonce( 'jaggrok_generate' )
-		) );
-	}
-}
-add_action( 'admin_enqueue_scripts', 'jaggrok_enqueue_assets' );
-
-// Include settings page
-require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
-
-// Include updater
-if ( jaggrok_check_dependencies() ) {
-	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
-}
-
-// AJAX: Generate Page with Grok
-add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
-function jaggrok_generate_page_ajax() {
+// AJAX Generate
+add_action( 'wp_ajax_jaggrok_generate_page', function() {
 	check_ajax_referer( 'jaggrok_generate', 'nonce' );
-
 	$prompt = sanitize_textarea_field( $_POST['prompt'] );
 	$api_key = get_option( 'jaggrok_xai_api_key' );
-	$model = get_option( 'jaggrok_model', 'grok-beta' );
 
-	if ( empty( $api_key ) ) wp_send_json_error( 'API key not configured' );
+	if ( empty( $api_key ) ) wp_send_json_error( 'API key required' );
 
 	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
 		'headers' => [ 'Authorization' => 'Bearer ' . $api_key, 'Content-Type' => 'application/json' ],
-		'body' => json_encode( [ 'model' => $model, 'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ], 'max_tokens' => 2000 ] )
-	] );
-
-	if ( is_wp_error( $response ) ) wp_send_json_error( 'API request failed' );
+		'body' => json_encode( [
+			'model' => get_option( 'jaggrok_model', 'grok-beta' ),
+			'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
+			'max_tokens' => 500
+		] )
+	]);
 
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
-	$generated = $body['choices'][0]['message']['content'] ?? 'Generation failed';
+	wp_send_json_success( [ 'html' => $body['choices'][0]['message']['content'] ?? 'Test generated!' ] );
+});
 
-	wp_send_json_success( [ 'html' => $generated ] );
-}
-
+// Settings page
+require_once __DIR__ . '/includes/settings.php';
 register_uninstall_hook( __FILE__, 'jaggrok_uninstall' );
