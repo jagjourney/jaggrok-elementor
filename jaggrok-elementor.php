@@ -3,7 +3,7 @@
  * Plugin Name: JagGrok Elementor
  * Plugin URI: https://jagjourney.com/
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages! By Jag Journey, LLC.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Jag Journey, LLC
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -19,7 +19,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ============================================================================
-// JAGJourney v1.0.0 - CORE PLUGIN
+// JAGJourney v1.0.1 - CORE PLUGIN (FIXED ELEMENTOR DEPENDENCY)
 // ============================================================================
 
 // Check Elementor
@@ -36,7 +36,7 @@ add_action( 'plugins_loaded', 'jaggrok_check_dependencies' );
 
 // Enqueue JS files
 function jaggrok_enqueue_assets( $hook ) {
-	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.0.0', true );
+	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.0.1', true );
 	wp_localize_script( 'jaggrok-admin-settings', 'jaggrokAjax', array(
 		'ajaxurl' => admin_url( 'admin-ajax.php' ),
 		'nonce' => wp_create_nonce( 'jaggrok_test' )
@@ -44,11 +44,20 @@ function jaggrok_enqueue_assets( $hook ) {
 }
 add_action( 'admin_enqueue_scripts', 'jaggrok_enqueue_assets' );
 
-// Include settings page
+// Include settings page (v1.0.1)
 require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
 
-// Include Elementor widget (v1.0.0)
-require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
+// Include Elementor widget (v1.0.1) - DELAYED UNTIL ELEMENTOR LOADED
+add_action( 'elementor/widgets/register', function() {
+	if ( jaggrok_check_dependencies() ) {
+		require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
+	}
+});
+
+// Include updater (v1.0.1)
+if ( jaggrok_check_dependencies() ) {
+	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
+}
 
 // Include uninstall
 register_uninstall_hook( __FILE__, 'jaggrok_uninstall' );
