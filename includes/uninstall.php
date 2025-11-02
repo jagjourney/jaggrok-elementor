@@ -12,7 +12,6 @@ foreach ( [
         'aimentor_auto_insert',
         'aimentor_theme_style',
         'aimentor_max_tokens',
-        'aimentor_model_presets',
         'aimentor_model',
         'aimentor_openai_model',
         'aimentor_provider',
@@ -34,11 +33,6 @@ foreach ( [
 }
 
 // Delete log file
-$content_log = trailingslashit( WP_CONTENT_DIR ) . 'uploads/aimentor/aimentor-errors.log';
-if ( file_exists( $content_log ) ) {
-        unlink( $content_log );
-}
-
 $log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
 if ( file_exists( $log_file ) ) {
         unlink( $log_file );

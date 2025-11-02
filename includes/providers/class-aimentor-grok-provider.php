@@ -1,13 +1,17 @@
 <?php
 
-class JagGrok_Grok_Provider implements AiMentor_Provider_Interface {
-        const API_URL = 'https://api.x.ai/v1/chat/completions';
+class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
+    const API_URL = 'https://api.x.ai/v1/chat/completions';
 
-        /**
-         * Determine whether the provider supports canvas generation.
-         */
-        public function supports_canvas() {
-                return true;
+    public function supports_canvas() {
+        return true;
+    }
+
+    public function build_request( $prompt, $args = [] ) {
+        $api_key = isset( $args['api_key'] ) ? trim( $args['api_key'] ) : '';
+
+        if ( empty( $api_key ) ) {
+            return new WP_Error( 'aimentor_missing_api_key', __( 'xAI API key not configured.', 'aimentor' ) );
         }
 
         /**
@@ -66,21 +70,12 @@ class JagGrok_Grok_Provider implements AiMentor_Provider_Interface {
         public function request( $prompt, $args = [] ) {
                 $request = $this->build_request( $prompt, $args );
 
-                if ( is_wp_error( $request ) ) {
-                        return $request;
-                }
-
-                $response = wp_remote_post( $request['url'], $request['args'] );
-
-                if ( is_wp_error( $response ) ) {
-                        return new WP_Error(
-                                'aimentor_http_request_failed',
-                                sprintf( __( 'API request failed: %s', 'aimentor' ), $response->get_error_message() ),
-                                [ 'original' => $response ]
-                        );
-                }
-
-                return $this->parse_response( $response, $args );
+        if ( is_wp_error( $response ) ) {
+            return new WP_Error(
+                'aimentor_http_request_failed',
+                sprintf( __( 'API request failed: %s', 'aimentor' ), $response->get_error_message() ),
+                [ 'original' => $response ]
+            );
         }
 
         /**
@@ -115,61 +110,11 @@ class JagGrok_Grok_Provider implements AiMentor_Provider_Interface {
                         return new WP_Error( 'aimentor_http_error', $message, [ 'status_code' => $status_code, 'raw_body' => $raw_body ] );
                 }
 
-                if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
-                        return new WP_Error( 'aimentor_invalid_response', __( 'Unexpected response from the API.', 'aimentor' ), [ 'raw_body' => $raw_body ] );
-                }
-
-                $generated = $body['choices'][0]['message']['content'] ?? null;
-
-                if ( empty( $generated ) ) {
-                        return new WP_Error( 'aimentor_empty_response', __( 'The API response did not include generated content.', 'aimentor' ), [ 'body' => $body ] );
-                }
-
-                if ( 'canvas' === $context['task'] ) {
-                        $elementor_json = json_decode( $generated, true );
-                        if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $elementor_json ) ) {
-                                return new WP_Error( 'aimentor_invalid_canvas', __( 'The response was not valid Elementor JSON.', 'aimentor' ), [ 'content' => $generated ] );
-                        }
-
-                        return [
-                                'type'    => 'canvas',
-                                'content' => $elementor_json,
-                        ];
-                }
-
-                return [
-                        'type'    => 'html',
-                        'content' => $generated,
-                ];
+            return new WP_Error( 'aimentor_http_error', $message, [ 'status_code' => $status_code, 'raw_body' => $raw_body ] );
         }
 
-        /**
-         * Normalize the requested context.
-         *
-         * @param array $context Raw context array.
-         *
-         * @return array
-         */
-        protected function normalize_context( $context ) {
-                if ( ! is_array( $context ) ) {
-                        $context = [];
-                }
-
-                $task = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : 'content';
-                $tier = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : 'fast';
-
-                if ( ! in_array( $task, [ 'canvas', 'content' ], true ) ) {
-                        $task = 'content';
-                }
-
-                if ( ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
-                        $tier = 'fast';
-                }
-
-                return [
-                        'task' => $task,
-                        'tier' => $tier,
-                ];
+        if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
+            return new WP_Error( 'aimentor_invalid_response', __( 'Unexpected response from the API.', 'aimentor' ), [ 'raw_body' => $raw_body ] );
         }
 
         /**
@@ -191,10 +136,8 @@ class JagGrok_Grok_Provider implements AiMentor_Provider_Interface {
                         ],
                 ];
 
-                $task = $context['task'];
-                $tier = $context['tier'];
-
-                return $defaults[ $task ][ $tier ] ?? 'grok-3-mini';
+        if ( empty( $generated ) ) {
+            return new WP_Error( 'aimentor_empty_response', __( 'The API response did not include generated content.', 'aimentor' ), [ 'body' => $body ] );
         }
 
         /**
@@ -209,9 +152,11 @@ class JagGrok_Grok_Provider implements AiMentor_Provider_Interface {
                         return ' Output as structured Elementor JSON with dynamic content, forms, and responsive columns.';
                 }
 
-                if ( 'quality' === $context['tier'] ) {
-                        return ' Output as polished Elementor-ready HTML sections with persuasive copy and accessible structure.';
-                }
+        if ( $is_canvas ) {
+            $elementor_json = json_decode( $generated, true );
+            if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $elementor_json ) ) {
+                return new WP_Error( 'aimentor_invalid_canvas', __( 'The response was not valid Elementor JSON.', 'aimentor' ), [ 'content' => $generated ] );
+            }
 
                 return ' Output as clean Elementor HTML sections optimized for fast insertion.';
         }

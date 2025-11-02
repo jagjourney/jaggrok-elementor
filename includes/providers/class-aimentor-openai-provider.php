@@ -1,7 +1,7 @@
 <?php
 
-class JagGrok_OpenAI_Provider implements AiMentor_Provider_Interface {
-        const API_URL = 'https://api.openai.com/v1/chat/completions';
+class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
+    const API_URL = 'https://api.openai.com/v1/chat/completions';
 
         public function supports_canvas() {
                 return true;
@@ -10,9 +10,9 @@ class JagGrok_OpenAI_Provider implements AiMentor_Provider_Interface {
         public function build_request( $prompt, $args = [] ) {
                 $api_key = isset( $args['api_key'] ) ? trim( $args['api_key'] ) : '';
 
-                if ( empty( $api_key ) ) {
-                        return new WP_Error( 'aimentor_missing_api_key', __( 'OpenAI API key not configured.', 'aimentor' ) );
-                }
+        if ( empty( $api_key ) ) {
+            return new WP_Error( 'aimentor_missing_api_key', __( 'OpenAI API key not configured.', 'aimentor' ) );
+        }
 
                 $context    = $this->normalize_context( $args['context'] ?? [] );
                 $model      = ! empty( $args['model'] ) ? sanitize_text_field( $args['model'] ) : $this->get_default_model( $context );
@@ -60,7 +60,12 @@ class JagGrok_OpenAI_Provider implements AiMentor_Provider_Interface {
                         );
                 }
 
-                return $this->parse_response( $response, $args );
+        if ( is_wp_error( $response ) ) {
+            return new WP_Error(
+                'aimentor_http_request_failed',
+                sprintf( __( 'API request failed: %s', 'aimentor' ), $response->get_error_message() ),
+                [ 'original' => $response ]
+            );
         }
 
         public function parse_response( $response, $args = [] ) {
@@ -87,43 +92,11 @@ class JagGrok_OpenAI_Provider implements AiMentor_Provider_Interface {
                         return new WP_Error( 'aimentor_http_error', $message, [ 'status_code' => $status_code, 'raw_body' => $raw_body ] );
                 }
 
-                if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
-                        return new WP_Error( 'aimentor_invalid_response', __( 'Unexpected response from the API.', 'aimentor' ), [ 'raw_body' => $raw_body ] );
-                }
+            return new WP_Error( 'aimentor_http_error', $message, [ 'status_code' => $status_code, 'raw_body' => $raw_body ] );
+        }
 
-                $message = $body['choices'][0]['message'] ?? [];
-                $content = '';
-
-                if ( is_string( $message['content'] ?? null ) ) {
-                        $content = $message['content'];
-                } elseif ( ! empty( $message['content'] ) && is_array( $message['content'] ) ) {
-                        foreach ( $message['content'] as $part ) {
-                                if ( isset( $part['text'] ) ) {
-                                        $content .= $part['text'];
-                                }
-                        }
-                }
-
-                if ( empty( $content ) ) {
-                        return new WP_Error( 'aimentor_empty_response', __( 'The API response did not include generated content.', 'aimentor' ), [ 'body' => $body ] );
-                }
-
-                if ( 'canvas' === $context['task'] ) {
-                        $elementor_json = json_decode( $content, true );
-                        if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $elementor_json ) ) {
-                                return new WP_Error( 'aimentor_invalid_canvas', __( 'The response was not valid Elementor JSON.', 'aimentor' ), [ 'content' => $content ] );
-                        }
-
-                        return [
-                                'type'    => 'canvas',
-                                'content' => $elementor_json,
-                        ];
-                }
-
-                return [
-                        'type'    => 'html',
-                        'content' => $content,
-                ];
+        if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
+            return new WP_Error( 'aimentor_invalid_response', __( 'Unexpected response from the API.', 'aimentor' ), [ 'raw_body' => $raw_body ] );
         }
 
         protected function normalize_context( $context ) {
@@ -148,22 +121,8 @@ class JagGrok_OpenAI_Provider implements AiMentor_Provider_Interface {
                 ];
         }
 
-        protected function get_default_model( $context ) {
-                $defaults = [
-                        'canvas'  => [
-                                'fast'    => 'gpt-4.1-nano',
-                                'quality' => 'o4-mini',
-                        ],
-                        'content' => [
-                                'fast'    => 'gpt-4o-mini',
-                                'quality' => 'gpt-4o',
-                        ],
-                ];
-
-                $task = $context['task'];
-                $tier = $context['tier'];
-
-                return $defaults[ $task ][ $tier ] ?? 'gpt-4o-mini';
+        if ( empty( $content ) ) {
+            return new WP_Error( 'aimentor_empty_response', __( 'The API response did not include generated content.', 'aimentor' ), [ 'body' => $body ] );
         }
 
         protected function get_prompt_suffix( $context ) {
@@ -171,9 +130,11 @@ class JagGrok_OpenAI_Provider implements AiMentor_Provider_Interface {
                         return ' Respond using Elementor JSON schema with widgets, containers, and layout metadata.';
                 }
 
-                if ( 'quality' === $context['tier'] ) {
-                        return ' Respond with conversion-focused Elementor HTML sections with strong copy and calls-to-action.';
-                }
+        if ( $is_canvas ) {
+            $elementor_json = json_decode( $content, true );
+            if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $elementor_json ) ) {
+                return new WP_Error( 'aimentor_invalid_canvas', __( 'The response was not valid Elementor JSON.', 'aimentor' ), [ 'content' => $content ] );
+            }
 
                 return ' Respond with concise Elementor HTML blocks optimized for fast editing.';
         }

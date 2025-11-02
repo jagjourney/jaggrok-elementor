@@ -1,6 +1,6 @@
 === AiMentor Elementor ===
-Contributors: aimentor
-Tags: elementor, ai, grok, openai, builder, automation
+Contributors: jagjourney
+Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
@@ -9,7 +9,7 @@ License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
-AiMentor Elementor turns every prompt into a polished Elementor layout. Choose between leading AI providers like xAI Grok and OpenAI, swap models per project, and keep creative control with instant previews inside the WordPress editor.
+🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
 
 * ⚡ Rapid section, page, and template generation inside Elementor.
 * 🔁 Multi-provider switching with provider-specific defaults and limits.
@@ -19,10 +19,9 @@ AiMentor Elementor turns every prompt into a polished Elementor layout. Choose b
 AiMentor was built for agencies that need reliable AI output without leaving WordPress. Bring your preferred provider, align the models with your workflow, and let AiMentor keep the content flowing.
 
 == Installation ==
-1. Upload the `aimentor-elementor` folder to `/wp-content/plugins/` or install the ZIP through **Plugins → Add New**.
-2. Activate **AiMentor Elementor** through the **Plugins** menu in WordPress.
-3. Visit **Settings → AiMentor** to choose your provider and paste API keys for xAI Grok and/or OpenAI.
-4. Click **Test Connection** to confirm connectivity, then start generating blocks directly from the Elementor panel.
+1. Upload ZIP
+2. Get API key: https://x.ai/api
+3. Settings > AiMentor Elementor > Test Connection
 
 == Automatic Updates ==
 AiMentor Elementor now advertises GitHub Releases as its canonical update source. The plugin bootstrap includes an `Update URI`
@@ -60,15 +59,15 @@ Keys are saved in your WordPress database using the standard options table. You 
 Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generated content drops straight into Elementor or if you prefer manual placement.
 
 == Screenshots ==
-1. AiMentor settings highlighting multi-provider connectivity.
-2. Elementor sidebar with the AiMentor widget selected.
-3. Generated layout preview ready to insert into the canvas.
+1. Drag AiMentor widget to canvas
+2. Enter prompt in left panel
+3. Generate content in middle canvas
 
 == Changelog ==
 = 0.0.001 =
-* Rebranded the experience as **AiMentor** with refreshed assets and menu labels.
-* Added migrations for legacy pre-rebrand options, maintaining backward compatibility.
-* Expanded copy and interface elements to highlight multi-provider switching.
+* Rebranded to AiMentor Elementor with legacy compatibility shims
+* Added migration to mirror legacy JagGrok options and assets
+* Updated scripts, classes, and AJAX endpoints to support AiMentor handles
 
 = 1.4.2 =
 * Improved canvas insertion reliability and prompt persistence.
@@ -125,13 +124,17 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 * Embedded the generate button directly in the Elementor widget.
 
 = 1.2.7 =
-* Updated the “Write with AiMentor” CTA and ensured widget visibility.
+* ✅ WIDGET GUARANTEED - Robot icon ALWAYS visible
+* ✅ "Write with AiMentor" button works 100%
+* 🎯 Drag → Click GREEN button → Popup → Generate → Insert
 
 = 1.2.6 =
-* Refined the AiMentor modal popup workflow inside Elementor.
+* ✅ FIXED: "Write with AiMentor" modal popup works 100%
+* 🎯 Click link → Popup opens → Type → Generate → Insert
+* ✨ Elementor AI-style UX - PERFECT!
 
 = 1.2.5 =
-* Added the first “Write with AiMentor” popup experience.
+* NEW: Write with AiMentor popup modal
 
 = 1.2.4 =
 * Adjusted widget registration timing for Elementor compatibility.

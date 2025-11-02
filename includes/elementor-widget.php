@@ -7,13 +7,25 @@ use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 
 class AiMentor_AI_Generator_Widget extends Widget_Base {
-    public function get_name() { return 'aimentor-ai-generator'; }
-    public function get_title() { return 'AiMentor AI Generator'; }
+    const LEGACY_WIDGET_SLUG = 'jaggrok-ai-generator';
+
+    public function get_name() {
+        return 'aimentor-ai-generator';
+    }
+
+    public function get_title() {
+        return __( 'AiMentor AI Generator', 'aimentor' );
+    }
+
+    public function get_legacy_title() {
+        return __( 'JagGrok AI Generator', 'aimentor' );
+    }
+
     public function get_icon() { return 'eicon-robot'; }
     public function get_categories() { return [ 'general' ]; }
 
     protected function register_controls() {
-        $this->start_controls_section( 'prompt_section', [ 'label' => __( 'AiMentor Prompt', 'aimentor' ) ] );
+        $this->start_controls_section( 'prompt_section', [ 'label' => 'AI Prompt' ] );
         $provider_meta = function_exists( 'aimentor_get_provider_meta_map' ) ? aimentor_get_provider_meta_map() : [
                 'grok'   => [
                         'label'      => __( 'xAI Grok', 'aimentor' ),
@@ -36,49 +48,28 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
                 $provider_keys    = array_keys( $provider_labels );
                 $default_provider = isset( $provider_keys[0] ) ? $provider_keys[0] : 'grok';
         }
-        $default_options = function_exists( 'aimentor_get_default_options' ) ? aimentor_get_default_options() : [
-                'aimentor_default_generation_type' => 'content',
-                'aimentor_default_performance'     => 'fast',
-        ];
-        $default_task = function_exists( 'aimentor_sanitize_generation_type' ) ? aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_options['aimentor_default_generation_type'] ) ) : 'content';
-        $default_tier = function_exists( 'aimentor_sanitize_performance_tier' ) ? aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_options['aimentor_default_performance'] ) ) : 'fast';
-        $is_pro_active = function_exists( 'aimentor_is_pro_active' ) ? aimentor_is_pro_active() : false;
         $this->add_control( 'provider', [
-                'label'   => __( 'Provider', 'aimentor' ),
+                'label'   => 'Provider',
                 'type'    => Controls_Manager::SELECT,
                 'options' => $provider_labels,
                 'default' => $default_provider,
         ] );
-        $generation_options = [ 'content' => __( 'Page Copy', 'aimentor' ) ];
-        if ( $is_pro_active ) {
-                $generation_options['canvas'] = __( 'Page Layout', 'aimentor' );
-        }
-        $this->add_control( 'generation_type', [
-                'label'       => __( 'Generation Type', 'aimentor' ),
-                'type'        => Controls_Manager::SELECT,
-                'options'     => $is_pro_active ? [
-                        'canvas'  => __( 'Page Layout', 'aimentor' ),
-                        'content' => __( 'Page Copy', 'aimentor' ),
-                ] : $generation_options,
-                'default'     => $is_pro_active ? $default_task : 'content',
-                'description' => __( 'Choose whether AiMentor drafts layouts or copy by default.', 'aimentor' ),
-        ] );
-        $this->add_control( 'performance', [
-                'label'       => __( 'Performance', 'aimentor' ),
-                'type'        => Controls_Manager::SELECT,
-                'options'     => [
-                        'fast'    => __( 'Fast', 'aimentor' ),
-                        'quality' => __( 'Quality', 'aimentor' ),
-                ],
-                'default'     => $default_tier,
-                'description' => __( 'Pick the balance between speed and fidelity for AiMentor.', 'aimentor' ),
-        ] );
         $this->add_control( 'prompt', [
-                'label' => __( 'Describe your page', 'aimentor' ),
+                'label' => 'Describe your page',
                 'type' => Controls_Manager::TEXTAREA,
                 'default' => 'Create a modern donation page with hero call out, and three columns for different products people can donate to.',
                 'placeholder' => 'e.g., "Landing page with blue hero and contact form"'
         ]);
+        $this->end_controls_section();
+
+        $this->start_controls_section( 'advanced_section', [ 'label' => 'Advanced' ] );
+        if ( function_exists( 'aimentor_is_pro_active' ) && aimentor_is_pro_active() ) {
+            $this->add_control( 'pro_features', [
+                    'label' => 'Pro Features',
+                    'type' => Controls_Manager::SWITCHER,
+                    'default' => 'yes'
+            ]);
+        }
         $this->end_controls_section();
     }
 
@@ -91,24 +82,6 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
         if ( ! array_key_exists( $provider_setting, $provider_meta ) ) {
                 $provider_keys    = array_keys( $provider_meta );
                 $provider_setting = isset( $provider_keys[0] ) ? $provider_keys[0] : 'grok';
-        }
-        $default_options   = function_exists( 'aimentor_get_default_options' ) ? aimentor_get_default_options() : [
-                'aimentor_default_generation_type' => 'content',
-                'aimentor_default_performance'     => 'fast',
-        ];
-        $is_pro_active     = function_exists( 'aimentor_is_pro_active' ) ? aimentor_is_pro_active() : false;
-        $default_task      = function_exists( 'aimentor_sanitize_generation_type' ) ? aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_options['aimentor_default_generation_type'] ) ) : 'content';
-        $default_tier      = function_exists( 'aimentor_sanitize_performance_tier' ) ? aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_options['aimentor_default_performance'] ) ) : 'fast';
-        $generation_type   = isset( $settings['generation_type'] ) ? $settings['generation_type'] : $default_task;
-        if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
-                $generation_type = aimentor_sanitize_generation_type( $generation_type );
-        }
-        if ( ! $is_pro_active && 'canvas' === $generation_type ) {
-                $generation_type = 'content';
-        }
-        $performance_tier = isset( $settings['performance'] ) ? $settings['performance'] : $default_tier;
-        if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
-                $performance_tier = aimentor_sanitize_performance_tier( $performance_tier );
         }
         $active_provider_meta = $provider_meta[ $provider_setting ];
         static $styles_printed = false;
@@ -139,7 +112,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
                 <?php
         }
         ?>
-        <div class="aimentor-widget jaggrok-widget" id="aimentor-widget-<?php echo esc_attr( $widget_id ); ?>">
+        <div class="aimentor-widget jaggrok-widget">
             <div class="aimentor-provider-selector jaggrok-provider-selector">
                 <label for="aimentor-provider-<?php echo esc_attr( $widget_id ); ?>"><?php esc_html_e( 'Provider', 'aimentor' ); ?></label>
                 <select class="aimentor-provider-control jaggrok-provider-control" id="aimentor-provider-<?php echo esc_attr( $widget_id ); ?>">
@@ -156,56 +129,140 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
                 </div>
                 <p class="aimentor-provider-summary jaggrok-provider-summary" id="aimentor-provider-summary-<?php echo esc_attr( $widget_id ); ?>"><?php echo esc_html( $active_provider_meta['summary'] ); ?></p>
             </div>
-            <div class="aimentor-generation-controls">
-                <label for="aimentor-generation-type-<?php echo esc_attr( $widget_id ); ?>"><?php esc_html_e( 'Generation Type', 'aimentor' ); ?></label>
-                <select id="aimentor-generation-type-<?php echo esc_attr( $widget_id ); ?>" class="aimentor-generation-select" aria-label="<?php esc_attr_e( 'AiMentor generation type', 'aimentor' ); ?>" <?php echo $is_pro_active ? '' : 'disabled="disabled"'; ?>>
-                    <option value="content" <?php selected( $generation_type, 'content' ); ?>><?php esc_html_e( 'Page Copy', 'aimentor' ); ?></option>
-                    <option value="canvas" <?php selected( $generation_type, 'canvas' ); ?> <?php echo $is_pro_active ? '' : 'disabled'; ?>><?php esc_html_e( 'Page Layout', 'aimentor' ); ?></option>
-                </select>
-                <label for="aimentor-performance-<?php echo esc_attr( $widget_id ); ?>"><?php esc_html_e( 'Performance', 'aimentor' ); ?></label>
-                <select id="aimentor-performance-<?php echo esc_attr( $widget_id ); ?>" class="aimentor-performance-select" aria-label="<?php esc_attr_e( 'AiMentor performance preference', 'aimentor' ); ?>">
-                    <option value="fast" <?php selected( $performance_tier, 'fast' ); ?>><?php esc_html_e( 'Fast', 'aimentor' ); ?></option>
-                    <option value="quality" <?php selected( $performance_tier, 'quality' ); ?>><?php esc_html_e( 'Quality', 'aimentor' ); ?></option>
-                </select>
-                <p class="aimentor-context-summary" id="aimentor-context-summary-<?php echo esc_attr( $widget_id ); ?>" aria-live="polite"></p>
-            </div>
             <textarea class="aimentor-prompt jaggrok-prompt" id="aimentor-prompt-<?php echo $widget_id; ?>" rows="4" style="width:100%;"><?php echo esc_textarea( $settings['prompt'] ); ?></textarea>
-            <button class="aimentor-generate-btn jaggrok-generate-btn" id="aimentor-btn-<?php echo esc_attr( $widget_id ); ?>" style="margin:10px 0;" aria-label="<?php esc_attr_e( 'Ask AiMentor to generate content', 'aimentor' ); ?>">
-                <?php echo esc_html( sprintf( __( 'Ask AiMentor via %s', 'aimentor' ), $active_provider_meta['label'] ) ); ?>
+            <button class="aimentor-generate-btn jaggrok-generate-btn" id="aimentor-btn-<?php echo esc_attr( $widget_id ); ?>" style="margin:10px 0;">
+                <?php echo esc_html( sprintf( __( 'Generate with %s', 'aimentor' ), $active_provider_meta['label'] ) ); ?>
             </button>
             <div class="aimentor-output jaggrok-output" id="aimentor-output-<?php echo $widget_id; ?>"></div>
         </div>
         <script>
             jQuery(document).ready(function($) {
+                var $button = $('#aimentor-btn-<?php echo esc_js( $widget_id ); ?>');
+                var $output = $('#aimentor-output-<?php echo esc_js( $widget_id ); ?>');
+                var $providerSelect = $('#aimentor-provider-<?php echo esc_js( $widget_id ); ?>');
+                var $providerIcon = $('#aimentor-provider-icon-<?php echo esc_js( $widget_id ); ?>');
+                var $providerLabel = $('#aimentor-provider-label-<?php echo esc_js( $widget_id ); ?>');
+                var $providerSummary = $('#aimentor-provider-summary-<?php echo esc_js( $widget_id ); ?>');
+                var $providerBadge = $('#aimentor-provider-badge-<?php echo esc_js( $widget_id ); ?>');
+                var aimentorData = window.aimentorAjax || {};
                 window.AiMentorProviders = Object.assign({}, window.AiMentorProviders || {}, <?php echo wp_json_encode( $provider_meta ); ?>);
-                var init = window.AiMentorElementorUI && typeof window.AiMentorElementorUI.initWidget === 'function'
-                    ? window.AiMentorElementorUI.initWidget
-                    : null;
+                window.JagGrokProviders = window.JagGrokProviders || window.AiMentorProviders;
 
-                if (init) {
-                    init({
-                        widgetId: '<?php echo esc_js( $widget_id ); ?>',
-                        container: '#aimentor-widget-<?php echo esc_js( $widget_id ); ?>',
-                        providerSelector: '#aimentor-provider-<?php echo esc_js( $widget_id ); ?>',
-                        promptSelector: '#aimentor-prompt-<?php echo esc_js( $widget_id ); ?>',
-                        outputSelector: '#aimentor-output-<?php echo esc_js( $widget_id ); ?>',
-                        buttonSelector: '#aimentor-btn-<?php echo esc_js( $widget_id ); ?>',
-                        providerIconSelector: '#aimentor-provider-icon-<?php echo esc_js( $widget_id ); ?>',
-                        providerLabelSelector: '#aimentor-provider-label-<?php echo esc_js( $widget_id ); ?>',
-                        providerSummarySelector: '#aimentor-provider-summary-<?php echo esc_js( $widget_id ); ?>',
-                        providerBadgeSelector: '#aimentor-provider-badge-<?php echo esc_js( $widget_id ); ?>',
-                        taskSelector: '#aimentor-generation-type-<?php echo esc_js( $widget_id ); ?>',
-                        tierSelector: '#aimentor-performance-<?php echo esc_js( $widget_id ); ?>',
-                        summarySelector: '#aimentor-context-summary-<?php echo esc_js( $widget_id ); ?>',
-                        defaults: {
-                            task: '<?php echo esc_js( $generation_type ); ?>',
-                            tier: '<?php echo esc_js( $performance_tier ); ?>'
-                        },
-                        allowCanvas: <?php echo wp_json_encode( $is_pro_active ); ?>
-                    });
+                function getProviderMeta(providerKey) {
+                    var meta = window.AiMentorProviders || window.JagGrokProviders || {};
+                    return meta[providerKey] || {
+                        label: providerKey,
+                        icon: '🤖',
+                        summary: (aimentorData && aimentorData.strings && aimentorData.strings.contentGenerated)
+                            ? aimentorData.strings.contentGenerated.replace('%s', providerKey)
+                            : 'Content generated with ' + providerKey + '.',
+                        badgeText: providerKey,
+                        badgeColor: '#444444'
+                    };
                 }
+
+                function updateProviderUI(providerKey) {
+                    var meta = getProviderMeta(providerKey);
+                    $providerIcon.text(meta.icon || '🤖');
+                    $providerLabel.text(meta.label || providerKey);
+                    $providerSummary.text(meta.summary || '');
+                    if (meta.badgeColor && $providerBadge.length) {
+                        $providerBadge.css('background-color', meta.badgeColor);
+                    }
+                    if ($providerBadge.length) {
+                        $providerBadge.text(meta.badgeText || providerKey);
+                    }
+                    if (aimentorData && aimentorData.strings && aimentorData.strings.generateWith) {
+                        $button.text(aimentorData.strings.generateWith.replace('%s', meta.label || providerKey));
+                    } else {
+                        $button.text('Generate with ' + (meta.label || providerKey));
+                    }
+                }
+
+                $providerSelect.on('change', function() {
+                    updateProviderUI($(this).val());
+                });
+
+                if (!aimentorData || !aimentorData.ajaxurl || !aimentorData.nonce) {
+                    var noticeHtml = '<div class="notice notice-error aimentor-missing-config jaggrok-missing-config"><p>' +
+                        '<?php echo esc_js( __( 'AiMentor AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.', 'aimentor' ) ); ?>' +
+                        '</p></div>';
+
+                    var $widget = $button.closest('.aimentor-widget');
+                    if ($widget.length) {
+                        $widget.prepend(noticeHtml);
+                    } else {
+                        $('body').prepend(noticeHtml);
+                    }
+
+                    $button.prop('disabled', true);
+                    console.error('AiMentor AJAX configuration missing: expected window.aimentorAjax.');
+                    return;
+                }
+
+                $button.on('click', function() {
+                    var prompt = $('#aimentor-prompt-<?php echo esc_js( $widget_id ); ?>').val();
+                    var provider = $providerSelect.val();
+                    var providerMeta = getProviderMeta(provider);
+
+                    if (aimentorData && aimentorData.strings && aimentorData.strings.generatingWith) {
+                        $output.html('<p>' + aimentorData.strings.generatingWith.replace('%s', providerMeta.label || provider) + '</p>');
+                    } else {
+                        $output.html('<p>Generating with ' + (providerMeta.label || provider) + '...</p>');
+                    }
+                    $.post(aimentorData.ajaxurl, {
+                        action: 'aimentor_generate_page',
+                        prompt: prompt,
+                        provider: provider,
+                        nonce: aimentorData.nonce
+                    }, function(response) {
+                        var responseProvider = response && response.data && response.data.provider ? response.data.provider : provider;
+                        var responseMeta = getProviderMeta(responseProvider);
+                        var summaryText;
+                        if (response && response.data && response.data.provider_label) {
+                            if (aimentorData && aimentorData.strings && aimentorData.strings.contentGenerated) {
+                                summaryText = aimentorData.strings.contentGenerated.replace('%s', response.data.provider_label);
+                            } else {
+                                summaryText = 'Content generated with ' + response.data.provider_label + '.';
+                            }
+                        } else {
+                            summaryText = responseMeta.summary;
+                        }
+                        if (response.success) {
+                            if (response.data.canvas_json) {
+                                // INSERT TO CANVAS (v1.4.2 FIX)
+                                elementorFrontend.elementsHandler.addElements( response.data.canvas_json );
+                                $output.html('<p class="aimentor-provider-message jaggrok-provider-message">' + summaryText + '</p>');
+                            } else {
+                                var html = response.data.html || '';
+                                $output.html('<p class="aimentor-provider-message jaggrok-provider-message">' + summaryText + '</p>' + html);
+                            }
+                        } else {
+                            var errorPrefix = (aimentorData && aimentorData.strings && aimentorData.strings.errorPrefix) ? aimentorData.strings.errorPrefix : 'Error:';
+                            $output.html('<p style="color:red">' + errorPrefix + ' ' + response.data + '</p>');
+                        }
+                    });
+                });
+
+                updateProviderUI($providerSelect.val());
             });
         </script>
         <?php
+    }
+}
+
+if ( ! class_exists( 'JagGrok_AI_Generator_Widget' ) ) {
+    class JagGrok_AI_Generator_Widget extends AiMentor_AI_Generator_Widget {
+        public function get_name() {
+            return self::LEGACY_WIDGET_SLUG;
+        }
+
+        public function get_title() {
+            return $this->get_legacy_title();
+        }
+
+        public function show_in_panel() {
+            return false;
+        }
     }
 }

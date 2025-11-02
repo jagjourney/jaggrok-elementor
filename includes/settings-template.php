@@ -1,75 +1,51 @@
 
 <div class="wrap">
-    <h1 class="aimentor-settings-title">
-        <img src="<?php echo esc_url( AIMENTOR_PLUGIN_URL . 'assets/icon-128x128.png' ); ?>" class="aimentor-settings-logo" alt="<?php esc_attr_e( 'AiMentor logo', 'aimentor' ); ?>">
-        <span class="aimentor-settings-heading"><?php esc_html_e( 'AiMentor Control Center', 'aimentor' ); ?></span>
-        <span class="aimentor-settings-badge" aria-hidden="true"><?php esc_html_e( 'Multi-provider', 'aimentor' ); ?></span>
-    </h1>
+    <h1><img src="<?php echo plugin_dir_url( __DIR__ ); ?>assets/icon-128x128.png" style="height:40px; vertical-align:middle;">
+        AiMentor Elementor Settings</h1>
+    <style>
+        .aimentor-provider-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            margin-left: 6px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
 
-    <p class="description">
-        <?php
-        printf(
-                wp_kses(
-                        /* translators: 1: AiMentor marketing URL */
-                        __( 'Connect Elementor to the AI partner that fits your team&mdash;xAI Grok, OpenAI, or any future integration. <a href="%1$s" target="_blank" rel="noopener noreferrer">Powered by AiMentor</a>', 'aimentor' ),
-                        [
-                                'a' => [
-                                        'href'   => [],
-                                        'target' => [],
-                                        'rel'    => [],
-                                ],
-                        ]
-                ),
-                esc_url( 'https://aimentor.ai/' )
-        );
-        ?>
-    </p>
+    <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://aimentor.ai/" target="_blank">By AiMentor</a></p>
 
     <form method="post" action="options.php">
         <?php settings_fields( 'aimentor_settings' ); ?>
         <?php
-        $defaults         = aimentor_get_default_options();
-        $provider         = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
-        $api_keys         = [
+        $defaults       = aimentor_get_default_options();
+        $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
+        $api_keys       = [
                 'grok'   => get_option( 'aimentor_xai_api_key' ),
                 'openai' => get_option( 'aimentor_openai_api_key' ),
         ];
-        $model_presets    = aimentor_get_model_presets();
-        $allowed_models   = aimentor_get_allowed_provider_models();
-        $legacy_models    = aimentor_map_presets_to_legacy_defaults( $model_presets );
-        $default_presets  = aimentor_get_provider_model_defaults();
-        $default_legacy   = aimentor_map_presets_to_legacy_defaults( $default_presets );
-        $model_labels     = aimentor_get_model_labels();
-        $default_task     = get_option( 'aimentor_default_generation_type', $defaults['aimentor_default_generation_type'] );
-        $default_tier     = get_option( 'aimentor_default_performance', $defaults['aimentor_default_performance'] );
-        $default_task     = aimentor_sanitize_generation_type( $default_task );
-        $default_tier     = aimentor_sanitize_performance_tier( $default_tier );
-        $is_pro_active    = aimentor_is_pro_active();
-        $preset_sections = [
-                'canvas'  => [
-                        'tiers' => [
-                                'fast'    => [
-                                        'label' => __( 'Page Building (Fast)', 'aimentor' ),
-                                        'help'  => __( 'Used when AiMentor assembles quick wireframes or previews in the Elementor canvas.', 'aimentor' ),
-                                ],
-                                'quality' => [
-                                        'label' => __( 'Page Building (Quality)', 'aimentor' ),
-                                        'help'  => __( 'Used for polished layouts and AI Canvas builds that favor fidelity over speed.', 'aimentor' ),
-                                ],
-                        ],
-                ],
-                'content' => [
-                        'tiers' => [
-                                'fast'    => [
-                                        'label' => __( 'Content (Fast)', 'aimentor' ),
-                                        'help'  => __( 'Used for short copy, headings, and quick brainstorming when you click generate.', 'aimentor' ),
-                                ],
-                                'quality' => [
-                                        'label' => __( 'Content (Quality)', 'aimentor' ),
-                                        'help'  => __( 'Used for longer marketing copy or when you rerun for richer detail.', 'aimentor' ),
-                                ],
-                        ],
-                ],
+        $models         = aimentor_get_provider_models();
+        $allowed_models = aimentor_get_allowed_provider_models();
+        $grok_model_labels = [
+                'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
+                'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
+                'grok-3'      => __( 'Grok 3 (Standard)', 'aimentor' ),
+                'grok-4-mini' => __( 'Grok 4 Mini (Premium)', 'aimentor' ),
+                'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
+                'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
+        ];
+        $openai_model_labels = [
+                'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
+                'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
+                'gpt-4.1'      => __( 'GPT-4.1 (Reasoning)', 'aimentor' ),
+                'gpt-4.1-mini' => __( 'GPT-4.1 mini (Fast)', 'aimentor' ),
+                'gpt-4.1-nano' => __( 'GPT-4.1 nano (Edge)', 'aimentor' ),
+                'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
+                'o4'           => __( 'o4 (Preview)', 'aimentor' ),
         ];
         $provider_statuses = aimentor_get_provider_test_statuses();
         $provider_status_views = [];
@@ -79,13 +55,13 @@
                 $provider_status_views[ $provider_key ] = aimentor_format_provider_status_for_display( $provider_key, $current_status );
         }
         ?>
-        <p class="description aimentor-defaults-notice">
+        <p class="description aimentor-defaults-notice jaggrok-defaults-notice">
                 <?php
                 printf(
                         /* translators: 1: Grok model, 2: OpenAI model, 3: max tokens */
                         esc_html__( 'Defaults: Grok starts on %1$s, OpenAI uses %2$s, and requests are capped at %3$s tokens until you change them.', 'aimentor' ),
-                        esc_html( strtoupper( $default_legacy['grok'] ?? '' ) ),
-                        esc_html( strtoupper( $default_legacy['openai'] ?? '' ) ),
+                        esc_html( strtoupper( $defaults['aimentor_model'] ) ),
+                        esc_html( strtoupper( $defaults['aimentor_openai_model'] ) ),
                         esc_html( number_format_i18n( $defaults['aimentor_max_tokens'] ) )
                 );
                 ?>
@@ -94,30 +70,30 @@
             <tr>
                 <th scope="row"><label><?php esc_html_e( 'Provider', 'aimentor' ); ?></label></th>
                 <td>
-                    <fieldset id="aimentor-provider-selector" class="aimentor-provider-fieldset">
+                    <fieldset id="aimentor-provider-selector" class="aimentor-provider-fieldset jaggrok-provider-fieldset">
                         <legend class="screen-reader-text"><?php esc_html_e( 'AI provider', 'aimentor' ); ?></legend>
-                        <label class="aimentor-provider-option">
+                        <label class="aimentor-provider-option jaggrok-provider-option">
                             <input type="radio" name="aimentor_provider" value="grok" <?php checked( $provider, 'grok' ); ?> />
-                            <span class="aimentor-provider-name"><?php esc_html_e( 'xAI Grok', 'aimentor' ); ?></span>
-                            <span class="aimentor-provider-badge" style="background-color:#1E1E1E;" aria-hidden="true">
+                            <span class="aimentor-provider-name jaggrok-provider-name"><?php esc_html_e( 'xAI Grok', 'aimentor' ); ?></span>
+                            <span class="aimentor-provider-badge jaggrok-provider-badge" style="background-color:#1E1E1E;" aria-hidden="true">
                                 <?php esc_html_e( 'xAI', 'aimentor' ); ?>
                             </span>
-                            <span class="description aimentor-provider-summary"><?php esc_html_e( "Creator tier includes roughly 30 requests per minute and bundled usage. Confirm current allowances on xAI's pricing page.", 'aimentor' ); ?></span>
+                            <span class="description aimentor-provider-summary jaggrok-provider-summary"><?php esc_html_e( "Creator tier includes roughly 30 requests per minute and bundled usage. Confirm current allowances on xAI's pricing page.", 'aimentor' ); ?></span>
                         </label>
-                        <label class="aimentor-provider-option">
+                        <label class="aimentor-provider-option jaggrok-provider-option">
                             <input type="radio" name="aimentor_provider" value="openai" <?php checked( $provider, 'openai' ); ?> />
-                            <span class="aimentor-provider-name"><?php esc_html_e( 'OpenAI', 'aimentor' ); ?></span>
-                            <span class="aimentor-provider-badge" style="background-color:#2B8CFF;" aria-hidden="true">
+                            <span class="aimentor-provider-name jaggrok-provider-name"><?php esc_html_e( 'OpenAI', 'aimentor' ); ?></span>
+                            <span class="aimentor-provider-badge jaggrok-provider-badge" style="background-color:#2B8CFF;" aria-hidden="true">
                                 <?php esc_html_e( 'OpenAI', 'aimentor' ); ?>
                             </span>
-                            <span class="description aimentor-provider-summary"><?php esc_html_e( 'Pay-as-you-go billing with token-based rates. Review OpenAI pricing for the latest per-model costs.', 'aimentor' ); ?></span>
+                            <span class="description aimentor-provider-summary jaggrok-provider-summary"><?php esc_html_e( 'Pay-as-you-go billing with token-based rates. Review OpenAI pricing for the latest per-model costs.', 'aimentor' ); ?></span>
                         </label>
                     </fieldset>
-                    <div class="aimentor-provider-help" data-provider="grok" aria-live="polite">
+                    <div class="aimentor-provider-help jaggrok-provider-help" data-provider="grok" aria-live="polite">
                         <p class="description"><?php esc_html_e( 'Grok API access is part of the Creator subscription. Typical soft limits hover around 30 requests/minute; usage beyond that may queue. See the xAI pricing page for up-to-date information.', 'aimentor' ); ?></p>
                         <p class="description"><a href="<?php echo esc_url( 'https://x.ai/pricing' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View xAI pricing & limits', 'aimentor' ); ?></a></p>
                     </div>
-                    <div class="aimentor-provider-help" data-provider="openai" aria-live="polite">
+                    <div class="aimentor-provider-help jaggrok-provider-help" data-provider="openai" aria-live="polite">
                         <p class="description"><?php esc_html_e( 'OpenAI accounts charge only for tokens used. Most teams start with generous rate limits that scale automatically after billing verification.', 'aimentor' ); ?></p>
                         <p class="description"><a href="<?php echo esc_url( 'https://openai.com/pricing' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Review OpenAI pricing & limits', 'aimentor' ); ?></a></p>
                     </div>
@@ -126,87 +102,61 @@
             <tr>
                 <th scope="row"><label for="aimentor_xai_api_key"><?php esc_html_e( 'API Credentials', 'aimentor' ); ?></label></th>
                 <td>
-                    <div class="aimentor-provider-group" data-provider="grok">
-                        <label for="aimentor_xai_api_key" class="aimentor-provider-group__label"><?php esc_html_e( 'xAI API Key', 'aimentor' ); ?> <span class="required">*</span></label>
-                        <div class="aimentor-api-key-container">
-                            <input type="password" id="aimentor_xai_api_key" name="aimentor_xai_api_key" value="<?php echo esc_attr( $api_keys['grok'] ); ?>" class="regular-text aimentor-api-input" autocomplete="off" />
-                            <button type="button" class="button button-secondary aimentor-toggle-visibility" data-target="aimentor_xai_api_key" data-show-label="<?php esc_attr_e( 'Show', 'aimentor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'aimentor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle xAI API key visibility', 'aimentor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'aimentor' ); ?></button>
+                    <div class="aimentor-provider-group jaggrok-provider-group" data-provider="grok">
+                        <label for="aimentor_xai_api_key" class="aimentor-provider-group__label jaggrok-provider-group__label"><?php esc_html_e( 'xAI API Key', 'aimentor' ); ?> <span class="required">*</span></label>
+                        <div class="aimentor-api-key-container jaggrok-api-key-container">
+                            <input type="password" id="aimentor_xai_api_key" name="aimentor_xai_api_key" value="<?php echo esc_attr( $api_keys['grok'] ); ?>" class="regular-text aimentor-api-input jaggrok-api-input" autocomplete="off" />
+                            <button type="button" class="button button-secondary aimentor-toggle-visibility jaggrok-toggle-visibility" data-target="aimentor_xai_api_key" data-show-label="<?php esc_attr_e( 'Show', 'aimentor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'aimentor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle xAI API key visibility', 'aimentor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'aimentor' ); ?></button>
                         </div>
                         <p class="description"><a href="<?php echo esc_url( 'https://x.ai/api' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Generate an API key', 'aimentor' ); ?></a></p>
                         <p class="description">
-                            <button type="button" class="button aimentor-test-provider" data-provider="grok"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
+                            <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="grok"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
                         <?php $grok_status = $provider_status_views['grok']; ?>
-                        <div class="aimentor-provider-status" data-provider="grok" data-timestamp="<?php echo esc_attr( $grok_status['timestamp'] ); ?>" aria-live="polite">
+                        <div class="aimentor-provider-status jaggrok-provider-status" data-provider="grok" data-timestamp="<?php echo esc_attr( $grok_status['timestamp'] ); ?>" aria-live="polite">
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $grok_status['badge_state'] ); ?>" data-provider="grok"><?php echo esc_html( $grok_status['badge_label'] ); ?></span>
-                            <span class="aimentor-status-description" data-provider="grok"><?php echo esc_html( $grok_status['description'] ); ?></span>
+                            <span class="aimentor-status-description jaggrok-status-description" data-provider="grok"><?php echo esc_html( $grok_status['description'] ); ?></span>
                         </div>
                     </div>
-                    <div class="aimentor-provider-group" data-provider="openai">
-                        <label for="aimentor_openai_api_key" class="aimentor-provider-group__label"><?php esc_html_e( 'OpenAI API Key', 'aimentor' ); ?></label>
-                        <div class="aimentor-api-key-container">
-                            <input type="password" id="aimentor_openai_api_key" name="aimentor_openai_api_key" value="<?php echo esc_attr( $api_keys['openai'] ); ?>" class="regular-text aimentor-api-input" autocomplete="off" placeholder="<?php esc_attr_e( 'sk-...', 'aimentor' ); ?>" />
-                            <button type="button" class="button button-secondary aimentor-toggle-visibility" data-target="aimentor_openai_api_key" data-show-label="<?php esc_attr_e( 'Show', 'aimentor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'aimentor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle OpenAI API key visibility', 'aimentor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'aimentor' ); ?></button>
+                    <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
+                        <label for="aimentor_openai_api_key" class="aimentor-provider-group__label jaggrok-provider-group__label"><?php esc_html_e( 'OpenAI API Key', 'aimentor' ); ?></label>
+                        <div class="aimentor-api-key-container jaggrok-api-key-container">
+                            <input type="password" id="aimentor_openai_api_key" name="aimentor_openai_api_key" value="<?php echo esc_attr( $api_keys['openai'] ); ?>" class="regular-text aimentor-api-input jaggrok-api-input" autocomplete="off" placeholder="<?php esc_attr_e( 'sk-...', 'aimentor' ); ?>" />
+                            <button type="button" class="button button-secondary aimentor-toggle-visibility jaggrok-toggle-visibility" data-target="aimentor_openai_api_key" data-show-label="<?php esc_attr_e( 'Show', 'aimentor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'aimentor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle OpenAI API key visibility', 'aimentor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'aimentor' ); ?></button>
                         </div>
                         <p class="description"><a href="<?php echo esc_url( 'https://platform.openai.com/account/api-keys' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create an API key', 'aimentor' ); ?></a></p>
                         <p class="description">
-                            <button type="button" class="button aimentor-test-provider" data-provider="openai"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
+                            <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="openai"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
                         <?php $openai_status = $provider_status_views['openai']; ?>
-                        <div class="aimentor-provider-status" data-provider="openai" data-timestamp="<?php echo esc_attr( $openai_status['timestamp'] ); ?>" aria-live="polite">
+                        <div class="aimentor-provider-status jaggrok-provider-status" data-provider="openai" data-timestamp="<?php echo esc_attr( $openai_status['timestamp'] ); ?>" aria-live="polite">
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $openai_status['badge_state'] ); ?>" data-provider="openai"><?php echo esc_html( $openai_status['badge_label'] ); ?></span>
-                            <span class="aimentor-status-description" data-provider="openai"><?php echo esc_html( $openai_status['description'] ); ?></span>
+                            <span class="aimentor-status-description jaggrok-status-description" data-provider="openai"><?php echo esc_html( $openai_status['description'] ); ?></span>
                         </div>
                     </div>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><?php esc_html_e( 'Editor Defaults', 'aimentor' ); ?></th>
+                <th scope="row"><?php esc_html_e( 'Default Model', 'aimentor' ); ?></th>
                 <td>
-                    <label for="aimentor_default_generation_type" class="aimentor-provider-group__label"><?php esc_html_e( 'Generation Type', 'aimentor' ); ?></label>
-                    <select id="aimentor_default_generation_type" name="aimentor_default_generation_type" class="regular-text" aria-describedby="aimentor_default_generation_type_help">
-                        <option value="content" <?php selected( $default_task, 'content' ); ?>><?php esc_html_e( 'Page Copy', 'aimentor' ); ?></option>
-                        <option value="canvas" <?php selected( $default_task, 'canvas' ); ?><?php echo $is_pro_active ? '' : ' disabled'; ?>><?php esc_html_e( 'Page Layout', 'aimentor' ); ?></option>
-                    </select>
-                    <p id="aimentor_default_generation_type_help" class="description"><?php esc_html_e( 'Sets the default AiMentor task shown in Elementor (copy vs. layout).', 'aimentor' ); ?></p>
-                    <?php if ( ! $is_pro_active ) : ?>
-                        <p class="description"><?php esc_html_e( 'Activate Elementor Pro to unlock AiMentor Page Layout generation.', 'aimentor' ); ?></p>
-                    <?php endif; ?>
-                    <label for="aimentor_default_performance" class="aimentor-provider-group__label"><?php esc_html_e( 'Performance', 'aimentor' ); ?></label>
-                    <select id="aimentor_default_performance" name="aimentor_default_performance" class="regular-text" aria-describedby="aimentor_default_performance_help">
-                        <option value="fast" <?php selected( $default_tier, 'fast' ); ?>><?php esc_html_e( 'Fast', 'aimentor' ); ?></option>
-                        <option value="quality" <?php selected( $default_tier, 'quality' ); ?>><?php esc_html_e( 'Quality', 'aimentor' ); ?></option>
-                    </select>
-                    <p id="aimentor_default_performance_help" class="description"><?php esc_html_e( 'Choose the default balance between speed and fidelity for AiMentor generations.', 'aimentor' ); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><?php esc_html_e( 'Model Presets', 'aimentor' ); ?></th>
-                <td>
-                    <?php $provider_model_labels = $model_labels; ?>
-                    <?php foreach ( aimentor_get_provider_labels() as $provider_key => $provider_label ) : ?>
-                        <div class="aimentor-provider-group" data-provider="<?php echo esc_attr( $provider_key ); ?>">
-                            <p class="description aimentor-model-presets-summary"><?php printf( esc_html__( '%s presets drive which model AiMentor calls for layouts and copy.', 'aimentor' ), esc_html( $provider_label ) ); ?></p>
-                            <?php foreach ( $preset_sections as $task => $config ) : ?>
-                                <?php foreach ( $config['tiers'] as $tier => $tier_config ) : ?>
-                                    <?php
-                                    $select_id   = sprintf( 'aimentor_model_presets_%s_%s_%s', $provider_key, $task, $tier );
-                                    $name        = sprintf( 'aimentor_model_presets[%s][%s][%s]', $provider_key, $task, $tier );
-                                    $current     = $model_presets[ $provider_key ][ $task ][ $tier ] ?? ( $default_presets[ $provider_key ][ $task ][ $tier ] ?? '' );
-                                    $choices     = $allowed_models[ $provider_key ][ $task ][ $tier ] ?? [];
-                                    $labels      = $provider_model_labels[ $provider_key ] ?? [];
-                                    ?>
-                                    <label for="<?php echo esc_attr( $select_id ); ?>" class="aimentor-provider-group__label"><?php echo esc_html( $tier_config['label'] ); ?></label>
-                                    <select name="<?php echo esc_attr( $name ); ?>" id="<?php echo esc_attr( $select_id ); ?>" class="regular-text">
-                                        <?php foreach ( $choices as $model_key ) : ?>
-                                            <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $current, $model_key ); ?>><?php echo esc_html( $labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <p class="description aimentor-model-preset-help"><?php echo esc_html( $tier_config['help'] ); ?></p>
-                                <?php endforeach; ?>
+                    <div class="aimentor-provider-group jaggrok-provider-group" data-provider="grok">
+                        <label class="screen-reader-text" for="aimentor_provider_models_grok"><?php esc_html_e( 'xAI Grok default model', 'aimentor' ); ?></label>
+                        <select name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" class="regular-text">
+                            <?php foreach ( $allowed_models['grok'] as $model_key ) : ?>
+                                <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['grok'], $model_key ); ?>><?php echo esc_html( $grok_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
                             <?php endforeach; ?>
-                        </div>
-                    <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'Grok 3 Beta is a reliable balance of quality and speed for most Elementor flows.', 'aimentor' ); ?></p>
+                    </div>
+                    <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
+                        <label class="screen-reader-text" for="aimentor_provider_models_openai"><?php esc_html_e( 'OpenAI default model', 'aimentor' ); ?></label>
+                        <select name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" class="regular-text">
+                            <?php foreach ( $allowed_models['openai'] as $model_key ) : ?>
+                                <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['openai'], $model_key ); ?>><?php echo esc_html( $openai_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'GPT-4o mini delivers strong reasoning with lower cost; upgrade as your budget allows.', 'aimentor' ); ?></p>
+                    </div>
                 </td>
             </tr>
             <tr>
@@ -237,10 +187,8 @@
                 </td>
             </tr>
         </table>
-        <input type="hidden" name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" value="<?php echo esc_attr( $legacy_models['grok'] ?? '' ); ?>" />
-        <input type="hidden" name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" value="<?php echo esc_attr( $legacy_models['openai'] ?? '' ); ?>" />
-        <input type="hidden" name="aimentor_model" id="aimentor_model_legacy" value="<?php echo esc_attr( $legacy_models['grok'] ?? '' ); ?>" />
-        <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $legacy_models['openai'] ?? '' ); ?>" />
+        <input type="hidden" name="aimentor_model" id="aimentor_model_legacy" value="<?php echo esc_attr( $models['grok'] ); ?>" />
+        <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $models['openai'] ); ?>" />
         <?php submit_button(); ?>
     </form>
     <!-- ERROR LOG TABLE -->
@@ -255,8 +203,8 @@
         </thead>
         <tbody>
         <?php
-        $log_file = aimentor_get_error_log_path();
-        if ( file_exists( $log_file ) && is_readable( $log_file ) ) {
+        $log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
+        if ( file_exists( $log_file ) ) {
             $logs = array_reverse( file( $log_file ) );
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
@@ -308,27 +256,25 @@
 .aimentor-settings-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); color: #ffffff; }
 .aimentor-provider-badge { display: inline-flex; align-items: center; padding: 2px 8px; margin-left: 6px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; }
 .required { color: #d63638; }
-.aimentor-provider-fieldset { border: 1px solid #ccd0d4; padding: 12px; max-width: 640px; background: #fff; border-radius: 6px; }
-.aimentor-provider-option { display: block; margin-bottom: 12px; }
-.aimentor-provider-option:last-of-type { margin-bottom: 0; }
-.aimentor-provider-name { font-weight: 600; display: inline-block; margin-right: 6px; }
-.aimentor-provider-summary { display: block; margin-left: 26px; }
-.aimentor-provider-group { margin-bottom: 16px; }
-.js .aimentor-provider-group { display: none; }
-.aimentor-provider-group__label { font-weight: 600; display: block; margin-bottom: 4px; }
-.aimentor-model-presets-summary { margin-bottom: 12px; max-width: 640px; }
-.aimentor-model-preset-help { margin-top: 4px; margin-bottom: 12px; max-width: 640px; }
-.aimentor-provider-help { margin-top: 8px; max-width: 640px; }
-.js .aimentor-provider-help { display: none; }
-.aimentor-api-key-container { display: flex; align-items: center; gap: 8px; max-width: 420px; }
-.aimentor-api-input { width: 100%; }
-.aimentor-provider-status { display: flex; align-items: center; gap: 8px; margin-top: 6px; max-width: 520px; }
-.aimentor-status-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; letter-spacing: .01em; }
-.aimentor-status-badge--success { background-color: #dff4e2; color: #116329; }
-.aimentor-status-badge--error { background-color: #fce1e1; color: #b32d2e; }
-.aimentor-status-badge--idle { background-color: #e7ecf3; color: #2c3e50; }
-.aimentor-status-badge--pending { background-color: #fef3c7; color: #8a6110; }
-.aimentor-status-description { display: inline-block; font-size: 13px; line-height: 1.5; }
+.aimentor-provider-fieldset, .jaggrok-provider-fieldset { border: 1px solid #ccd0d4; padding: 12px; max-width: 640px; background: #fff; border-radius: 6px; }
+.aimentor-provider-option, .jaggrok-provider-option { display: block; margin-bottom: 12px; }
+.aimentor-provider-option:last-of-type, .jaggrok-provider-option:last-of-type { margin-bottom: 0; }
+.aimentor-provider-name, .jaggrok-provider-name { font-weight: 600; display: inline-block; margin-right: 6px; }
+.aimentor-provider-summary, .jaggrok-provider-summary { display: block; margin-left: 26px; }
+.aimentor-provider-group, .jaggrok-provider-group { margin-bottom: 16px; }
+.js .aimentor-provider-group, .js .jaggrok-provider-group { display: none; }
+.aimentor-provider-group__label, .jaggrok-provider-group__label { font-weight: 600; display: block; margin-bottom: 4px; }
+.aimentor-provider-help, .jaggrok-provider-help { margin-top: 8px; max-width: 640px; }
+.js .aimentor-provider-help, .js .jaggrok-provider-help { display: none; }
+.aimentor-api-key-container, .jaggrok-api-key-container { display: flex; align-items: center; gap: 8px; max-width: 420px; }
+.aimentor-api-input, .jaggrok-api-input { width: 100%; }
+.aimentor-provider-status, .jaggrok-provider-status { display: flex; align-items: center; gap: 8px; margin-top: 6px; max-width: 520px; }
+.aimentor-status-badge, .jaggrok-status-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; letter-spacing: .01em; }
+.aimentor-status-badge--success, .jaggrok-status-badge--success { background-color: #dff4e2; color: #116329; }
+.aimentor-status-badge--error, .jaggrok-status-badge--error { background-color: #fce1e1; color: #b32d2e; }
+.aimentor-status-badge--idle, .jaggrok-status-badge--idle { background-color: #e7ecf3; color: #2c3e50; }
+.aimentor-status-badge--pending, .jaggrok-status-badge--pending { background-color: #fef3c7; color: #8a6110; }
+.aimentor-status-description, .jaggrok-status-description { display: inline-block; font-size: 13px; line-height: 1.5; }
 </style>
 
 <script>
@@ -367,43 +313,12 @@
             $button.text(isPassword ? hideLabel : showLabel);
         });
 
-        var legacyProviders = [ 'grok', 'openai' ];
+        $('#aimentor_provider_models_grok').on('change', function() {
+            $('#aimentor_model_legacy').val($(this).val());
+        });
 
-        function syncLegacyModel(provider) {
-            var selector = '#aimentor_model_presets_' + provider + '_content_fast';
-            var $select = $(selector);
-
-            if ( ! $select.length ) {
-                return;
-            }
-
-            var value = $select.val();
-
-            if ( 'grok' === provider ) {
-                $('#aimentor_model_legacy').val(value);
-            }
-
-            if ( 'openai' === provider ) {
-                $('#aimentor_openai_model_legacy').val(value);
-            }
-
-            $('#aimentor_provider_models_' + provider).val(value);
-        }
-
-        $.each(legacyProviders, function(_, provider) {
-            var selector = '#aimentor_model_presets_' + provider + '_content_fast';
-
-            var $select = $(selector);
-
-            if ( ! $select.length ) {
-                return;
-            }
-
-            $select.on('change', function() {
-                syncLegacyModel(provider);
-            });
-
-            syncLegacyModel(provider);
+        $('#aimentor_provider_models_openai').on('change', function() {
+            $('#aimentor_openai_model_legacy').val($(this).val());
         });
     });
 </script>

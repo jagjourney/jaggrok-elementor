@@ -1,43 +1,18 @@
 <?php
 // ============================================================================
-// AiMentor Updater v1.4.0
+// AiMentor GITHUB UPDATER v1.3.6
 // ============================================================================
 
 if ( ! class_exists( 'AiMentor_Updater' ) ) {
-        class AiMentor_Updater {
-                public string $repo;
-                public string $slug;
-                public string $plugin_file;
-                /**
-                 * @var string[]
-                 */
-                public array $legacy_slugs = array();
-                /**
-                 * @var string[]
-                 */
-                public array $legacy_plugin_files = array();
-                /**
-                 * @var string[]
-                 */
-                public array $legacy_repos = array();
+	class AiMentor_Updater {
+		public string $repo;
+		public string $slug;
+		public string $manifest_url;
 
-                public function __construct(
-                        string $repo = 'jagjourney/aimentor-elementor',
-                        string $slug = 'aimentor-elementor',
-                        string $unused_manifest_url = '',
-                        string $plugin_file = 'aimentor-elementor/aimentor-elementor.php',
-                        array $args = array()
-                ) {
-                        $defaults = array(
-                                'legacy_slugs'         => array( 'jaggrok-elementor' ),
-                                'legacy_plugin_files'  => array(
-                                        'jaggrok-elementor/aimentor-elementor.php',
-                                        'jaggrok-elementor/jaggrok-elementor.php',
-                                ),
-                                'legacy_repos'         => array(
-                                        'aimentor/aimentor-elementor',
-                                ),
-                        );
+		public function __construct( $repo, $slug ) {
+			$this->repo = $repo;
+			$this->slug = $slug;
+			$this->manifest_url = 'https://aimentor-elementor.jagjourney.com/plugin-info.json';
 
                         $args = wp_parse_args( $args, $defaults );
 
@@ -52,9 +27,12 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
                         $this->legacy_plugin_files  = $this->sanitize_list( $args['legacy_plugin_files'] );
                         $this->legacy_repos         = $this->sanitize_list( $args['legacy_repos'] );
 
-                        add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
-                        add_filter( 'plugins_api', array( $this, 'plugin_info' ), 10, 3 );
-                }
+                        $main_file = WP_PLUGIN_DIR . '/aimentor-elementor/aimentor-elementor.php';
+
+                        if ( ! file_exists( $main_file ) ) {
+                                $main_file = WP_PLUGIN_DIR . '/jaggrok-elementor/aimentor-elementor.php';
+                        }
+			$current = get_plugin_data( $main_file );
 
                 private function sanitize_list( $values ): array {
                         if ( ! is_array( $values ) ) {
@@ -90,10 +68,9 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
                         );
                 }
 
-                public function check_update( $transient ) {
-                        if ( empty( $transient->checked ) ) {
-                                return $transient;
-                        }
+		private function get_remote_info() {
+                        $response = wp_remote_get( $this->manifest_url, array( 'user-agent' => 'AiMentor Updater' ) );
+			if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) return false;
 
                         $remote = $this->get_remote_info();
                         if ( ! $remote || empty( $remote->version ) ) {
@@ -430,6 +407,9 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
         }
 }
 
-if ( class_exists( 'AiMentor_Updater' ) && ! class_exists( 'JagGrok_Updater' ) ) {
-        class_alias( 'AiMentor_Updater', 'JagGrok_Updater' );
-}
+// Initialize updater
+add_action( 'plugins_loaded', function() {
+        if ( class_exists( 'AiMentor_Updater' ) ) {
+                new AiMentor_Updater( 'jagjourney/aimentor-elementor', 'aimentor-elementor' );
+        }
+});
