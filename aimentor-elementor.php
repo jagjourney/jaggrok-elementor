@@ -336,8 +336,8 @@ function aimentor_get_provider_meta_map() {
 
 // Providers.
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-provider-interface.php';
-require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-grok-provider.php';
-require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-openai-provider.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-jaggrok-grok-provider.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-jaggrok-openai-provider.php';
 
 if ( class_exists( 'AiMentor_Provider_Interface' ) && ! class_exists( 'JagGrok_Provider_Interface' ) ) {
         class_alias( 'AiMentor_Provider_Interface', 'JagGrok_Provider_Interface' );
@@ -399,26 +399,101 @@ if ( aimentor_check_dependencies() ) {
  * @param string|null $provider_key Provider key.
  * @return AiMentor_Provider_Interface
  */
-function aimentor_get_active_provider( $provider_key = null ) {
+function jaggrok_get_active_provider( $provider_key = null ) {
         if ( null === $provider_key ) {
                 $provider_key = get_option( 'aimentor_provider', 'grok' );
         }
 
         switch ( $provider_key ) {
                 case 'openai':
-                        return new AiMentor_OpenAI_Provider();
+                        return new JagGrok_OpenAI_Provider();
                 case 'grok':
                 default:
-                        return new AiMentor_Grok_Provider();
+                        return new JagGrok_Grok_Provider();
         }
 }
 
-add_action( 'wp_ajax_aimentor_generate_page', 'aimentor_generate_page_ajax' );
-add_action( 'wp_ajax_jaggrok_generate_page', 'aimentor_generate_page_ajax' );
+if ( ! function_exists( 'aimentor_get_active_provider' ) ) {
+        function aimentor_get_active_provider( $provider_key = null ) {
+                return jaggrok_get_active_provider( $provider_key );
+        }
+}
+
+function jaggrok_normalize_generation_task( $task ) {
+        $task = sanitize_key( $task );
+
+        return in_array( $task, [ 'canvas', 'content' ], true ) ? $task : 'content';
+}
+
+function jaggrok_normalize_performance_tier( $tier ) {
+        $tier = sanitize_key( $tier );
+
+        return in_array( $tier, [ 'fast', 'quality' ], true ) ? $tier : 'fast';
+}
+
+function jaggrok_resolve_generation_preset( $provider_key, $requested_task, $requested_tier, $supports_canvas, $is_pro ) {
+        $defaults     = aimentor_get_default_options();
+        $model_presets  = aimentor_get_model_presets();
+        $model_defaults = aimentor_get_provider_model_defaults();
+
+        $default_task = jaggrok_normalize_generation_task( $defaults['aimentor_default_generation_type'] ?? 'content' );
+        $default_tier = jaggrok_normalize_performance_tier( $defaults['aimentor_default_performance'] ?? 'fast' );
+
+        $requested_task = $requested_task ? jaggrok_normalize_generation_task( $requested_task ) : '';
+        $requested_tier = $requested_tier ? jaggrok_normalize_performance_tier( $requested_tier ) : '';
+
+        $task = $requested_task ? $requested_task : $default_task;
+        $tier = $requested_tier ? $requested_tier : $default_tier;
+
+        if ( 'canvas' === $task && ( ! $supports_canvas || ! $is_pro ) ) {
+                $task = 'content';
+        }
+
+        if ( ! isset( $model_presets[ $provider_key ] ) ) {
+                $provider_key = array_key_exists( $provider_key, $model_defaults ) ? $provider_key : 'grok';
+        }
+
+        if ( ! isset( $model_presets[ $provider_key ][ $task ] ) ) {
+                $task = 'content';
+        }
+
+        if ( ! isset( $model_presets[ $provider_key ][ $task ][ $tier ] ) || '' === $model_presets[ $provider_key ][ $task ][ $tier ] ) {
+                $tier_candidates = array_keys( $model_presets[ $provider_key ][ $task ] );
+                if ( ! empty( $tier_candidates ) ) {
+                        $tier = in_array( $default_tier, $tier_candidates, true ) ? $default_tier : reset( $tier_candidates );
+                }
+        }
+
+        $model = $model_presets[ $provider_key ][ $task ][ $tier ] ?? '';
+
+        if ( '' === $model ) {
+                $model = $model_defaults[ $provider_key ][ $task ][ $tier ] ?? '';
+        }
+
+        if ( '' === $model ) {
+                $fallbacks = aimentor_map_presets_to_legacy_defaults( $model_defaults );
+                $model     = $fallbacks[ $provider_key ] ?? '';
+        }
+
+        return [
+                'task'  => $task,
+                'tier'  => $tier,
+                'model' => $model,
+        ];
+}
+
+if ( ! function_exists( 'aimentor_resolve_generation_preset' ) ) {
+        function aimentor_resolve_generation_preset( $provider_key, $requested_task, $requested_tier, $supports_canvas, $is_pro ) {
+                return jaggrok_resolve_generation_preset( $provider_key, $requested_task, $requested_tier, $supports_canvas, $is_pro );
+        }
+}
+
+add_action( 'wp_ajax_aimentor_generate_page', 'jaggrok_generate_page_ajax' );
+add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
 /**
  * Handle the AJAX request to generate Elementor content.
  */
-function aimentor_generate_page_ajax() {
+function jaggrok_generate_page_ajax() {
         $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 
         if ( ! wp_verify_nonce( $nonce, 'aimentor_test' ) && ! wp_verify_nonce( $nonce, 'jaggrok_test' ) ) {
@@ -451,17 +526,16 @@ function aimentor_generate_page_ajax() {
                 $provider_key = get_option( 'aimentor_provider', 'grok' );
         }
 
-        $model_presets  = aimentor_get_model_presets();
-        $model_defaults = aimentor_get_provider_model_defaults();
-
-        $provider = aimentor_get_active_provider( $provider_key );
+        $provider = jaggrok_get_active_provider( $provider_key );
 
         if ( ! $provider instanceof AiMentor_Provider_Interface ) {
                 aimentor_log_error(
                         'Invalid provider configuration.',
                         array(
                                 'provider' => $provider_key,
-                                'model'    => $model,
+                                'model'    => '',
+                                'task'     => '',
+                                'tier'     => '',
                                 'user_id'  => get_current_user_id(),
                         )
                 );
@@ -469,56 +543,45 @@ function aimentor_generate_page_ajax() {
                 wp_send_json_error( __( 'Provider configuration error.', 'aimentor' ) );
         }
 
-        $requested_task = isset( $_POST['task'] ) ? sanitize_text_field( wp_unslash( $_POST['task'] ) ) : '';
-        $requested_tier = isset( $_POST['tier'] ) ? sanitize_text_field( wp_unslash( $_POST['tier'] ) ) : '';
+        $requested_task = isset( $_POST['task_type'] ) ? sanitize_text_field( wp_unslash( $_POST['task_type'] ) ) : '';
+        $requested_tier = isset( $_POST['performance_tier'] ) ? sanitize_text_field( wp_unslash( $_POST['performance_tier'] ) ) : '';
 
         if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
                 $requested_task = aimentor_sanitize_generation_type( $requested_task );
+        } else {
+                $requested_task = $requested_task ? jaggrok_normalize_generation_task( $requested_task ) : '';
         }
 
         if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
                 $requested_tier = aimentor_sanitize_performance_tier( $requested_tier );
+        } else {
+                $requested_tier = $requested_tier ? jaggrok_normalize_performance_tier( $requested_tier ) : '';
         }
-
-        $defaults         = aimentor_get_default_options();
-        $default_task     = isset( $defaults['aimentor_default_generation_type'] ) ? $defaults['aimentor_default_generation_type'] : 'content';
-        $default_tier     = isset( $defaults['aimentor_default_performance'] ) ? $defaults['aimentor_default_performance'] : 'fast';
-        $default_task     = function_exists( 'aimentor_sanitize_generation_type' ) ? aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_task ) ) : $default_task;
-        $default_tier     = function_exists( 'aimentor_sanitize_performance_tier' ) ? aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_tier ) ) : $default_tier;
-        $task             = $requested_task ? $requested_task : $default_task;
-        $tier             = $requested_tier ? $requested_tier : $default_tier;
 
         $supports_canvas = $provider->supports_canvas();
-        if ( 'canvas' === $task ) {
-                if ( ! $is_pro || ! $supports_canvas ) {
-                        $task = 'content';
-                }
-        }
+        $resolution = jaggrok_resolve_generation_preset( $provider_key, $requested_task, $requested_tier, $supports_canvas, $is_pro );
+        $task       = $resolution['task'];
+        $tier       = $resolution['tier'];
+        $model      = $resolution['model'];
 
         switch ( $provider_key ) {
                 case 'openai':
                         $api_key = get_option( 'aimentor_openai_api_key' );
-                        $model   = $model_presets['openai'][ $task ][ $tier ] ?? ( $model_defaults['openai'][ $task ][ $tier ] ?? '' );
                         break;
                 case 'grok':
                 default:
                         $api_key = get_option( 'aimentor_xai_api_key' );
-                        $model   = $model_presets['grok'][ $task ][ $tier ] ?? ( $model_defaults['grok'][ $task ][ $tier ] ?? '' );
                         break;
-        }
-
-        if ( empty( $model ) ) {
-                $fallbacks = aimentor_map_presets_to_legacy_defaults( $model_defaults );
-                $model     = $fallbacks[ $provider_key ] ?? '';
         }
 
         $result = $provider->request( $prompt, array(
                 'api_key'    => $api_key,
                 'model'      => $model,
                 'max_tokens' => get_option( 'aimentor_max_tokens', 2000 ),
-                'is_canvas'  => ( 'canvas' === $task ),
-                'task'       => $task,
-                'tier'       => $tier,
+                'context'    => array(
+                        'task' => $task,
+                        'tier' => $tier,
+                ),
         ) );
 
         if ( is_wp_error( $result ) ) {
@@ -529,6 +592,8 @@ function aimentor_generate_page_ajax() {
                         array(
                                 'provider' => $provider_key,
                                 'model'    => $model,
+                                'task'     => $task,
+                                'tier'     => $tier,
                                 'user_id'  => get_current_user_id(),
                         )
                 );
@@ -539,6 +604,9 @@ function aimentor_generate_page_ajax() {
         $response_payload = array(
                 'provider'       => $provider_key,
                 'provider_label' => $provider_labels[ $provider_key ] ?? ucfirst( $provider_key ),
+                'model'          => $model,
+                'task'           => $task,
+                'tier'           => $tier,
         );
 
         if ( isset( $result['type'] ) && 'canvas' === $result['type'] ) {
@@ -548,6 +616,12 @@ function aimentor_generate_page_ajax() {
 
         $response_payload['html'] = $result['content'];
         wp_send_json_success( $response_payload );
+}
+
+if ( ! function_exists( 'aimentor_generate_page_ajax' ) ) {
+        function aimentor_generate_page_ajax() {
+                jaggrok_generate_page_ajax();
+        }
 }
 
 register_uninstall_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_uninstall' );
