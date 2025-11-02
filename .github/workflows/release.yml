@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build-and-publish:
+    name: Build and publish plugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PLUGIN_SLUG: aimentor-elementor
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+
+      - name: Validate PHP syntax
+        run: |
+          set -euo pipefail
+          find . \
+            -path './.git' -prune -o \
+            -path './.github' -prune -o \
+            -path './build' -prune -o \
+            -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Build plugin archive
+        id: package
+        run: |
+          set -euo pipefail
+
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$TAG"
+          fi
+
+          ZIP_NAME="${PLUGIN_SLUG}-v${VERSION}.zip"
+          BUILD_DIR="build/${PLUGIN_SLUG}"
+
+          rm -rf build
+          mkdir -p "$BUILD_DIR"
+
+          rsync -av \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'build/' \
+            --exclude 'docs/' \
+            --exclude 'downloads/' \
+            --exclude 'manifests/' \
+            --exclude '*.zip' \
+            --exclude '.gitignore' \
+            ./ "$BUILD_DIR"/
+
+          pushd build >/dev/null
+          zip -r "../${ZIP_NAME}" "${PLUGIN_SLUG}"
+          popd >/dev/null
+
+          SHA256=$(sha256sum "${ZIP_NAME}" | cut -d' ' -f1)
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "zip_path=$PWD/${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+
+      - name: Attach archive to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.package.outputs.zip_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update manifest on gh-pages
+        if: ${{ steps.package.outputs.zip_path != '' }}
+        run: |
+          set -euo pipefail
+
+          TAG='${{ steps.package.outputs.tag }}'
+          VERSION='${{ steps.package.outputs.version }}'
+          ZIP_NAME='${{ steps.package.outputs.zip_name }}'
+          ZIP_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${ZIP_NAME}"
+          SHA256='${{ steps.package.outputs.sha256 }}'
+          PUBLISHED='${{ github.event.release.published_at }}'
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages || true
+
+          WORKTREE_PATH="gh-pages-worktree"
+
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git branch --force gh-pages origin/gh-pages
+            git worktree add "$WORKTREE_PATH" gh-pages
+          else
+            git worktree add -b gh-pages "$WORKTREE_PATH"
+          fi
+
+          pushd "$WORKTREE_PATH" >/dev/null
+          mkdir -p manifests
+
+          cat <<JSON > manifests/aimentor-plugin-info.json
+{
+  "name": "AiMentor Elementor",
+  "slug": "aimentor-elementor",
+  "version": "${VERSION}",
+  "download_url": "${ZIP_URL}",
+  "released_at": "${PUBLISHED}",
+  "checksum": {
+    "algorithm": "sha256",
+    "hash": "${SHA256}"
+  },
+  "source": "https://github.com/${{ github.repository }}"
+}
+JSON
+
+          if git diff --quiet -- manifests/aimentor-plugin-info.json; then
+            echo "Manifest already up to date"
+          else
+            git add manifests/aimentor-plugin-info.json
+            git commit -m "Update manifest for ${TAG}"
+            git push origin HEAD:gh-pages
+          fi
+          popd >/dev/null
+
+          git worktree remove "$WORKTREE_PATH"
+          git branch -D gh-pages || true
+*** End Patch

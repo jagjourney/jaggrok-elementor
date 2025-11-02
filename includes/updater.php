@@ -7,7 +7,6 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
         class AiMentor_Updater {
                 public string $repo;
                 public string $slug;
-                public string $manifest_url;
                 public string $plugin_file;
                 /**
                  * @var string[]
@@ -21,15 +20,11 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
                  * @var string[]
                  */
                 public array $legacy_repos = array();
-                /**
-                 * @var string[]
-                 */
-                public array $legacy_manifest_urls = array();
 
                 public function __construct(
-                        string $repo = 'aimentor/aimentor-elementor',
+                        string $repo = 'jagjourney/aimentor-elementor',
                         string $slug = 'aimentor-elementor',
-                        string $manifest_url = 'https://updates.aimentor.ai/elementor/plugin-info.json',
+                        string $unused_manifest_url = '',
                         string $plugin_file = 'aimentor-elementor/aimentor-elementor.php',
                         array $args = array()
                 ) {
@@ -39,22 +34,23 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
                                         'jaggrok-elementor/aimentor-elementor.php',
                                         'jaggrok-elementor/jaggrok-elementor.php',
                                 ),
-                                'legacy_repos'         => array( 'jagjourney/aimentor-elementor' ),
-                                'legacy_manifest_urls' => array(
-                                        'https://aimentor-elementor.jagjourney.com/plugin-info.json',
+                                'legacy_repos'         => array(
+                                        'aimentor/aimentor-elementor',
                                 ),
                         );
 
                         $args = wp_parse_args( $args, $defaults );
 
-                        $this->repo          = $repo ?: 'aimentor/aimentor-elementor';
+                        $this->repo          = $repo ?: 'jagjourney/aimentor-elementor';
                         $this->slug          = $slug ?: 'aimentor-elementor';
-                        $this->manifest_url  = $manifest_url ?: 'https://updates.aimentor.ai/elementor/plugin-info.json';
+                        if ( empty( $plugin_file ) && ! empty( $unused_manifest_url ) ) {
+                                $plugin_file = $unused_manifest_url;
+                        }
+
                         $this->plugin_file   = $plugin_file ?: 'aimentor-elementor/aimentor-elementor.php';
                         $this->legacy_slugs  = $this->sanitize_list( $args['legacy_slugs'] );
                         $this->legacy_plugin_files  = $this->sanitize_list( $args['legacy_plugin_files'] );
                         $this->legacy_repos         = $this->sanitize_list( $args['legacy_repos'] );
-                        $this->legacy_manifest_urls = $this->sanitize_list( $args['legacy_manifest_urls'] );
 
                         add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
                         add_filter( 'plugins_api', array( $this, 'plugin_info' ), 10, 3 );
@@ -196,45 +192,240 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
                 }
 
                 private function get_remote_info() {
-                        $urls = array_merge( array( $this->manifest_url ), $this->legacy_manifest_urls );
+                        foreach ( $this->get_all_repos() as $repo ) {
+                                $remote = $this->fetch_latest_release( $repo );
 
-                        foreach ( $urls as $url ) {
-                                if ( empty( $url ) ) {
-                                        continue;
+                                if ( $remote ) {
+                                        return $remote;
                                 }
-
-                                $response = wp_remote_get(
-                                        $url,
-                                        array(
-                                                'user-agent' => 'AiMentor Updater',
-                                        )
-                                );
-
-                                if ( is_wp_error( $response ) ) {
-                                        continue;
-                                }
-
-                                if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-                                        continue;
-                                }
-
-                                $remote = json_decode( wp_remote_retrieve_body( $response ) );
-                                if ( ! $remote ) {
-                                        continue;
-                                }
-
-                                if ( empty( $remote->slug ) ) {
-                                        $remote->slug = $this->slug;
-                                }
-
-                                $remote->sections = isset( $remote->sections ) ? (array) $remote->sections : array();
-                                $remote->banners  = isset( $remote->banners ) ? (array) $remote->banners : array();
-                                $remote->icons    = isset( $remote->icons ) ? (array) $remote->icons : array();
-
-                                return $remote;
                         }
 
                         return false;
+                }
+
+                private function get_all_repos(): array {
+                        return array_values(
+                                array_unique(
+                                        array_merge(
+                                                array( $this->repo ),
+                                                $this->legacy_repos
+                                        )
+                                )
+                        );
+                }
+
+                private function fetch_latest_release( string $repo ) {
+                        $repo = trim( $repo );
+
+                        if ( '' === $repo ) {
+                                return false;
+                        }
+
+                        $url = sprintf( 'https://api.github.com/repos/%s/releases/latest', $repo );
+
+                        $response = wp_remote_get(
+                                $url,
+                                array(
+                                        'user-agent' => $this->get_user_agent(),
+                                        'headers'    => array(
+                                                'Accept' => 'application/vnd.github+json',
+                                        ),
+                                        'timeout'    => 20,
+                                )
+                        );
+
+                        if ( is_wp_error( $response ) ) {
+                                return false;
+                        }
+
+                        if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+                                return false;
+                        }
+
+                        $release = json_decode( wp_remote_retrieve_body( $response ) );
+                        if ( ! $release ) {
+                                return false;
+                        }
+
+                        return $this->transform_release_payload( $release, $repo );
+                }
+
+                private function transform_release_payload( $release, string $repo ) {
+                        $version = $this->normalize_version( $release->tag_name ?? '' );
+
+                        if ( ! $version ) {
+                                $version = $this->normalize_version( $release->name ?? '' );
+                        }
+
+                        if ( ! $version ) {
+                                return false;
+                        }
+
+                        $download_link = $this->find_release_asset( $release );
+                        if ( ! $download_link && ! empty( $release->zipball_url ) ) {
+                                $download_link = $release->zipball_url;
+                        }
+
+                        $plugin_headers = $this->get_plugin_headers();
+
+                        $sections = array();
+                        if ( ! empty( $plugin_headers['Description'] ) ) {
+                                $sections['description'] = $this->format_markdown( $plugin_headers['Description'] );
+                        }
+
+                        if ( ! empty( $release->body ) ) {
+                                $sections['changelog'] = $this->format_markdown( $release->body );
+                        }
+
+                        $remote = (object) array(
+                                'name'          => $plugin_headers['Name'] ?? 'AiMentor Elementor',
+                                'slug'          => $this->slug,
+                                'version'       => $version,
+                                'download_link' => $download_link,
+                                'author'        => $plugin_headers['Author'] ?? ( $release->author->login ?? 'AiMentor' ),
+                                'requires'      => $plugin_headers['RequiresWP'] ?? '',
+                                'tested'        => $plugin_headers['TestedUpTo'] ?? '',
+                                'requires_php'  => $plugin_headers['RequiresPHP'] ?? '',
+                                'homepage'      => sprintf( 'https://github.com/%s', $repo ),
+                                'sections'      => $sections,
+                                'upgrade_notice'=> $this->extract_upgrade_notice( $release->body ?? '' ),
+                                'last_updated'  => $release->published_at ?? '',
+                        );
+
+                        return $remote;
+                }
+
+                private function find_release_asset( $release ): string {
+                        if ( empty( $release->assets ) || ! is_array( $release->assets ) ) {
+                                return '';
+                        }
+
+                        $fallback = '';
+                        $slug = $this->slug;
+
+                        foreach ( $release->assets as $asset ) {
+                                if ( empty( $asset->browser_download_url ) ) {
+                                        continue;
+                                }
+
+                                $url  = (string) $asset->browser_download_url;
+                                $name = isset( $asset->name ) ? strtolower( (string) $asset->name ) : '';
+
+                                if ( '' === $fallback ) {
+                                        $fallback = $url;
+                                }
+
+                                if ( preg_match( '/\.zip$/', $url ) ) {
+                                        if ( '' === $name || false !== strpos( $name, strtolower( $slug ) ) ) {
+                                                return $url;
+                                        }
+
+                                        $fallback = $url;
+                                }
+                        }
+
+                        return $fallback;
+                }
+
+                private function get_user_agent(): string {
+                        $site_url = function_exists( 'home_url' ) ? home_url() : '';
+
+                        if ( $site_url ) {
+                                $sanitized = function_exists( 'esc_url_raw' ) ? esc_url_raw( $site_url ) : $site_url;
+
+                                return sprintf( 'AiMentor Updater (%s)', $sanitized );
+                        }
+
+                        return 'AiMentor Updater';
+                }
+
+                private function normalize_version( $value ): string {
+                        $value = trim( (string) $value );
+
+                        if ( '' === $value ) {
+                                return '';
+                        }
+
+                        if ( preg_match( '/\d+(?:\.\d+)*/', $value, $matches ) ) {
+                                return $matches[0];
+                        }
+
+                        return $value;
+                }
+
+                private function format_markdown( string $content ): string {
+                        $content = trim( $content );
+
+                        if ( '' === $content ) {
+                                return '';
+                        }
+
+                        if ( function_exists( 'wpautop' ) ) {
+                                $content = wpautop( $content );
+                        } else {
+                                $escape_callback = function_exists( 'esc_html' ) ? 'esc_html' : 'htmlspecialchars';
+                                $content         = '<p>' . str_replace( array( "\r\n", "\r", "\n" ), '</p><p>', call_user_func( $escape_callback, $content ) ) . '</p>';
+                        }
+
+                        return $content;
+                }
+
+                private function extract_upgrade_notice( string $content ): string {
+                        $content = trim( $content );
+
+                        if ( '' === $content ) {
+                                return '';
+                        }
+
+                        $lines = preg_split( '/\r\n|\r|\n/', $content );
+
+                        foreach ( $lines as $line ) {
+                                $line = trim( $line );
+
+                                if ( '' === $line ) {
+                                        continue;
+                                }
+
+                                if ( 0 === strpos( $line, '* ' ) ) {
+                                        return substr( $line, 2 );
+                                }
+
+                                if ( 0 === strpos( $line, '- ' ) ) {
+                                        return substr( $line, 2 );
+                                }
+
+                                return $line;
+                        }
+
+                        return '';
+                }
+
+                private function get_plugin_headers(): array {
+                        static $headers = null;
+
+                        if ( null !== $headers ) {
+                                return $headers;
+                        }
+
+                        $headers = array();
+
+                        $path = rtrim( WP_PLUGIN_DIR, '/\\' ) . '/' . ltrim( $this->plugin_file, '/\\' );
+
+                        if ( ! file_exists( $path ) ) {
+                                return $headers;
+                        }
+
+                        if ( ! function_exists( 'get_plugin_data' ) ) {
+                                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+                        }
+
+                        $data = get_plugin_data( $path );
+
+                        if ( is_array( $data ) ) {
+                                $headers = $data;
+                        }
+
+                        return $headers;
                 }
         }
 }

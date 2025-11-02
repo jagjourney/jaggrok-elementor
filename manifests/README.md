@@ -1,9 +1,14 @@
 # Manifest Deployment Notes
 
-Upload `aimentor-plugin-info.json` to `https://jaggrok-elementor.jagjourney.com/aimentor-plugin-info.json` alongside the existing `plugin-info.json`.
+The `gh-pages` branch now hosts `manifests/aimentor-plugin-info.json`. The release workflow updates this file after every
+published tag so any tooling that still references the manifest can follow along with GitHub Releases.
 
-1. Serve both manifests until monitoring confirms that at least one AiMentor-branded build has checked in.
-2. When ready, configure the web server to permanently redirect `/plugin-info.json` to `/aimentor-plugin-info.json` so legacy clients automatically receive the new metadata.
-3. Ensure the ZIP referenced in `download_link` is available at `https://jaggrok-elementor.jagjourney.com/downloads/aimentor-elementor-v1.4.3.zip`.
+1. Keep the `gh-pages` branch published (for example via GitHub Pages) so legacy clients that expect a JSON manifest continue to
+   work.
+2. No additional uploads to `updates.aimentor.ai` or `jaggrok-elementor.jagjourney.com` are required—the GitHub release asset is
+   the canonical download location.
+3. If you need to make a manual correction, apply the change directly to `gh-pages` and let the next tagged release reconcile the
+   automated output.
 
-The manifest fields have been updated to reflect the AiMentor product name, slug, tested WordPress versions, and AiMentor-focused description.
+The bespoke PHP/JSON update service has been retired now that WordPress consumes the GitHub metadata via the plugin's `Update
+URI` header.

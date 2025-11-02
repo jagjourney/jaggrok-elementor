@@ -24,19 +24,28 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 3. Visit **Settings → AiMentor** to choose your provider and paste API keys for xAI Grok and/or OpenAI.
 4. Click **Test Connection** to confirm connectivity, then start generating blocks directly from the Elementor panel.
 
+== Automatic Updates ==
+AiMentor Elementor now advertises GitHub Releases as its canonical update source. The plugin bootstrap includes an `Update URI`
+that matches this repository, so WordPress core surfaces each published release in the **Plugins** screen.
+
+* Enable **Automatic updates** for AiMentor Elementor in **Plugins → Installed Plugins** to let WordPress install new GitHub
+  releases as soon as they are published.
+* Prefer manual control? When a new AiMentor Elementor version appears, click **Update now** in the plugin list to fetch the
+  GitHub-hosted ZIP without leaving the dashboard.
+
+No additional AiMentor-specific updater endpoints are required—the historical PHP/JSON feed has been retired in favor of the
+native GitHub channel.
+
 == Development ==
 * Source code: https://github.com/jagjourney/aimentor-elementor
 * Latest ZIP (tagged releases): https://github.com/jagjourney/aimentor-elementor/releases
+* Release automation: `.github/workflows/release.yml` validates PHP syntax, builds the ZIP package, attaches it to the release,
+  and refreshes the lightweight manifest on `gh-pages`.
 
 == Deployment ==
-To ship a manual build, zip the plugin directory so the archive name and root folder both use the AiMentor slug and contain the `aimentor-elementor.php` bootstrap file at the top level:
+Tagged releases automatically produce `aimentor-elementor-v*.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
 
-```
-cd /path/to/wp-content/plugins
-zip -r aimentor-elementor-v1.4.3.zip aimentor-elementor -x '*.git*'
-```
-
-Upload the generated `aimentor-elementor-v1.4.3.zip` via **Plugins → Add New → Upload Plugin** or attach it to a GitHub release.
+Need to ship a hotfix outside of that flow? Build the archive locally with the same folder structure, then upload it to a draft GitHub release so the workflow can take over once the release is published.
 
 == Frequently Asked Questions ==
 = Does AiMentor support multiple AI providers? =
