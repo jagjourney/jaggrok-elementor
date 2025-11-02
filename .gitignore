@@ -1,2 +1,3 @@
-# Ignore distributable archives
-downloads/*.zip
+# Ignore distributable archives produced by release tooling
+*.zip
+**/*.zip
