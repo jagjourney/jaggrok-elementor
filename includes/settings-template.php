@@ -32,6 +32,13 @@
                 'o4-mini'      => __( 'o4-mini (Preview)', 'jaggrok-elementor' ),
                 'o4'           => __( 'o4 (Preview)', 'jaggrok-elementor' ),
         ];
+        $provider_statuses = jaggrok_get_provider_test_statuses();
+        $provider_status_views = [];
+
+        foreach ( jaggrok_get_provider_labels() as $provider_key => $provider_label ) {
+                $current_status = $provider_statuses[ $provider_key ] ?? [ 'status' => '', 'message' => '', 'timestamp' => 0 ];
+                $provider_status_views[ $provider_key ] = jaggrok_format_provider_status_for_display( $provider_key, $current_status );
+        }
         ?>
         <table class="form-table">
             <tr>
@@ -71,9 +78,13 @@
                         </div>
                         <p class="description"><a href="<?php echo esc_url( 'https://x.ai/api' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Generate an API key', 'jaggrok-elementor' ); ?></a></p>
                         <p class="description">
-                            <button type="button" class="button" id="jaggrok-test-api"><?php esc_html_e( 'Test Connection', 'jaggrok-elementor' ); ?></button>
-                            <span id="jaggrok-api-status" class="jaggrok-api-status" aria-live="polite"></span>
+                            <button type="button" class="button jaggrok-test-provider" data-provider="grok"><?php esc_html_e( 'Test Connection', 'jaggrok-elementor' ); ?></button>
                         </p>
+                        <?php $grok_status = $provider_status_views['grok']; ?>
+                        <div class="jaggrok-provider-status" data-provider="grok" data-timestamp="<?php echo esc_attr( $grok_status['timestamp'] ); ?>" aria-live="polite">
+                            <span class="jaggrok-status-badge jaggrok-status-badge--<?php echo esc_attr( $grok_status['badge_state'] ); ?>" data-provider="grok"><?php echo esc_html( $grok_status['badge_label'] ); ?></span>
+                            <span class="jaggrok-status-description" data-provider="grok"><?php echo esc_html( $grok_status['description'] ); ?></span>
+                        </div>
                     </div>
                     <div class="jaggrok-provider-group" data-provider="openai">
                         <label for="jaggrok_openai_api_key" class="jaggrok-provider-group__label"><?php esc_html_e( 'OpenAI API Key', 'jaggrok-elementor' ); ?></label>
@@ -82,6 +93,14 @@
                             <button type="button" class="button button-secondary jaggrok-toggle-visibility" data-target="jaggrok_openai_api_key" data-show-label="<?php esc_attr_e( 'Show', 'jaggrok-elementor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'jaggrok-elementor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle OpenAI API key visibility', 'jaggrok-elementor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'jaggrok-elementor' ); ?></button>
                         </div>
                         <p class="description"><a href="<?php echo esc_url( 'https://platform.openai.com/account/api-keys' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create an API key', 'jaggrok-elementor' ); ?></a></p>
+                        <p class="description">
+                            <button type="button" class="button jaggrok-test-provider" data-provider="openai"><?php esc_html_e( 'Test Connection', 'jaggrok-elementor' ); ?></button>
+                        </p>
+                        <?php $openai_status = $provider_status_views['openai']; ?>
+                        <div class="jaggrok-provider-status" data-provider="openai" data-timestamp="<?php echo esc_attr( $openai_status['timestamp'] ); ?>" aria-live="polite">
+                            <span class="jaggrok-status-badge jaggrok-status-badge--<?php echo esc_attr( $openai_status['badge_state'] ); ?>" data-provider="openai"><?php echo esc_html( $openai_status['badge_label'] ); ?></span>
+                            <span class="jaggrok-status-description" data-provider="openai"><?php echo esc_html( $openai_status['description'] ); ?></span>
+                        </div>
                     </div>
                 </td>
             </tr>
@@ -140,10 +159,6 @@
         <input type="hidden" name="jaggrok_openai_model" id="jaggrok_openai_model_legacy" value="<?php echo esc_attr( $models['openai'] ); ?>" />
         <?php submit_button(); ?>
     </form>
-    <?php if ( get_option( 'jaggrok_api_tested' ) ) : ?>
-        <div class="notice notice-success"><p>✅ API Connected!</p></div>
-    <?php endif; ?>
-
     <!-- ERROR LOG TABLE -->
     <h2>Error Log</h2>
     <table class="widefat striped">
@@ -183,14 +198,17 @@
 .js .jaggrok-provider-help { display: none; }
 .jaggrok-api-key-container { display: flex; align-items: center; gap: 8px; max-width: 420px; }
 .jaggrok-api-input { width: 100%; }
-.jaggrok-api-status { margin-left: 8px; font-weight: 600; }
-.jaggrok-status-success { color: #007017; }
-.jaggrok-status-error { color: #d63638; }
+.jaggrok-provider-status { display: flex; align-items: center; gap: 8px; margin-top: 6px; max-width: 520px; }
+.jaggrok-status-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; letter-spacing: .01em; }
+.jaggrok-status-badge--success { background-color: #dff4e2; color: #116329; }
+.jaggrok-status-badge--error { background-color: #fce1e1; color: #b32d2e; }
+.jaggrok-status-badge--idle { background-color: #e7ecf3; color: #2c3e50; }
+.jaggrok-status-badge--pending { background-color: #fef3c7; color: #8a6110; }
+.jaggrok-status-description { display: inline-block; font-size: 13px; line-height: 1.5; }
 </style>
 
 <script>
     jQuery(document).ready(function($) {
-        var ajaxNonce = '<?php echo wp_create_nonce( 'jaggrok_test' ); ?>';
         var $providerInputs = $('input[name="jaggrok_provider"]');
 
         function toggleProvider(provider) {
@@ -231,39 +249,6 @@
 
         $('#jaggrok_provider_models_openai').on('change', function() {
             $('#jaggrok_openai_model_legacy').val($(this).val());
-        });
-
-        $('#jaggrok-test-api').on('click', function() {
-            var $button = $(this);
-            var $status = $('#jaggrok-api-status');
-            var apiKey = $('#jaggrok_xai_api_key').val();
-
-            if ( ! apiKey ) {
-                $status.html('<span class="jaggrok-status-error"><?php echo esc_js( __( 'Enter API key!', 'jaggrok-elementor' ) ); ?></span>');
-                return;
-            }
-
-            $status.text('<?php echo esc_js( __( 'Testing…', 'jaggrok-elementor' ) ); ?>');
-            $button.prop('disabled', true);
-
-            $.post(ajaxurl, {
-                action: 'jaggrok_test_api',
-                api_key: apiKey,
-                nonce: ajaxNonce
-            }).done(function(response) {
-                if ( response && response.success ) {
-                    $status.html('<span class="jaggrok-status-success">✅ <?php echo esc_js( __( 'Connected!', 'jaggrok-elementor' ) ); ?></span>');
-                    window.setTimeout(function() { window.location.reload(); }, 600);
-                } else if ( response && response.data ) {
-                    $status.html('<span class="jaggrok-status-error">❌ ' + response.data + '</span>');
-                } else {
-                    $status.html('<span class="jaggrok-status-error">❌ <?php echo esc_js( __( 'Connection failed.', 'jaggrok-elementor' ) ); ?></span>');
-                }
-            }).fail(function() {
-                $status.html('<span class="jaggrok-status-error">❌ <?php echo esc_js( __( 'Request timed out.', 'jaggrok-elementor' ) ); ?></span>');
-            }).always(function() {
-                $button.prop('disabled', false);
-            });
         });
     });
 </script>

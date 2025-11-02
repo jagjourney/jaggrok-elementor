@@ -13,6 +13,7 @@ delete_option( 'jaggrok_model' );
 delete_option( 'jaggrok_openai_model' );
 delete_option( 'jaggrok_provider' );
 delete_option( 'jaggrok_provider_models' );
+delete_option( 'jaggrok_provider_test_statuses' );
 
 // Delete log file
 $log_file = plugin_dir_path( __FILE__ ) . 'includes/jaggrok-errors.log';
