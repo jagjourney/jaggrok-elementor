@@ -1,40 +1,3 @@
-(function(window) {
-    var selectorTransforms = [
-        { pattern: /jaggrok_/g, replacement: 'aimentor_' },
-        { pattern: /jaggrok-/g, replacement: 'aimentor-' }
-    ];
-
-    function mapSelector(selector) {
-        if (typeof selector !== 'string') {
-            return selector;
-        }
-
-        var mapped = selector;
-        selectorTransforms.forEach(function(entry) {
-            mapped = mapped.replace(entry.pattern, entry.replacement);
-        });
-        return mapped;
-    }
-
-    if (window.document) {
-        var doc = window.document;
-        var originalGetElementById = doc.getElementById.bind(doc);
-        doc.getElementById = function(id) {
-            return originalGetElementById(mapSelector(id));
-        };
-
-        var originalQuerySelector = doc.querySelector.bind(doc);
-        doc.querySelector = function(selector) {
-            return originalQuerySelector(mapSelector(selector));
-        };
-
-        var originalQuerySelectorAll = doc.querySelectorAll.bind(doc);
-        doc.querySelectorAll = function(selector) {
-            return originalQuerySelectorAll(mapSelector(selector));
-        };
-    }
-})(window);
-
 (function($, window) {
     if (!$) {
         return;
@@ -122,10 +85,9 @@
             });
         }
         window.AiMentorProviders = Object.assign({}, providerMap, window.AiMentorProviders || {});
-        window.JagGrokProviders = window.JagGrokProviders || window.AiMentorProviders;
 
         function getProviderMeta(key) {
-            var meta = (window.AiMentorProviders || window.JagGrokProviders || {})[key];
+            var meta = (window.AiMentorProviders || {})[key];
             if (!meta) {
                 return {
                     label: key,
@@ -243,7 +205,7 @@
             if (typeof aimentorData.provider !== 'undefined' && aimentorData.provider) {
                 return aimentorData.provider;
             }
-            var providers = window.AiMentorProviders || window.JagGrokProviders || {};
+            var providers = window.AiMentorProviders || {};
             var keys = Object.keys(providers);
             return keys.length ? keys[0] : 'grok';
         }
@@ -263,7 +225,7 @@
 
         function buildProviderOptions(defaultProvider) {
             var optionsHtml = '';
-            var providers = window.AiMentorProviders || window.JagGrokProviders || {};
+            var providers = window.AiMentorProviders || {};
             var keys = Object.keys(providers);
             if (!keys.length) {
                 keys = Object.keys(providerDefaults);
@@ -658,7 +620,6 @@
         window.AiMentorElementorUI = api;
 
         if (window.elementor && window.elementor.hooks) {
-            window.elementor.hooks.addAction('panel/widgets/aimentor-ai-generator/controls/write_with_jaggrok/event', api.openModal);
             window.elementor.hooks.addAction('panel/widgets/aimentor-ai-generator/controls/write_with_aimentor/event', api.openModal);
         }
     });
