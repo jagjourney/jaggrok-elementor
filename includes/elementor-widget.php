@@ -178,7 +178,6 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
         <script>
             jQuery(document).ready(function($) {
                 window.AiMentorProviders = Object.assign({}, window.AiMentorProviders || {}, <?php echo wp_json_encode( $provider_meta ); ?>);
-                window.JagGrokProviders = window.JagGrokProviders || window.AiMentorProviders;
                 var init = window.AiMentorElementorUI && typeof window.AiMentorElementorUI.initWidget === 'function'
                     ? window.AiMentorElementorUI.initWidget
                     : null;

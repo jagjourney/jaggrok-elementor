@@ -233,10 +233,6 @@ function aimentor_register_asset_handles() {
 
         wp_register_script( 'aimentor-admin-settings', $base . 'js/admin-settings.js', array( 'jquery' ), $version, true );
         wp_register_script( 'aimentor-elementor-widget', $base . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), $version, true );
-
-        // Legacy aliases.
-        wp_register_script( 'jaggrok-admin-settings', false, array( 'aimentor-admin-settings' ), $version, true );
-        wp_register_script( 'jaggrok-elementor-widget', false, array( 'aimentor-elementor-widget' ), $version, true );
 }
 add_action( 'init', 'aimentor_register_asset_handles' );
 
@@ -375,12 +371,10 @@ function aimentor_enqueue_assets( $hook ) {
         }
 
         wp_enqueue_script( 'aimentor-admin-settings' );
-        wp_enqueue_script( 'jaggrok-admin-settings' );
         wp_localize_script( 'aimentor-admin-settings', 'aimentorAjax', aimentor_get_ajax_payload() );
         wp_add_inline_script(
                 'aimentor-admin-settings',
                 "window.aimentorAjax = window.aimentorAjax || {};\n"
-                . "window.jaggrokAjax = window.jaggrokAjax || window.aimentorAjax;\n"
                 . "window.aimentorAjax.legacy = Object.assign({ prefixes: { id: 'jaggrok_', class: 'jaggrok-' } }, window.aimentorAjax.legacy || {});\n",
                 'after'
         );
@@ -394,12 +388,10 @@ function aimentor_enqueue_elementor_assets() {
         aimentor_register_asset_handles();
 
         wp_enqueue_script( 'aimentor-elementor-widget' );
-        wp_enqueue_script( 'jaggrok-elementor-widget' );
         wp_localize_script( 'aimentor-elementor-widget', 'aimentorAjax', aimentor_get_ajax_payload() );
         wp_add_inline_script(
                 'aimentor-elementor-widget',
-                "window.aimentorAjax = window.aimentorAjax || {};\n"
-                . "window.jaggrokAjax = window.jaggrokAjax || window.aimentorAjax;\n",
+                "window.aimentorAjax = window.aimentorAjax || {};\n",
                 'after'
         );
 }
