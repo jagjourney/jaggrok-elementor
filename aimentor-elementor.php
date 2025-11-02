@@ -41,6 +41,61 @@ if ( ! defined( 'AIMENTOR_PLUGIN_URL' ) ) {
         define( 'AIMENTOR_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 }
 
+if ( ! function_exists( 'aimentor_get_error_log_directory' ) ) {
+        /**
+         * Determine the directory where the AiMentor error log should be stored.
+         *
+         * @return string
+         */
+        function aimentor_get_error_log_directory() {
+                $default_directory = trailingslashit( WP_CONTENT_DIR ) . 'uploads/aimentor';
+
+                /**
+                 * Allow third parties to override the AiMentor error log directory.
+                 *
+                 * @param string $default_directory Default log directory.
+                 */
+                $directory = apply_filters( 'aimentor_error_log_directory', $default_directory );
+
+                if ( ! is_string( $directory ) || '' === trim( $directory ) ) {
+                        $directory = $default_directory;
+                }
+
+                if ( ! file_exists( $directory ) ) {
+                        if ( function_exists( 'wp_mkdir_p' ) ) {
+                                wp_mkdir_p( $directory );
+                        } else {
+                                @mkdir( $directory, 0755, true );
+                        }
+                }
+
+                if ( is_dir( $directory ) && is_writable( $directory ) ) {
+                        return $directory;
+                }
+
+                $fallback_directory = trailingslashit( WP_CONTENT_DIR );
+
+                if ( is_dir( $fallback_directory ) && is_writable( $fallback_directory ) ) {
+                        return $fallback_directory;
+                }
+
+                return AIMENTOR_PLUGIN_DIR . 'includes';
+        }
+}
+
+if ( ! function_exists( 'aimentor_get_error_log_path' ) ) {
+        /**
+         * Retrieve the fully-qualified path to the AiMentor error log file.
+         *
+         * @return string
+         */
+        function aimentor_get_error_log_path() {
+                $directory = aimentor_get_error_log_directory();
+
+                return trailingslashit( $directory ) . 'aimentor-errors.log';
+        }
+}
+
 /**
  * Load plugin translations.
  */
@@ -107,11 +162,56 @@ function aimentor_maybe_run_legacy_migration() {
                 }
         }
 
-        $legacy_log = AIMENTOR_PLUGIN_DIR . 'includes/jaggrok-errors.log';
-        $modern_log = AIMENTOR_PLUGIN_DIR . 'includes/aimentor-errors.log';
+        $modern_log = aimentor_get_error_log_path();
+        $legacy_logs = array(
+                AIMENTOR_PLUGIN_DIR . 'includes/jaggrok-errors.log',
+                AIMENTOR_PLUGIN_DIR . 'includes/aimentor-errors.log',
+        );
 
-        if ( file_exists( $legacy_log ) && ! file_exists( $modern_log ) ) {
-                @rename( $legacy_log, $modern_log );
+        foreach ( $legacy_logs as $legacy_log ) {
+                if ( ! file_exists( $legacy_log ) ) {
+                        continue;
+                }
+
+                if ( $legacy_log === $modern_log ) {
+                        continue;
+                }
+
+                $log_directory = dirname( $modern_log );
+
+                if ( ! file_exists( $log_directory ) ) {
+                        if ( function_exists( 'wp_mkdir_p' ) ) {
+                                wp_mkdir_p( $log_directory );
+                        } else {
+                                @mkdir( $log_directory, 0755, true );
+                        }
+                }
+
+                if ( file_exists( $modern_log ) ) {
+                        $modern_log_dir = dirname( $modern_log );
+                        $can_write      = is_writable( $modern_log ) || ( is_dir( $modern_log_dir ) && is_writable( $modern_log_dir ) );
+
+                        if ( $can_write ) {
+                                $legacy_contents = file_get_contents( $legacy_log );
+
+                                if ( false !== $legacy_contents ) {
+                                        file_put_contents( $modern_log, $legacy_contents, FILE_APPEND | LOCK_EX );
+                                        @unlink( $legacy_log );
+                                }
+
+                                continue;
+                        }
+                }
+
+                if ( ! @rename( $legacy_log, $modern_log ) ) {
+                        $legacy_contents = file_get_contents( $legacy_log );
+
+                        if ( false !== $legacy_contents ) {
+                                file_put_contents( $modern_log, $legacy_contents, FILE_APPEND | LOCK_EX );
+                        }
+
+                        @unlink( $legacy_log );
+                }
         }
 }
 add_action( 'plugins_loaded', 'aimentor_maybe_run_legacy_migration', 1 );

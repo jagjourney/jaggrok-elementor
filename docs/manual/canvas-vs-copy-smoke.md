@@ -34,7 +34,7 @@ These smoke tests confirm the preset resolver picks the correct provider default
 ### 3. Error logging sanity
 1. Temporarily clear the configured API key for the active provider.
 2. Trigger another generation request.
-3. Check `wp-content/uploads/aimentor-errors.log` (or the custom log location) for an entry containing the provider, model, task, and tier metadata to aid troubleshooting.
+3. Check `wp-content/uploads/aimentor/aimentor-errors.log` (or the custom log location) for an entry containing the provider, model, task, and tier metadata to aid troubleshooting.
 
 ### Expected outcome
 - Canvas requests are routed to the structured Codex-style models with JSON responses.
