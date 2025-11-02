@@ -62,6 +62,47 @@ function jaggrok_get_provider_test_statuses() {
         return $defaults;
 }
 
+function jaggrok_get_default_options() {
+        $provider_defaults = jaggrok_get_provider_model_defaults();
+
+        return [
+                'jaggrok_provider'        => 'grok',
+                'jaggrok_xai_api_key'     => '',
+                'jaggrok_openai_api_key'  => '',
+                'jaggrok_auto_insert'     => 'yes',
+                'jaggrok_theme_style'     => 'modern',
+                'jaggrok_max_tokens'      => 2000,
+                'jaggrok_provider_models' => $provider_defaults,
+                'jaggrok_model'           => $provider_defaults['grok'],
+                'jaggrok_openai_model'    => $provider_defaults['openai'],
+        ];
+}
+
+function jaggrok_seed_default_options() {
+        $defaults = jaggrok_get_default_options();
+
+        foreach ( $defaults as $option => $default ) {
+                $current = get_option( $option, false );
+
+                if ( false === $current ) {
+                        add_option( $option, $default );
+                        continue;
+                }
+
+                if ( is_array( $default ) ) {
+                        if ( ! is_array( $current ) || empty( $current ) ) {
+                                update_option( $option, $default );
+                        }
+
+                        continue;
+                }
+
+                if ( '' === $current && '' !== $default ) {
+                        update_option( $option, $default );
+                }
+        }
+}
+
 function jaggrok_update_provider_test_status( $provider_key, $status, $message ) {
         $allowed_statuses = [ 'success', 'error' ];
 
@@ -146,17 +187,7 @@ function jaggrok_add_settings_page() {
 add_action( 'admin_menu', 'jaggrok_add_settings_page' );
 
 function jaggrok_register_settings() {
-        $defaults = [
-                'jaggrok_provider'        => 'grok',
-                'jaggrok_xai_api_key'     => '',
-                'jaggrok_openai_api_key'  => '',
-                'jaggrok_auto_insert'     => 'yes',
-                'jaggrok_theme_style'     => 'modern',
-                'jaggrok_max_tokens'      => 2000,
-                'jaggrok_provider_models' => jaggrok_get_provider_model_defaults(),
-                'jaggrok_model'           => 'grok-3-beta',
-                'jaggrok_openai_model'    => 'gpt-4o-mini',
-        ];
+        $defaults = jaggrok_get_default_options();
 
         register_setting(
                 'jaggrok_settings',
@@ -240,14 +271,7 @@ function jaggrok_register_settings() {
                 ]
         );
 
-        foreach ( $defaults as $option => $default ) {
-                $current = get_option( $option, false );
-                if ( false === $current ) {
-                        add_option( $option, $default );
-                } elseif ( '' === $current && '' !== $default ) {
-                        update_option( $option, $default );
-                }
-        }
+        jaggrok_seed_default_options();
 }
 add_action( 'admin_init', 'jaggrok_register_settings' );
 
@@ -287,8 +311,10 @@ function jaggrok_sanitize_provider_models( $value ) {
         $sanitized = [];
 
         foreach ( $defaults as $provider => $default_model ) {
-                $incoming = isset( $value[ $provider ] ) ? sanitize_text_field( $value[ $provider ] ) : '';
-                $sanitized[ $provider ] = ( isset( $allowed[ $provider ] ) && in_array( $incoming, $allowed[ $provider ], true ) )
+                $incoming       = isset( $value[ $provider ] ) ? sanitize_text_field( $value[ $provider ] ) : '';
+                $allowed_models = isset( $allowed[ $provider ] ) && is_array( $allowed[ $provider ] ) ? $allowed[ $provider ] : [];
+
+                $sanitized[ $provider ] = in_array( $incoming, $allowed_models, true )
                         ? $incoming
                         : $default_model;
         }
@@ -309,15 +335,17 @@ function jaggrok_get_provider_models() {
 function jaggrok_sanitize_model( $value ) {
         $allowed = jaggrok_get_allowed_provider_models();
         $value   = sanitize_text_field( $value );
+        $grok    = isset( $allowed['grok'] ) && is_array( $allowed['grok'] ) ? $allowed['grok'] : [];
 
-        return in_array( $value, $allowed['grok'], true ) ? $value : jaggrok_get_provider_model_defaults()['grok'];
+        return in_array( $value, $grok, true ) ? $value : jaggrok_get_provider_model_defaults()['grok'];
 }
 
 function jaggrok_sanitize_openai_model( $value ) {
         $allowed = jaggrok_get_allowed_provider_models();
         $value   = sanitize_text_field( $value );
+        $openai  = isset( $allowed['openai'] ) && is_array( $allowed['openai'] ) ? $allowed['openai'] : [];
 
-        return in_array( $value, $allowed['openai'], true ) ? $value : jaggrok_get_provider_model_defaults()['openai'];
+        return in_array( $value, $openai, true ) ? $value : jaggrok_get_provider_model_defaults()['openai'];
 }
 
 function jaggrok_sync_legacy_model_options( $value, $old_value ) {

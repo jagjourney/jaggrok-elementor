@@ -8,7 +8,8 @@
     <form method="post" action="options.php">
         <?php settings_fields( 'jaggrok_settings' ); ?>
         <?php
-        $provider       = get_option( 'jaggrok_provider', 'grok' );
+        $defaults       = jaggrok_get_default_options();
+        $provider       = get_option( 'jaggrok_provider', $defaults['jaggrok_provider'] );
         $api_keys       = [
                 'grok'   => get_option( 'jaggrok_xai_api_key' ),
                 'openai' => get_option( 'jaggrok_openai_api_key' ),
@@ -40,6 +41,17 @@
                 $provider_status_views[ $provider_key ] = jaggrok_format_provider_status_for_display( $provider_key, $current_status );
         }
         ?>
+        <p class="description jaggrok-defaults-notice">
+                <?php
+                printf(
+                        /* translators: 1: Grok model, 2: OpenAI model, 3: max tokens */
+                        esc_html__( 'Defaults: Grok starts on %1$s, OpenAI uses %2$s, and requests are capped at %3$s tokens until you change them.', 'jaggrok-elementor' ),
+                        esc_html( strtoupper( $defaults['jaggrok_model'] ) ),
+                        esc_html( strtoupper( $defaults['jaggrok_openai_model'] ) ),
+                        esc_html( number_format_i18n( $defaults['jaggrok_max_tokens'] ) )
+                );
+                ?>
+        </p>
         <table class="form-table">
             <tr>
                 <th scope="row"><label><?php esc_html_e( 'Provider', 'jaggrok-elementor' ); ?></label></th>
@@ -89,7 +101,7 @@
                     <div class="jaggrok-provider-group" data-provider="openai">
                         <label for="jaggrok_openai_api_key" class="jaggrok-provider-group__label"><?php esc_html_e( 'OpenAI API Key', 'jaggrok-elementor' ); ?></label>
                         <div class="jaggrok-api-key-container">
-                            <input type="password" id="jaggrok_openai_api_key" name="jaggrok_openai_api_key" value="<?php echo esc_attr( $api_keys['openai'] ); ?>" class="regular-text jaggrok-api-input" autocomplete="off" />
+                            <input type="password" id="jaggrok_openai_api_key" name="jaggrok_openai_api_key" value="<?php echo esc_attr( $api_keys['openai'] ); ?>" class="regular-text jaggrok-api-input" autocomplete="off" placeholder="<?php esc_attr_e( 'sk-...', 'jaggrok-elementor' ); ?>" />
                             <button type="button" class="button button-secondary jaggrok-toggle-visibility" data-target="jaggrok_openai_api_key" data-show-label="<?php esc_attr_e( 'Show', 'jaggrok-elementor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'jaggrok-elementor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle OpenAI API key visibility', 'jaggrok-elementor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'jaggrok-elementor' ); ?></button>
                         </div>
                         <p class="description"><a href="<?php echo esc_url( 'https://platform.openai.com/account/api-keys' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create an API key', 'jaggrok-elementor' ); ?></a></p>
