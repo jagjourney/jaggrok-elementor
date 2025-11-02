@@ -23,7 +23,7 @@ Each new release must consistently advertise the target version across source, d
    - Update the `Stable tag` value.
    - Add or revise the changelog section for the new version.
 3. **`docs/landing/README.md`**
-   - Update the download URL reference so it points to the new ZIP name.
+   - Update the GitHub Releases download URL reference so it points to the new ZIP name.
 4. **`manifests/aimentor-plugin-info.json`** (for local testing)
    - Update `version`, `download_url`, and any hash placeholder if you are simulating a release. The GitHub Action overwrites this file on `gh-pages` during a real release, but keeping the default branch copy current prevents confusion.
 5. **ZIP artifacts in `/downloads`** (only if you are attaching a handcrafted ZIP to a draft release)
