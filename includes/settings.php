@@ -375,77 +375,100 @@ function jaggrok_test_api_connection() {
                 );
         }
 
-        $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
-        $label   = $provider_labels[ $provider_key ];
+	$api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
+	$label   = $provider_labels[ $provider_key ];
 
-        if ( '' === $api_key ) {
-                $message = sprintf( __( '%s API key is required to test the connection.', 'jaggrok-elementor' ), $label );
-                jaggrok_update_provider_test_status( $provider_key, 'error', $message );
-                $status = jaggrok_get_provider_test_statuses();
-                $view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-                $view['provider'] = $provider_key;
-                $view['message']  = $message;
-                wp_send_json_error( $view, 400 );
-        }
+	if ( '' === $api_key ) {
+		$message = sprintf( __( '%s API key is required to test the connection.', 'jaggrok-elementor' ), $label );
+		jaggrok_update_provider_test_status( $provider_key, 'error', $message );
+		$status = jaggrok_get_provider_test_statuses();
+		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		$view['provider'] = $provider_key;
+		$view['message']  = $message;
+		wp_send_json_error( $view, 400 );
+	}
 
-        switch ( $provider_key ) {
-                case 'openai':
-                        update_option( 'jaggrok_openai_api_key', $api_key );
-                        break;
-                case 'grok':
-                default:
-                        update_option( 'jaggrok_xai_api_key', $api_key );
-                        break;
-        }
+	$models        = jaggrok_get_provider_models();
+	$model_default = jaggrok_get_provider_model_defaults();
+	$model         = $models[ $provider_key ] ?? ( $model_default[ $provider_key ] ?? '' );
 
-        $provider = jaggrok_get_active_provider( $provider_key );
+	switch ( $provider_key ) {
+		case 'openai':
+			update_option( 'jaggrok_openai_api_key', $api_key );
+			$model = $models['openai'] ?? ( $model_default['openai'] ?? '' );
+			break;
+		case 'grok':
+		default:
+			update_option( 'jaggrok_xai_api_key', $api_key );
+			$model = $models['grok'] ?? ( $model_default['grok'] ?? '' );
+			break;
+	}
 
-        if ( ! $provider instanceof JagGrok_Provider_Interface ) {
-                $message = __( 'Provider configuration error.', 'jaggrok-elementor' );
-                jaggrok_log_error( $message );
-                jaggrok_update_provider_test_status( $provider_key, 'error', $message );
-                $status = jaggrok_get_provider_test_statuses();
-                $view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-                $view['provider'] = $provider_key;
-                $view['message']  = $message;
-                wp_send_json_error( $view );
-        }
+	$provider = jaggrok_get_active_provider( $provider_key );
 
-        $models        = jaggrok_get_provider_models();
-        $model_default = jaggrok_get_provider_model_defaults();
-        $model         = $models[ $provider_key ] ?? ( $model_default[ $provider_key ] ?? '' );
+	if ( ! $provider instanceof JagGrok_Provider_Interface ) {
+		$message = __( 'Provider configuration error.', 'jaggrok-elementor' );
+		jaggrok_log_error(
+			$message,
+			[
+				'provider' => $provider_key,
+				'model'    => $model,
+				'user_id'  => get_current_user_id(),
+			]
+		);
+		jaggrok_update_provider_test_status( $provider_key, 'error', $message );
+		$status = jaggrok_get_provider_test_statuses();
+		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		$view['provider'] = $provider_key;
+		$view['message']  = $message;
+		wp_send_json_error( $view );
+	}
 
-        $result = $provider->request(
-                __( 'Respond with a short confirmation to verify the JagGrok Elementor integration.', 'jaggrok-elementor' ),
-                [
-                        'api_key'    => $api_key,
-                        'model'      => $model,
-                        'max_tokens' => 32,
-                        'timeout'    => 20,
-                ]
-        );
+	$result = $provider->request(
+		__( 'Respond with a short confirmation to verify the JagGrok Elementor integration.', 'jaggrok-elementor' ),
+		[
+			'api_key'    => $api_key,
+			'model'      => $model,
+			'max_tokens' => 32,
+			'timeout'    => 20,
+		]
+	);
 
-        if ( is_wp_error( $result ) ) {
-                $error_message = sprintf( __( '%1$s connection failed: %2$s', 'jaggrok-elementor' ), $label, $result->get_error_message() );
-                jaggrok_log_error( $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ) );
-                jaggrok_update_provider_test_status( $provider_key, 'error', $error_message );
-                $status = jaggrok_get_provider_test_statuses();
-                $view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-                $view['provider'] = $provider_key;
-                $view['message']  = $error_message;
-                wp_send_json_error( $view );
-        }
+	if ( is_wp_error( $result ) ) {
+		$error_message = sprintf( __( '%1$s connection failed: %2$s', 'jaggrok-elementor' ), $label, $result->get_error_message() );
+		jaggrok_log_error(
+			$error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
+			[
+				'provider' => $provider_key,
+				'model'    => $model,
+				'user_id'  => get_current_user_id(),
+			]
+		);
+		jaggrok_update_provider_test_status( $provider_key, 'error', $error_message );
+		$status = jaggrok_get_provider_test_statuses();
+		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		$view['provider'] = $provider_key;
+		$view['message']  = $error_message;
+		wp_send_json_error( $view );
+	}
 
-        if ( ! is_array( $result ) || ! isset( $result['type'] ) ) {
-                $error_message = sprintf( __( '%s returned an unexpected response.', 'jaggrok-elementor' ), $label );
-                jaggrok_log_error( $error_message . ' | Result: ' . wp_json_encode( $result ) );
-                jaggrok_update_provider_test_status( $provider_key, 'error', $error_message );
-                $status = jaggrok_get_provider_test_statuses();
-                $view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-                $view['provider'] = $provider_key;
-                $view['message']  = $error_message;
-                wp_send_json_error( $view );
-        }
+	if ( ! is_array( $result ) || ! isset( $result['type'] ) ) {
+		$error_message = sprintf( __( '%s returned an unexpected response.', 'jaggrok-elementor' ), $label );
+		jaggrok_log_error(
+			$error_message . ' | Result: ' . wp_json_encode( $result ),
+			[
+				'provider' => $provider_key,
+				'model'    => $model,
+				'user_id'  => get_current_user_id(),
+			]
+		);
+		jaggrok_update_provider_test_status( $provider_key, 'error', $error_message );
+		$status = jaggrok_get_provider_test_statuses();
+		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		$view['provider'] = $provider_key;
+		$view['message']  = $error_message;
+		wp_send_json_error( $view );
+	}
 
         $success_message = sprintf( __( '%s API key verified successfully.', 'jaggrok-elementor' ), $label );
         jaggrok_update_provider_test_status( $provider_key, 'success', $success_message );
@@ -460,8 +483,30 @@ function jaggrok_test_api_connection() {
 add_action( 'wp_ajax_jaggrok_test_api', 'jaggrok_test_api_connection' );
 
 // ERROR LOGGING FUNCTION (v1.3.8)
-function jaggrok_log_error( $message ) {
-	$log_file = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
+function jaggrok_log_error( $message, $context = [] ) {
+	$log_file  = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
 	$timestamp = gmdate( 'Y-m-d H:i:s' );
-	file_put_contents( $log_file, $timestamp . ' - ' . $message . "\n", FILE_APPEND | LOCK_EX );
+	$log_entry = $message;
+
+	if ( is_array( $context ) && ! empty( $context ) ) {
+		$allowed_keys = [ 'provider', 'model', 'user_id' ];
+		$context_data = [];
+
+		foreach ( $allowed_keys as $key ) {
+			if ( array_key_exists( $key, $context ) && null !== $context[ $key ] && '' !== $context[ $key ] ) {
+				$context_data[ $key ] = $context[ $key ];
+			}
+		}
+
+		if ( ! empty( $context_data ) ) {
+			$log_entry = wp_json_encode(
+				[
+					'message' => $message,
+					'context' => $context_data,
+				]
+			);
+		}
+	}
+
+	file_put_contents( $log_file, $timestamp . ' - ' . $log_entry . "\n", FILE_APPEND | LOCK_EX );
 }
