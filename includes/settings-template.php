@@ -255,8 +255,8 @@
         </thead>
         <tbody>
         <?php
-        $log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
-        if ( file_exists( $log_file ) ) {
+        $log_file = aimentor_get_error_log_path();
+        if ( file_exists( $log_file ) && is_readable( $log_file ) ) {
             $logs = array_reverse( file( $log_file ) );
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
@@ -279,11 +279,26 @@
                 echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . ( '' !== $provider ? esc_html( $provider ) : '&mdash;' ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
             }
         } else {
-            echo '<tr><td colspan="3">' . esc_html__( 'No errors logged yet.', 'aimentor' ) . '</td></tr>';
+            echo '<tr><td colspan="3">' . esc_html__( 'No errors logged yet or log file unavailable.', 'aimentor' ) . '</td></tr>';
         }
         ?>
         </tbody>
     </table>
+    <?php
+    if ( ! empty( $log_file ) ) {
+        $display_path = wp_normalize_path( $log_file );
+
+        if ( defined( 'ABSPATH' ) ) {
+            $display_path = str_replace( wp_normalize_path( ABSPATH ), '', $display_path );
+        }
+
+        echo '<p class="description">' . sprintf(
+            /* translators: %s: path to the AiMentor error log file */
+            esc_html__( 'Error logs are stored at %s.', 'aimentor' ),
+            '<code>' . esc_html( $display_path ) . '</code>'
+        ) . '</p>';
+    }
+    ?>
 </div>
 
 <style>

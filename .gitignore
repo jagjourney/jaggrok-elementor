@@ -1,3 +1,6 @@
 # Ignore distributable archives produced by release tooling
 *.zip
 **/*.zip
+
+# Plugin-local logs
+includes/*.log
