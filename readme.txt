@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, openai, builder, automation
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.4.3
+Stable tag: 0.0.001
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,7 +63,7 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generated layout preview ready to insert into the canvas.
 
 == Changelog ==
-= 1.4.3 =
+= 0.0.001 =
 * Rebranded the experience as **AiMentor** with refreshed assets and menu labels.
 * Added migrations for legacy pre-rebrand options, maintaining backward compatibility.
 * Expanded copy and interface elements to highlight multi-provider switching.
