@@ -388,8 +388,8 @@ add_action( 'elementor/widgets/register', function( $widgets_manager ) {
 if ( aimentor_check_dependencies() ) {
         require_once AIMENTOR_PLUGIN_DIR . 'includes/updater.php';
 
-        if ( class_exists( 'AiMentor_Updater' ) && ! class_exists( 'JagGrok_Updater' ) ) {
-                class_alias( 'AiMentor_Updater', 'JagGrok_Updater' );
+        if ( class_exists( 'AiMentor_Updater' ) ) {
+                new AiMentor_Updater();
         }
 }
 
