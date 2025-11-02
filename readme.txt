@@ -24,6 +24,20 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 3. Visit **Settings → AiMentor** to choose your provider and paste API keys for xAI Grok and/or OpenAI.
 4. Click **Test Connection** to confirm connectivity, then start generating blocks directly from the Elementor panel.
 
+== Development ==
+* Source code: https://github.com/jagjourney/aimentor-elementor
+* Latest ZIP (tagged releases): https://github.com/jagjourney/aimentor-elementor/releases
+
+== Deployment ==
+To ship a manual build, zip the plugin directory so the archive name and root folder both use the AiMentor slug and contain the `aimentor-elementor.php` bootstrap file at the top level:
+
+```
+cd /path/to/wp-content/plugins
+zip -r aimentor-elementor-v1.4.3.zip aimentor-elementor -x '*.git*'
+```
+
+Upload the generated `aimentor-elementor-v1.4.3.zip` via **Plugins → Add New → Upload Plugin** or attach it to a GitHub release.
+
 == Frequently Asked Questions ==
 = Does AiMentor support multiple AI providers? =
 Yes. The control center lets you pick between xAI Grok and OpenAI today, with room to add additional providers as new APIs are released. Each provider keeps its own defaults and usage limits.
