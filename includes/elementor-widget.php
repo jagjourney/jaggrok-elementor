@@ -44,15 +44,35 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
         </div>
         <script>
             jQuery(document).ready(function($) {
-                $('#jaggrok-btn-<?php echo $widget_id; ?>').click(function() {
+                var $button = $('#jaggrok-btn-<?php echo $widget_id; ?>');
+                var $output = $('#jaggrok-output-<?php echo $widget_id; ?>');
+                var jaggrokData = window.jaggrokAjax;
+
+                if (!jaggrokData || !jaggrokData.ajaxurl || !jaggrokData.nonce) {
+                    var noticeHtml = '<div class="notice notice-error jaggrok-missing-config"><p>' +
+                        'JagGrok AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.' +
+                        '</p></div>';
+
+                    var $widget = $button.closest('.jaggrok-widget');
+                    if ($widget.length) {
+                        $widget.prepend(noticeHtml);
+                    } else {
+                        $('body').prepend(noticeHtml);
+                    }
+
+                    $button.prop('disabled', true);
+                    console.error('JagGrok AJAX configuration missing: expected window.jaggrokAjax.');
+                    return;
+                }
+
+                $button.on('click', function() {
                     var prompt = $('#jaggrok-prompt-<?php echo $widget_id; ?>').val();
-                    var $output = $('#jaggrok-output-<?php echo $widget_id; ?>');
 
                     $output.html('<p>Generating...</p>');
-                    $.post(ajaxurl, {
+                    $.post(jaggrokData.ajaxurl, {
                         action: 'jaggrok_generate_page',
                         prompt: prompt,
-                        nonce: '<?php echo wp_create_nonce( 'jaggrok_generate' ); ?>'
+                        nonce: jaggrokData.nonce
                     }, function(response) {
                         if (response.success) {
                             if (response.data.canvas_json) {
