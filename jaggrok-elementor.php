@@ -141,16 +141,18 @@ function jaggrok_generate_page_ajax() {
         }
 
         $provider_key = get_option( 'jaggrok_provider', 'grok' );
+        $models       = jaggrok_get_provider_models();
+        $model_defaults = jaggrok_get_provider_model_defaults();
 
         switch ( $provider_key ) {
                 case 'openai':
                         $api_key = get_option( 'jaggrok_openai_api_key' );
-                        $model   = get_option( 'jaggrok_openai_model', 'gpt-4o-mini' );
+                        $model   = $models['openai'] ?? $model_defaults['openai'];
                         break;
                 case 'grok':
                 default:
                         $api_key = get_option( 'jaggrok_xai_api_key' );
-                        $model   = get_option( 'jaggrok_model', 'grok-3-mini' );
+                        $model   = $models['grok'] ?? $model_defaults['grok'];
                         break;
         }
 

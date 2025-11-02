@@ -3,6 +3,20 @@
 // JAGJourney SETTINGS PAGE v1.3.8 (MODEL UPDATE + TIMEOUT LOG)
 // ============================================================================
 
+function jaggrok_get_provider_model_defaults() {
+        return [
+                'grok'   => 'grok-3-beta',
+                'openai' => 'gpt-4o-mini',
+        ];
+}
+
+function jaggrok_get_allowed_provider_models() {
+        return [
+                'grok'   => [ 'grok-3-mini', 'grok-3-beta', 'grok-3', 'grok-4-mini', 'grok-4', 'grok-4-code' ],
+                'openai' => [ 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o4-mini', 'o4' ],
+        ];
+}
+
 function jaggrok_add_settings_page() {
 	add_options_page(
 		'JagGrok Elementor Settings',
@@ -16,14 +30,15 @@ add_action( 'admin_menu', 'jaggrok_add_settings_page' );
 
 function jaggrok_register_settings() {
         $defaults = [
-                'jaggrok_xai_api_key'    => '',
-                'jaggrok_openai_api_key' => '',
-                'jaggrok_auto_insert'    => 'yes',
-                'jaggrok_theme_style'    => 'modern',
-                'jaggrok_max_tokens'     => 2000,
-                'jaggrok_model'          => 'grok-3-beta',
-                'jaggrok_openai_model'   => 'gpt-4o-mini',
-                'jaggrok_provider'       => 'grok',
+                'jaggrok_provider'        => 'grok',
+                'jaggrok_xai_api_key'     => '',
+                'jaggrok_openai_api_key'  => '',
+                'jaggrok_auto_insert'     => 'yes',
+                'jaggrok_theme_style'     => 'modern',
+                'jaggrok_max_tokens'      => 2000,
+                'jaggrok_provider_models' => jaggrok_get_provider_model_defaults(),
+                'jaggrok_model'           => 'grok-3-beta',
+                'jaggrok_openai_model'    => 'gpt-4o-mini',
         ];
 
         register_setting(
@@ -68,6 +83,16 @@ function jaggrok_register_settings() {
                 [
                         'sanitize_callback' => 'jaggrok_sanitize_max_tokens',
                         'default' => $defaults['jaggrok_max_tokens'],
+                ]
+        );
+
+        register_setting(
+                'jaggrok_settings',
+                'jaggrok_provider_models',
+                [
+                        'sanitize_callback' => 'jaggrok_sanitize_provider_models',
+                        'default' => $defaults['jaggrok_provider_models'],
+                        'type' => 'array',
                 ]
         );
 
@@ -134,15 +159,64 @@ function jaggrok_sanitize_max_tokens( $value ) {
         return $value > 0 ? $value : 2000;
 }
 
+function jaggrok_sanitize_provider_models( $value ) {
+        $defaults = jaggrok_get_provider_model_defaults();
+        $allowed  = jaggrok_get_allowed_provider_models();
+
+        if ( ! is_array( $value ) ) {
+                $value = [];
+        }
+
+        $sanitized = [];
+
+        foreach ( $defaults as $provider => $default_model ) {
+                $incoming = isset( $value[ $provider ] ) ? sanitize_text_field( $value[ $provider ] ) : '';
+                $sanitized[ $provider ] = ( isset( $allowed[ $provider ] ) && in_array( $incoming, $allowed[ $provider ], true ) )
+                        ? $incoming
+                        : $default_model;
+        }
+
+        return $sanitized;
+}
+
+function jaggrok_get_provider_models() {
+        $stored = get_option( 'jaggrok_provider_models', [] );
+
+        if ( ! is_array( $stored ) ) {
+                $stored = [];
+        }
+
+        return jaggrok_sanitize_provider_models( array_merge( jaggrok_get_provider_model_defaults(), $stored ) );
+}
+
 function jaggrok_sanitize_model( $value ) {
-        $allowed = [ 'grok-3-mini', 'grok-3-beta', 'grok-3', 'grok-4-mini', 'grok-4', 'grok-4-code' ];
-        return in_array( $value, $allowed, true ) ? $value : 'grok-3-beta';
+        $allowed = jaggrok_get_allowed_provider_models();
+        $value   = sanitize_text_field( $value );
+
+        return in_array( $value, $allowed['grok'], true ) ? $value : jaggrok_get_provider_model_defaults()['grok'];
 }
 
 function jaggrok_sanitize_openai_model( $value ) {
-        $value = sanitize_text_field( $value );
-        return $value ?: 'gpt-4o-mini';
+        $allowed = jaggrok_get_allowed_provider_models();
+        $value   = sanitize_text_field( $value );
+
+        return in_array( $value, $allowed['openai'], true ) ? $value : jaggrok_get_provider_model_defaults()['openai'];
 }
+
+function jaggrok_sync_legacy_model_options( $value, $old_value ) {
+        if ( is_array( $value ) ) {
+                if ( isset( $value['grok'] ) ) {
+                        update_option( 'jaggrok_model', jaggrok_sanitize_model( $value['grok'] ) );
+                }
+
+                if ( isset( $value['openai'] ) ) {
+                        update_option( 'jaggrok_openai_model', jaggrok_sanitize_openai_model( $value['openai'] ) );
+                }
+        }
+
+        return $value;
+}
+add_filter( 'pre_update_option_jaggrok_provider_models', 'jaggrok_sync_legacy_model_options', 10, 2 );
 
 function jaggrok_sanitize_provider( $value ) {
         $allowed = [ 'grok', 'openai' ];
