@@ -51,12 +51,16 @@ add_filter( 'plugin_action_links', 'jaggrok_settings_link', 10, 2 );
 
 // Enqueue JS files (v1.4.3)
 function jaggrok_enqueue_assets( $hook ) {
-	wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.4.3', true );
-	wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.4.3', true );
-	wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', array(
-		'ajaxurl' => admin_url( 'admin-ajax.php' ),
-		'nonce' => wp_create_nonce( 'jaggrok_generate' )
-	) );
+        wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.4.3', true );
+        wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.4.3', true );
+
+        $ajax_data = array(
+                'ajaxurl' => admin_url( 'admin-ajax.php' ),
+                'nonce' => wp_create_nonce( 'jaggrok_test' ),
+        );
+
+        wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', $ajax_data );
+        wp_localize_script( 'jaggrok-admin-settings', 'jaggrokAjax', $ajax_data );
 }
 add_action( 'admin_enqueue_scripts', 'jaggrok_enqueue_assets' );
 
@@ -78,7 +82,7 @@ if ( jaggrok_check_dependencies() ) {
 // AJAX: Generate Page with Grok (v1.4.3)
 add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
 function jaggrok_generate_page_ajax() {
-	check_ajax_referer( 'jaggrok_generate', 'nonce' );
+        check_ajax_referer( 'jaggrok_test', 'nonce' );
 
 	$prompt = sanitize_textarea_field( $_POST['prompt'] );
 	$api_key = get_option( 'jaggrok_xai_api_key' );
