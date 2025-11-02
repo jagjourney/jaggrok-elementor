@@ -3,17 +3,17 @@
 These smoke tests confirm the preset resolver picks the correct provider defaults for canvas and content tasks after the structured context refactor.
 
 ## Preconditions
-- The JagGrok Elementor plugin is activated.
-- API keys for xAI Grok and OpenAI are configured in **JagGrok → Settings**.
+- The AiMentor Elementor plugin is activated.
+- API keys for xAI Grok and OpenAI are configured in **AiMentor → Settings**.
 - Elementor editor is available on a test page or template.
 
 ## Steps
 
 ### 1. Canvas generation (xAI Grok)
-1. Open Elementor on a blank canvas and launch the JagGrok generator.
+1. Open Elementor on a blank canvas and launch the AiMentor generator.
 2. Select **Canvas** as the task type and **Quality** as the performance tier.
 3. Trigger a generation using a prompt such as “Create a pricing page with tiered plans and a contact form.”
-4. Observe the developer console (Network tab) for the `jaggrok_generate_page` AJAX call and confirm the JSON response includes:
+4. Observe the developer console (Network tab) for the `aimentor_generate_page` AJAX call (or the legacy `jaggrok_generate_page` alias) and confirm the JSON response includes:
    - `task: "canvas"`
    - `tier: "quality"`
    - `provider: "grok"`
