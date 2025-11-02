@@ -76,16 +76,38 @@ function jaggrok_enqueue_elementor_assets() {
 }
 add_action( 'elementor/editor/after_enqueue_scripts', 'jaggrok_enqueue_elementor_assets' );
 
-function jaggrok_get_ajax_payload() {
+function jaggrok_get_provider_meta_map() {
         $provider_labels = function_exists( 'jaggrok_get_provider_labels' ) ? jaggrok_get_provider_labels() : array(
                 'grok'   => __( 'xAI Grok', 'jaggrok-elementor' ),
                 'openai' => __( 'OpenAI', 'jaggrok-elementor' ),
         );
-        $provider_summaries = array();
+
+        $meta = array();
         foreach ( $provider_labels as $key => $label ) {
-                /* translators: %s: Provider label. */
-                $provider_summaries[ $key ] = sprintf( __( 'Content generated with %s.', 'jaggrok-elementor' ), $label );
+                $is_openai = ( 'openai' === $key );
+                $meta[ $key ] = array(
+                        'label'      => $label,
+                        'icon'       => $is_openai ? '🔷' : '🚀',
+                        'summary'    => sprintf( __( 'Content generated with %s.', 'jaggrok-elementor' ), $label ),
+                        'badgeText'  => $is_openai ? __( 'OpenAI', 'jaggrok-elementor' ) : __( 'xAI', 'jaggrok-elementor' ),
+                        'badgeColor' => $is_openai ? '#2B8CFF' : '#1E1E1E',
+                );
         }
+
+        /**
+         * Filters the provider metadata exposed to the editor UI.
+         *
+         * @since 1.4.3
+         *
+         * @param array $meta Provider metadata map.
+         */
+        return apply_filters( 'jaggrok_provider_meta_map', $meta );
+}
+
+function jaggrok_get_ajax_payload() {
+        $provider_meta_map = jaggrok_get_provider_meta_map();
+        $provider_labels   = wp_list_pluck( $provider_meta_map, 'label' );
+        $provider_summaries = wp_list_pluck( $provider_meta_map, 'summary' );
 
         return array(
                 'ajaxurl'            => admin_url( 'admin-ajax.php' ),
@@ -96,10 +118,25 @@ function jaggrok_get_ajax_payload() {
                         'missingKey'         => __( 'Enter an API key before testing.', 'jaggrok-elementor' ),
                         'errorBadge'         => __( 'Error', 'jaggrok-elementor' ),
                         'unknownError'       => __( 'Unknown error', 'jaggrok-elementor' ),
+                        /* translators: %s: Provider label. */
+                        'generateWith'       => __( 'Generate with %s', 'jaggrok-elementor' ),
+                        /* translators: %s: Provider label. */
+                        'generatingWith'     => __( 'Generating with %s…', 'jaggrok-elementor' ),
+                        /* translators: %s: Provider label. */
+                        'contentGenerated'   => __( 'Content generated with %s.', 'jaggrok-elementor' ),
+                        /* translators: %s: Provider label. */
+                        'writeWith'          => __( 'Write with %s', 'jaggrok-elementor' ),
+                        'chooseProvider'     => __( 'Choose provider', 'jaggrok-elementor' ),
+                        'promptRequired'     => __( 'Please enter a prompt!', 'jaggrok-elementor' ),
+                        'generateAgain'      => __( 'Generate Again', 'jaggrok-elementor' ),
+                        'closeModal'         => __( 'Close modal', 'jaggrok-elementor' ),
+                        'successPrefix'      => __( '✅', 'jaggrok-elementor' ),
+                        'errorPrefix'        => __( 'Error:', 'jaggrok-elementor' ),
                 ),
                 'provider'           => get_option( 'jaggrok_provider', 'grok' ),
                 'providerLabels'     => $provider_labels,
                 'providerSummaries'  => $provider_summaries,
+                'providersMeta'      => $provider_meta_map,
         );
 }
 

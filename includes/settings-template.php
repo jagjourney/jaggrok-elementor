@@ -2,6 +2,20 @@
 <div class="wrap">
     <h1><img src="<?php echo plugin_dir_url( __DIR__ ); ?>assets/icon-128x128.png" style="height:40px; vertical-align:middle;">
         JagGrok Elementor Settings</h1>
+    <style>
+        .jaggrok-provider-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            margin-left: 6px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
 
     <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By Jag Journey, LLC</a></p>
 
@@ -61,11 +75,17 @@
                         <label class="jaggrok-provider-option">
                             <input type="radio" name="jaggrok_provider" value="grok" <?php checked( $provider, 'grok' ); ?> />
                             <span class="jaggrok-provider-name"><?php esc_html_e( 'xAI Grok', 'jaggrok-elementor' ); ?></span>
+                            <span class="jaggrok-provider-badge" style="background-color:#1E1E1E;" aria-hidden="true">
+                                <?php esc_html_e( 'xAI', 'jaggrok-elementor' ); ?>
+                            </span>
                             <span class="description jaggrok-provider-summary"><?php esc_html_e( "Creator tier includes roughly 30 requests per minute and bundled usage. Confirm current allowances on xAI's pricing page.", 'jaggrok-elementor' ); ?></span>
                         </label>
                         <label class="jaggrok-provider-option">
                             <input type="radio" name="jaggrok_provider" value="openai" <?php checked( $provider, 'openai' ); ?> />
                             <span class="jaggrok-provider-name"><?php esc_html_e( 'OpenAI', 'jaggrok-elementor' ); ?></span>
+                            <span class="jaggrok-provider-badge" style="background-color:#2B8CFF;" aria-hidden="true">
+                                <?php esc_html_e( 'OpenAI', 'jaggrok-elementor' ); ?>
+                            </span>
                             <span class="description jaggrok-provider-summary"><?php esc_html_e( 'Pay-as-you-go billing with token-based rates. Review OpenAI pricing for the latest per-model costs.', 'jaggrok-elementor' ); ?></span>
                         </label>
                     </fieldset>
