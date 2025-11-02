@@ -1,0 +1,23 @@
+{
+  "name": "AiMentor Elementor",
+  "slug": "aimentor-elementor",
+  "version": "1.4.3",
+  "download_link": "https://jaggrok-elementor.jagjourney.com/downloads/aimentor-elementor-v1.4.3.zip",
+  "author": "AiMentor",
+  "author_profile": "https://aimentor.ai/",
+  "requires": "5.0",
+  "tested": "6.4",
+  "requires_php": "7.4",
+  "homepage": "https://jaggrok-elementor.jagjourney.com/",
+  "last_updated": "2024-05-01",
+  "sections": {
+    "description": "AiMentor Elementor delivers one-click, prompt-driven page generation with support for both AiMentor and legacy JagGrok API providers. Upgrade to keep receiving model improvements across OpenAI, Grok, and future multi-provider releases.",
+    "installation": "Upload the ZIP via WordPress > Plugins > Add New and activate AiMentor Elementor. Existing JagGrok customers can install over the top—the plugin automatically migrates settings and provider credentials.",
+    "changelog": "= 1.4.3 =\n* Re-branded update channel for AiMentor Elementor.\n* Introduced multi-provider provisioning guidance for customers migrating from JagGrok builds.\n* Bundled latest compatibility fixes for WordPress 6.4 and Elementor 3.18."
+  },
+  "upgrade_notice": "AiMentor Elementor replaces JagGrok Elementor. Install this build to continue receiving provider updates across OpenAI, Grok, and future partners.",
+  "banners": {
+    "high": "https://jaggrok-elementor.jagjourney.com/assets/banners/aimentor-high.png",
+    "low": "https://jaggrok-elementor.jagjourney.com/assets/banners/aimentor-low.png"
+  }
+}
