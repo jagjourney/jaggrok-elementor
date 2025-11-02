@@ -162,7 +162,7 @@
     <!-- ERROR LOG TABLE -->
     <h2>Error Log</h2>
     <table class="widefat striped">
-        <thead><tr><th>Timestamp</th><th>Error Message</th></tr></thead>
+        <thead><tr><th>Timestamp</th><th>Provider</th><th>Error Message</th></tr></thead>
         <tbody>
         <?php
         $log_file = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
@@ -171,13 +171,25 @@
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
                 // FIXED v1.3.10: Safe array access (NO MORE WARNINGS!)
-                $parts = explode( ' - ', trim( $log ), 2 );
+                $parts     = explode( ' - ', trim( $log ), 2 );
                 $timestamp = isset( $parts[0] ) ? trim( $parts[0] ) : 'Unknown';
-                $message = isset( $parts[1] ) ? trim( $parts[1] ) : $log;
-                echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
+                $raw_entry = isset( $parts[1] ) ? trim( $parts[1] ) : '';
+                $message   = $raw_entry ?: $log;
+                $provider  = '';
+
+                if ( '' !== $raw_entry ) {
+                    $decoded = json_decode( $raw_entry, true );
+
+                    if ( is_array( $decoded ) && isset( $decoded['message'] ) ) {
+                        $message  = $decoded['message'];
+                        $provider = isset( $decoded['context']['provider'] ) ? $decoded['context']['provider'] : '';
+                    }
+                }
+
+                echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . ( '' !== $provider ? esc_html( $provider ) : '&mdash;' ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
             }
         } else {
-            echo '<tr><td colspan="2">No errors logged yet.</td></tr>';
+            echo '<tr><td colspan="3">No errors logged yet.</td></tr>';
         }
         ?>
         </tbody>

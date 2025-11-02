@@ -155,49 +155,64 @@ function jaggrok_generate_page_ajax() {
         $prompt        = isset( $_POST['prompt'] ) ? sanitize_textarea_field( wp_unslash( $_POST['prompt'] ) ) : '';
         $is_pro = jaggrok_is_pro_active();
 
-        $provider_labels = jaggrok_get_provider_labels();
-        $provider_key    = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : get_option( 'jaggrok_provider', 'grok' );
-        if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
-                $provider_key = get_option( 'jaggrok_provider', 'grok' );
-        }
+	$provider_labels = jaggrok_get_provider_labels();
+	$provider_key    = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : get_option( 'jaggrok_provider', 'grok' );
+	if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
+		$provider_key = get_option( 'jaggrok_provider', 'grok' );
+	}
 
-        $provider = jaggrok_get_active_provider( $provider_key );
+	$models         = jaggrok_get_provider_models();
+	$model_defaults = jaggrok_get_provider_model_defaults();
+	$model          = $models[ $provider_key ] ?? ( $model_defaults[ $provider_key ] ?? '' );
 
-        if ( ! $provider instanceof JagGrok_Provider_Interface ) {
-                jaggrok_log_error( 'Invalid provider configuration.' );
-                wp_send_json_error( __( 'Provider configuration error.', 'jaggrok-elementor' ) );
-        }
+	$provider = jaggrok_get_active_provider( $provider_key );
 
-        $models         = jaggrok_get_provider_models();
-        $model_defaults = jaggrok_get_provider_model_defaults();
+	if ( ! $provider instanceof JagGrok_Provider_Interface ) {
+		jaggrok_log_error(
+			'Invalid provider configuration.',
+			[
+				'provider' => $provider_key,
+				'model'    => $model,
+				'user_id'  => get_current_user_id(),
+			]
+		);
+		wp_send_json_error( __( 'Provider configuration error.', 'jaggrok-elementor' ) );
+	}
 
-        switch ( $provider_key ) {
-                case 'openai':
-                        $api_key = get_option( 'jaggrok_openai_api_key' );
-                        $model   = $models['openai'] ?? $model_defaults['openai'];
-                        break;
-                case 'grok':
-                default:
-                        $api_key = get_option( 'jaggrok_xai_api_key' );
-                        $model   = $models['grok'] ?? $model_defaults['grok'];
-                        break;
-        }
+	switch ( $provider_key ) {
+		case 'openai':
+			$api_key = get_option( 'jaggrok_openai_api_key' );
+			$model   = $models['openai'] ?? $model_defaults['openai'];
+			break;
+		case 'grok':
+		default:
+			$api_key = get_option( 'jaggrok_xai_api_key' );
+			$model   = $models['grok'] ?? $model_defaults['grok'];
+			break;
+	}
 
         $is_canvas_requested = $is_pro && ! empty( $_POST['pro_features'] );
         $is_canvas = $is_canvas_requested && $provider->supports_canvas();
 
-        $result = $provider->request( $prompt, [
-                'api_key'   => $api_key,
-                'model'     => $model,
-                'max_tokens'=> get_option( 'jaggrok_max_tokens', 2000 ),
-                'is_canvas' => $is_canvas,
-        ] );
+	$result = $provider->request( $prompt, [
+		'api_key'   => $api_key,
+		'model'     => $model,
+		'max_tokens'=> get_option( 'jaggrok_max_tokens', 2000 ),
+		'is_canvas' => $is_canvas,
+	] );
 
-        if ( is_wp_error( $result ) ) {
-                $error_message = $result->get_error_message();
-                jaggrok_log_error( $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ) );
-                wp_send_json_error( $error_message );
-        }
+	if ( is_wp_error( $result ) ) {
+		$error_message = $result->get_error_message();
+		jaggrok_log_error(
+			$error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
+			[
+				'provider' => $provider_key,
+				'model'    => $model,
+				'user_id'  => get_current_user_id(),
+			]
+		);
+		wp_send_json_error( $error_message );
+	}
 
         $response_payload = [
                 'provider'        => $provider_key,
