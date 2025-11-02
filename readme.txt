@@ -41,9 +41,11 @@ native GitHub channel.
 * Latest ZIP (tagged releases): https://github.com/jagjourney/aimentor-elementor/releases
 * Release automation: `.github/workflows/release.yml` validates PHP syntax, builds the ZIP package, attaches it to the release,
   and refreshes the lightweight manifest on `gh-pages`.
+* Release checklist and versioning guide: `docs/release-guide.md`.
 
 == Deployment ==
 Tagged releases automatically produce `aimentor-elementor-v*.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
+Refer to `docs/release-guide.md` for detailed tagging, workflow, and post-release steps.
 
 Need to ship a hotfix outside of that flow? Build the archive locally with the same folder structure, then upload it to a draft GitHub release so the workflow can take over once the release is published.
 
