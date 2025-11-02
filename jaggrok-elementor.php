@@ -49,20 +49,39 @@ function jaggrok_settings_link( $actions, $plugin_file ) {
 }
 add_filter( 'plugin_action_links', 'jaggrok_settings_link', 10, 2 );
 
-// Enqueue JS files (v1.4.3)
+// Enqueue admin JS files (v1.4.3)
 function jaggrok_enqueue_assets( $hook ) {
+        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+        $is_settings_screen = ( 'settings_page_jaggrok-settings' === $hook );
+        $is_elementor_screen = ( $screen && 0 === strpos( $screen->id, 'elementor' ) );
+
+        if ( ! $is_settings_screen && ! $is_elementor_screen ) {
+                return;
+        }
+
+        if ( $is_elementor_screen && ! $is_settings_screen ) {
+                // Elementor assets are handled via elementor/editor/after_enqueue_scripts.
+                return;
+        }
+
         wp_enqueue_script( 'jaggrok-admin-settings', plugin_dir_url( __FILE__ ) . 'js/admin-settings.js', array( 'jquery' ), '1.4.3', true );
-        wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.4.3', true );
-
-        $ajax_data = array(
-                'ajaxurl' => admin_url( 'admin-ajax.php' ),
-                'nonce' => wp_create_nonce( 'jaggrok_test' ),
-        );
-
-        wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', $ajax_data );
-        wp_localize_script( 'jaggrok-admin-settings', 'jaggrokAjax', $ajax_data );
+        wp_localize_script( 'jaggrok-admin-settings', 'jaggrokAjax', jaggrok_get_ajax_payload() );
 }
 add_action( 'admin_enqueue_scripts', 'jaggrok_enqueue_assets' );
+
+function jaggrok_enqueue_elementor_assets() {
+        wp_enqueue_script( 'jaggrok-elementor-widget', plugin_dir_url( __FILE__ ) . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), '1.4.3', true );
+        wp_localize_script( 'jaggrok-elementor-widget', 'jaggrokAjax', jaggrok_get_ajax_payload() );
+}
+add_action( 'elementor/editor/after_enqueue_scripts', 'jaggrok_enqueue_elementor_assets' );
+
+function jaggrok_get_ajax_payload() {
+        return array(
+                'ajaxurl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => wp_create_nonce( 'jaggrok_test' ),
+        );
+}
 
 // Include settings page (v1.4.3)
 require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
