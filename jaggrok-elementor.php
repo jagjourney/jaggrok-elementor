@@ -77,16 +77,29 @@ function jaggrok_enqueue_elementor_assets() {
 add_action( 'elementor/editor/after_enqueue_scripts', 'jaggrok_enqueue_elementor_assets' );
 
 function jaggrok_get_ajax_payload() {
+        $provider_labels = function_exists( 'jaggrok_get_provider_labels' ) ? jaggrok_get_provider_labels() : array(
+                'grok'   => __( 'xAI Grok', 'jaggrok-elementor' ),
+                'openai' => __( 'OpenAI', 'jaggrok-elementor' ),
+        );
+        $provider_summaries = array();
+        foreach ( $provider_labels as $key => $label ) {
+                /* translators: %s: Provider label. */
+                $provider_summaries[ $key ] = sprintf( __( 'Content generated with %s.', 'jaggrok-elementor' ), $label );
+        }
+
         return array(
-                'ajaxurl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => wp_create_nonce( 'jaggrok_test' ),
-                'strings' => array(
+                'ajaxurl'            => admin_url( 'admin-ajax.php' ),
+                'nonce'              => wp_create_nonce( 'jaggrok_test' ),
+                'strings'            => array(
                         'testingBadge'       => __( 'Testing', 'jaggrok-elementor' ),
                         'testingDescription' => __( 'Testing connection…', 'jaggrok-elementor' ),
                         'missingKey'         => __( 'Enter an API key before testing.', 'jaggrok-elementor' ),
                         'errorBadge'         => __( 'Error', 'jaggrok-elementor' ),
                         'unknownError'       => __( 'Unknown error', 'jaggrok-elementor' ),
                 ),
+                'provider'           => get_option( 'jaggrok_provider', 'grok' ),
+                'providerLabels'     => $provider_labels,
+                'providerSummaries'  => $provider_summaries,
         );
 }
 
@@ -139,18 +152,23 @@ function jaggrok_generate_page_ajax() {
                 );
         }
 
-        $prompt = sanitize_textarea_field( $_POST['prompt'] );
+        $prompt        = isset( $_POST['prompt'] ) ? sanitize_textarea_field( wp_unslash( $_POST['prompt'] ) ) : '';
         $is_pro = jaggrok_is_pro_active();
 
-        $provider = jaggrok_get_active_provider();
+        $provider_labels = jaggrok_get_provider_labels();
+        $provider_key    = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : get_option( 'jaggrok_provider', 'grok' );
+        if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
+                $provider_key = get_option( 'jaggrok_provider', 'grok' );
+        }
+
+        $provider = jaggrok_get_active_provider( $provider_key );
 
         if ( ! $provider instanceof JagGrok_Provider_Interface ) {
                 jaggrok_log_error( 'Invalid provider configuration.' );
                 wp_send_json_error( __( 'Provider configuration error.', 'jaggrok-elementor' ) );
         }
 
-        $provider_key = get_option( 'jaggrok_provider', 'grok' );
-        $models       = jaggrok_get_provider_models();
+        $models         = jaggrok_get_provider_models();
         $model_defaults = jaggrok_get_provider_model_defaults();
 
         switch ( $provider_key ) {
@@ -181,11 +199,18 @@ function jaggrok_generate_page_ajax() {
                 wp_send_json_error( $error_message );
         }
 
+        $response_payload = [
+                'provider'        => $provider_key,
+                'provider_label'  => $provider_labels[ $provider_key ] ?? ucfirst( $provider_key ),
+        ];
+
         if ( 'canvas' === $result['type'] ) {
-                wp_send_json_success( [ 'canvas_json' => $result['content'] ] );
+                $response_payload['canvas_json'] = $result['content'];
+                wp_send_json_success( $response_payload );
         }
 
-        wp_send_json_success( [ 'html' => $result['content'] ] );
+        $response_payload['html'] = $result['content'];
+        wp_send_json_success( $response_payload );
 }
 
 // Include uninstall
