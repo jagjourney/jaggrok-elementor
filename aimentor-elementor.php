@@ -192,6 +192,9 @@ function aimentor_get_ajax_payload() {
         $provider_meta_map  = aimentor_get_provider_meta_map();
         $provider_labels    = wp_list_pluck( $provider_meta_map, 'label' );
         $provider_summaries = wp_list_pluck( $provider_meta_map, 'summary' );
+        $defaults           = aimentor_get_default_options();
+        $default_task       = get_option( 'aimentor_default_generation_type', $defaults['aimentor_default_generation_type'] );
+        $default_tier       = get_option( 'aimentor_default_performance', $defaults['aimentor_default_performance'] );
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
@@ -216,11 +219,35 @@ function aimentor_get_ajax_payload() {
                         'closeModal'         => __( 'Close modal', 'aimentor' ),
                         'successPrefix'      => __( '✅', 'aimentor' ),
                         'errorPrefix'        => __( 'Error:', 'aimentor' ),
+                        'askAiMentor'        => __( 'Ask AiMentor', 'aimentor' ),
+                        /* translators: %s: Provider label. */
+                        'askAiMentorWith'    => __( 'Ask AiMentor via %s', 'aimentor' ),
+                        'generationType'     => __( 'Generation Type', 'aimentor' ),
+                        'pageLayout'         => __( 'Page Layout', 'aimentor' ),
+                        'pageCopy'           => __( 'Page Copy', 'aimentor' ),
+                        'performanceLabel'   => __( 'Performance', 'aimentor' ),
+                        'fastLabel'          => __( 'Fast', 'aimentor' ),
+                        'qualityLabel'       => __( 'Quality', 'aimentor' ),
+                        'layoutLabel'        => __( 'Layout', 'aimentor' ),
+                        'copyLabel'          => __( 'Copy', 'aimentor' ),
+                        /* translators: %s: Model label. */
+                        'summaryPoweredBy'   => __( '– powered by %s', 'aimentor' ),
+                        'summarySeparator'   => _x( ' • ', 'separator between task and tier', 'aimentor' ),
+                        'promptLabel'        => __( 'Prompt', 'aimentor' ),
+                        'promptPlaceholder'  => __( 'Describe your page (e.g., hero with CTA)', 'aimentor' ),
+                        'missingConfig'      => __( 'AiMentor AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.', 'aimentor' ),
                 ),
                 'provider'          => get_option( 'aimentor_provider', 'grok' ),
                 'providerLabels'    => $provider_labels,
                 'providerSummaries' => $provider_summaries,
                 'providersMeta'     => $provider_meta_map,
+                'defaults'          => array(
+                        'task' => aimentor_sanitize_generation_type( $default_task ),
+                        'tier' => aimentor_sanitize_performance_tier( $default_tier ),
+                ),
+                'modelPresets'      => aimentor_get_model_presets(),
+                'modelLabels'       => aimentor_get_model_labels(),
+                'isProActive'       => aimentor_is_pro_active(),
         );
 }
 
@@ -442,11 +469,31 @@ function aimentor_generate_page_ajax() {
                 wp_send_json_error( __( 'Provider configuration error.', 'aimentor' ) );
         }
 
-        $is_canvas_requested = $is_pro && ! empty( $_POST['pro_features'] );
-        $is_canvas           = $is_canvas_requested && $provider->supports_canvas();
+        $requested_task = isset( $_POST['task'] ) ? sanitize_text_field( wp_unslash( $_POST['task'] ) ) : '';
+        $requested_tier = isset( $_POST['tier'] ) ? sanitize_text_field( wp_unslash( $_POST['tier'] ) ) : '';
 
-        $task = $is_canvas ? 'canvas' : 'content';
-        $tier = $is_canvas ? 'quality' : 'fast';
+        if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
+                $requested_task = aimentor_sanitize_generation_type( $requested_task );
+        }
+
+        if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
+                $requested_tier = aimentor_sanitize_performance_tier( $requested_tier );
+        }
+
+        $defaults         = aimentor_get_default_options();
+        $default_task     = isset( $defaults['aimentor_default_generation_type'] ) ? $defaults['aimentor_default_generation_type'] : 'content';
+        $default_tier     = isset( $defaults['aimentor_default_performance'] ) ? $defaults['aimentor_default_performance'] : 'fast';
+        $default_task     = function_exists( 'aimentor_sanitize_generation_type' ) ? aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_task ) ) : $default_task;
+        $default_tier     = function_exists( 'aimentor_sanitize_performance_tier' ) ? aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_tier ) ) : $default_tier;
+        $task             = $requested_task ? $requested_task : $default_task;
+        $tier             = $requested_tier ? $requested_tier : $default_tier;
+
+        $supports_canvas = $provider->supports_canvas();
+        if ( 'canvas' === $task ) {
+                if ( ! $is_pro || ! $supports_canvas ) {
+                        $task = 'content';
+                }
+        }
 
         switch ( $provider_key ) {
                 case 'openai':
@@ -469,7 +516,9 @@ function aimentor_generate_page_ajax() {
                 'api_key'    => $api_key,
                 'model'      => $model,
                 'max_tokens' => get_option( 'aimentor_max_tokens', 2000 ),
-                'is_canvas'  => $is_canvas,
+                'is_canvas'  => ( 'canvas' === $task ),
+                'task'       => $task,
+                'tier'       => $tier,
         ) );
 
         if ( is_wp_error( $result ) ) {

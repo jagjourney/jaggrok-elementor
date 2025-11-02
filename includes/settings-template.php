@@ -39,23 +39,12 @@
         $legacy_models    = aimentor_map_presets_to_legacy_defaults( $model_presets );
         $default_presets  = aimentor_get_provider_model_defaults();
         $default_legacy   = aimentor_map_presets_to_legacy_defaults( $default_presets );
-        $grok_model_labels = [
-                'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
-                'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
-                'grok-3'      => __( 'Grok 3 (Standard)', 'aimentor' ),
-                'grok-4-mini' => __( 'Grok 4 Mini (Premium)', 'aimentor' ),
-                'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
-                'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
-        ];
-        $openai_model_labels = [
-                'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
-                'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
-                'gpt-4.1'      => __( 'GPT-4.1 (Reasoning)', 'aimentor' ),
-                'gpt-4.1-mini' => __( 'GPT-4.1 mini (Fast)', 'aimentor' ),
-                'gpt-4.1-nano' => __( 'GPT-4.1 nano (Edge)', 'aimentor' ),
-                'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
-                'o4'           => __( 'o4 (Preview)', 'aimentor' ),
-        ];
+        $model_labels     = aimentor_get_model_labels();
+        $default_task     = get_option( 'aimentor_default_generation_type', $defaults['aimentor_default_generation_type'] );
+        $default_tier     = get_option( 'aimentor_default_performance', $defaults['aimentor_default_performance'] );
+        $default_task     = aimentor_sanitize_generation_type( $default_task );
+        $default_tier     = aimentor_sanitize_performance_tier( $default_tier );
+        $is_pro_active    = aimentor_is_pro_active();
         $preset_sections = [
                 'canvas'  => [
                         'tiers' => [
@@ -172,9 +161,29 @@
                 </td>
             </tr>
             <tr>
+                <th scope="row"><?php esc_html_e( 'Editor Defaults', 'aimentor' ); ?></th>
+                <td>
+                    <label for="aimentor_default_generation_type" class="aimentor-provider-group__label"><?php esc_html_e( 'Generation Type', 'aimentor' ); ?></label>
+                    <select id="aimentor_default_generation_type" name="aimentor_default_generation_type" class="regular-text" aria-describedby="aimentor_default_generation_type_help">
+                        <option value="content" <?php selected( $default_task, 'content' ); ?>><?php esc_html_e( 'Page Copy', 'aimentor' ); ?></option>
+                        <option value="canvas" <?php selected( $default_task, 'canvas' ); ?><?php echo $is_pro_active ? '' : ' disabled'; ?>><?php esc_html_e( 'Page Layout', 'aimentor' ); ?></option>
+                    </select>
+                    <p id="aimentor_default_generation_type_help" class="description"><?php esc_html_e( 'Sets the default AiMentor task shown in Elementor (copy vs. layout).', 'aimentor' ); ?></p>
+                    <?php if ( ! $is_pro_active ) : ?>
+                        <p class="description"><?php esc_html_e( 'Activate Elementor Pro to unlock AiMentor Page Layout generation.', 'aimentor' ); ?></p>
+                    <?php endif; ?>
+                    <label for="aimentor_default_performance" class="aimentor-provider-group__label"><?php esc_html_e( 'Performance', 'aimentor' ); ?></label>
+                    <select id="aimentor_default_performance" name="aimentor_default_performance" class="regular-text" aria-describedby="aimentor_default_performance_help">
+                        <option value="fast" <?php selected( $default_tier, 'fast' ); ?>><?php esc_html_e( 'Fast', 'aimentor' ); ?></option>
+                        <option value="quality" <?php selected( $default_tier, 'quality' ); ?>><?php esc_html_e( 'Quality', 'aimentor' ); ?></option>
+                    </select>
+                    <p id="aimentor_default_performance_help" class="description"><?php esc_html_e( 'Choose the default balance between speed and fidelity for AiMentor generations.', 'aimentor' ); ?></p>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><?php esc_html_e( 'Model Presets', 'aimentor' ); ?></th>
                 <td>
-                    <?php $provider_model_labels = [ 'grok' => $grok_model_labels, 'openai' => $openai_model_labels ]; ?>
+                    <?php $provider_model_labels = $model_labels; ?>
                     <?php foreach ( aimentor_get_provider_labels() as $provider_key => $provider_label ) : ?>
                         <div class="aimentor-provider-group" data-provider="<?php echo esc_attr( $provider_key ); ?>">
                             <p class="description aimentor-model-presets-summary"><?php printf( esc_html__( '%s presets drive which model AiMentor calls for layouts and copy.', 'aimentor' ), esc_html( $provider_label ) ); ?></p>

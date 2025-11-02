@@ -28,6 +28,28 @@ function aimentor_get_provider_model_defaults() {
         ];
 }
 
+function aimentor_get_model_labels() {
+        return [
+                'grok'   => [
+                        'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
+                        'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
+                        'grok-3'      => __( 'Grok 3 (Standard)', 'aimentor' ),
+                        'grok-4-mini' => __( 'Grok 4 Mini (Premium)', 'aimentor' ),
+                        'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
+                        'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
+                ],
+                'openai' => [
+                        'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
+                        'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
+                        'gpt-4.1'      => __( 'GPT-4.1 (Reasoning)', 'aimentor' ),
+                        'gpt-4.1-mini' => __( 'GPT-4.1 mini (Fast)', 'aimentor' ),
+                        'gpt-4.1-nano' => __( 'GPT-4.1 nano (Edge)', 'aimentor' ),
+                        'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
+                        'o4'           => __( 'o4 (Preview)', 'aimentor' ),
+                ],
+        ];
+}
+
 function aimentor_get_allowed_provider_models() {
         return [
                 'grok'   => [
@@ -186,6 +208,8 @@ function aimentor_get_default_options() {
                 'aimentor_provider_models' => $legacy_defaults,
                 'aimentor_model'           => $legacy_defaults['grok'] ?? '',
                 'aimentor_openai_model'    => $legacy_defaults['openai'] ?? '',
+                'aimentor_default_generation_type' => 'content',
+                'aimentor_default_performance'     => 'fast',
         ];
 }
 
@@ -347,6 +371,24 @@ function aimentor_register_settings() {
 
         register_setting(
                 'aimentor_settings',
+                'aimentor_default_generation_type',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_generation_type',
+                        'default' => $defaults['aimentor_default_generation_type'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_default_performance',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_performance_tier',
+                        'default' => $defaults['aimentor_default_performance'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
                 'aimentor_model_presets',
                 [
                         'sanitize_callback' => 'aimentor_sanitize_model_presets',
@@ -409,6 +451,21 @@ function aimentor_sanitize_auto_insert( $value ) {
 function aimentor_sanitize_theme_style( $value ) {
         $allowed = [ 'modern', 'bold', 'minimal' ];
         return in_array( $value, $allowed, true ) ? $value : 'modern';
+}
+
+function aimentor_sanitize_generation_type( $value ) {
+        $allowed = [ 'canvas', 'content' ];
+
+        if ( ! aimentor_is_pro_active() && 'canvas' === $value ) {
+                return 'content';
+        }
+
+        return in_array( $value, $allowed, true ) ? $value : 'content';
+}
+
+function aimentor_sanitize_performance_tier( $value ) {
+        $allowed = [ 'fast', 'quality' ];
+        return in_array( $value, $allowed, true ) ? $value : 'fast';
 }
 
 function aimentor_sanitize_max_tokens( $value ) {
