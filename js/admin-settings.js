@@ -1,9 +1,55 @@
 // ============================================================================
-// JAGJourney ADMIN SETTINGS JS v1.4.x
+// AiMentor ADMIN SETTINGS JS v1.4.x
 // ============================================================================
 
+(function(window) {
+    var selectorTransforms = [
+        { pattern: /jaggrok_/g, replacement: 'aimentor_' },
+        { pattern: /jaggrok-/g, replacement: 'aimentor-' }
+    ];
+
+    function mapSelector(selector) {
+        if (typeof selector !== 'string') {
+            return selector;
+        }
+
+        var mapped = selector;
+        selectorTransforms.forEach(function(entry) {
+            mapped = mapped.replace(entry.pattern, entry.replacement);
+        });
+        return mapped;
+    }
+
+    if (window.jQuery) {
+        var $ = window.jQuery;
+        var originalInit = $.fn.init;
+        $.fn.init = function(selector, context, root) {
+            return new originalInit(mapSelector(selector), context, root);
+        };
+        $.fn.init.prototype = originalInit.prototype;
+    }
+
+    if (window.document) {
+        var doc = window.document;
+        var originalGetElementById = doc.getElementById.bind(doc);
+        doc.getElementById = function(id) {
+            return originalGetElementById(mapSelector(id));
+        };
+
+        var originalQuerySelector = doc.querySelector.bind(doc);
+        doc.querySelector = function(selector) {
+            return originalQuerySelector(mapSelector(selector));
+        };
+
+        var originalQuerySelectorAll = doc.querySelectorAll.bind(doc);
+        doc.querySelectorAll = function(selector) {
+            return originalQuerySelectorAll(mapSelector(selector));
+        };
+    }
+})(window);
+
 jQuery(document).ready(function($) {
-    var strings = (typeof jaggrokAjax !== 'undefined' && jaggrokAjax.strings) ? jaggrokAjax.strings : {};
+    var strings = (typeof aimentorAjax !== 'undefined' && aimentorAjax.strings) ? aimentorAjax.strings : {};
     var statusStates = ['success', 'error', 'idle', 'pending'];
 
     function getString(key, fallback) {
@@ -15,16 +61,16 @@ jQuery(document).ready(function($) {
 
     function buildClassList() {
         return statusStates.map(function(state) {
-            return 'jaggrok-status-badge--' + state;
+            return 'aimentor-status-badge--' + state;
         }).join(' ');
     }
 
     var badgeClassList = buildClassList();
 
     function updateProviderStatus(provider, data) {
-        var $container = $('.jaggrok-provider-status[data-provider="' + provider + '"]');
-        var $badge = $('.jaggrok-status-badge[data-provider="' + provider + '"]');
-        var $description = $('.jaggrok-status-description[data-provider="' + provider + '"]');
+        var $container = $('.aimentor-provider-status[data-provider="' + provider + '"]');
+        var $badge = $('.aimentor-status-badge[data-provider="' + provider + '"]');
+        var $description = $('.aimentor-status-description[data-provider="' + provider + '"]');
 
         if ($container.length && typeof data.timestamp !== 'undefined') {
             $container.attr('data-timestamp', data.timestamp);
@@ -32,7 +78,7 @@ jQuery(document).ready(function($) {
 
         if ($badge.length) {
             if (data.badge_state) {
-                $badge.removeClass(badgeClassList).addClass('jaggrok-status-badge--' + data.badge_state);
+                $badge.removeClass(badgeClassList).addClass('aimentor-status-badge--' + data.badge_state);
             }
 
             if (data.badge_label) {
@@ -45,7 +91,7 @@ jQuery(document).ready(function($) {
         }
     }
 
-    $('.jaggrok-test-provider').on('click', function() {
+    $('.aimentor-test-provider').on('click', function() {
         var $button = $(this);
         var provider = String($button.data('provider') || '');
 
@@ -53,8 +99,8 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        var $group = $('.jaggrok-provider-group[data-provider="' + provider + '"]');
-        var $input = $group.find('.jaggrok-api-input');
+        var $group = $('.aimentor-provider-group[data-provider="' + provider + '"]');
+        var $input = $group.find('.aimentor-api-input');
         var apiKey = $.trim($input.val());
         var badgeError = getString('errorBadge', 'Error');
         var badgeTesting = getString('testingBadge', 'Testing');
@@ -84,9 +130,9 @@ jQuery(document).ready(function($) {
             description: testingDescription
         });
 
-        $.post(jaggrokAjax.ajaxurl, {
-            action: 'jaggrok_test_api',
-            nonce: jaggrokAjax.nonce,
+        $.post(aimentorAjax.ajaxurl, {
+            action: 'aimentor_test_api',
+            nonce: aimentorAjax.nonce,
             provider: provider,
             api_key: apiKey
         }).done(function(response) {
