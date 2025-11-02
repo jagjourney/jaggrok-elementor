@@ -111,10 +111,21 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/providers/class-jaggrok-ope
 // Include settings page (v1.4.3)
 require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
 
+register_activation_hook( __FILE__, 'jaggrok_activate_plugin' );
+function jaggrok_activate_plugin() {
+        if ( function_exists( 'jaggrok_seed_default_options' ) ) {
+                jaggrok_seed_default_options();
+        }
+}
+
+if ( function_exists( 'jaggrok_seed_default_options' ) ) {
+        add_action( 'plugins_loaded', 'jaggrok_seed_default_options', 5 );
+}
+
 // Include Elementor widget (v1.4.3)
 add_action( 'elementor/widgets/register', function() {
-	if ( jaggrok_check_dependencies() ) {
-		require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
+        if ( jaggrok_check_dependencies() ) {
+                require_once plugin_dir_path( __FILE__ ) . 'includes/elementor-widget.php';
 	}
 });
 
