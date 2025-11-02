@@ -80,6 +80,13 @@ function jaggrok_get_ajax_payload() {
         return array(
                 'ajaxurl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'jaggrok_test' ),
+                'strings' => array(
+                        'testingBadge'       => __( 'Testing', 'jaggrok-elementor' ),
+                        'testingDescription' => __( 'Testing connection…', 'jaggrok-elementor' ),
+                        'missingKey'         => __( 'Enter an API key before testing.', 'jaggrok-elementor' ),
+                        'errorBadge'         => __( 'Error', 'jaggrok-elementor' ),
+                        'unknownError'       => __( 'Unknown error', 'jaggrok-elementor' ),
+                ),
         );
 }
 
@@ -103,8 +110,10 @@ if ( jaggrok_check_dependencies() ) {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
 }
 
-function jaggrok_get_active_provider() {
-        $provider_key = get_option( 'jaggrok_provider', 'grok' );
+function jaggrok_get_active_provider( $provider_key = null ) {
+        if ( null === $provider_key ) {
+                $provider_key = get_option( 'jaggrok_provider', 'grok' );
+        }
 
         switch ( $provider_key ) {
                 case 'openai':
