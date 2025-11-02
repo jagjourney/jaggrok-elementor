@@ -48,7 +48,11 @@ jQuery(document).on('elementor/init', function() {
                     $result.html('<p style="color:green">✅ Generated!<br><small>' + response.data.html.substring(0,100) + '...</small></p>');
                     $('.jaggrok-output').html(response.data.html);
                 } else {
-                    $result.html('<p style="color:red">Error: ' + response.data + '</p>');
+                    var message = response && response.data ? response.data : 'Unknown error';
+                    if (typeof message === 'object' && message !== null) {
+                        message = message.message || 'Unknown error';
+                    }
+                    $result.html('<p style="color:red">Error: ' + message + '</p>');
                 }
             });
         });
