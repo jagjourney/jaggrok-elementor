@@ -424,9 +424,8 @@ function aimentor_generate_page_ajax() {
                 $provider_key = get_option( 'aimentor_provider', 'grok' );
         }
 
-        $models         = aimentor_get_provider_models();
+        $model_presets  = aimentor_get_model_presets();
         $model_defaults = aimentor_get_provider_model_defaults();
-        $model          = $models[ $provider_key ] ?? ( $model_defaults[ $provider_key ] ?? '' );
 
         $provider = aimentor_get_active_provider( $provider_key );
 
@@ -443,20 +442,28 @@ function aimentor_generate_page_ajax() {
                 wp_send_json_error( __( 'Provider configuration error.', 'aimentor' ) );
         }
 
+        $is_canvas_requested = $is_pro && ! empty( $_POST['pro_features'] );
+        $is_canvas           = $is_canvas_requested && $provider->supports_canvas();
+
+        $task = $is_canvas ? 'canvas' : 'content';
+        $tier = $is_canvas ? 'quality' : 'fast';
+
         switch ( $provider_key ) {
                 case 'openai':
                         $api_key = get_option( 'aimentor_openai_api_key' );
-                        $model   = $models['openai'] ?? $model_defaults['openai'];
+                        $model   = $model_presets['openai'][ $task ][ $tier ] ?? ( $model_defaults['openai'][ $task ][ $tier ] ?? '' );
                         break;
                 case 'grok':
                 default:
                         $api_key = get_option( 'aimentor_xai_api_key' );
-                        $model   = $models['grok'] ?? $model_defaults['grok'];
+                        $model   = $model_presets['grok'][ $task ][ $tier ] ?? ( $model_defaults['grok'][ $task ][ $tier ] ?? '' );
                         break;
         }
 
-        $is_canvas_requested = $is_pro && ! empty( $_POST['pro_features'] );
-        $is_canvas           = $is_canvas_requested && $provider->supports_canvas();
+        if ( empty( $model ) ) {
+                $fallbacks = aimentor_map_presets_to_legacy_defaults( $model_defaults );
+                $model     = $fallbacks[ $provider_key ] ?? '';
+        }
 
         $result = $provider->request( $prompt, array(
                 'api_key'    => $api_key,
