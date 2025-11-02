@@ -108,33 +108,72 @@ function jaggrok_generate_page_ajax() {
 		$prompt .= ' Output as clean HTML sections for Elementor.';
 	}
 
-	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
-		'headers' => [
-			'Authorization' => 'Bearer ' . $api_key,
-			'Content-Type' => 'application/json'
-		],
-		'body' => json_encode( [
-			'model' => get_option( 'jaggrok_model', 'grok-3-mini' ),
-			'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
-			'max_tokens' => get_option( 'jaggrok_max_tokens', 2000 )
-		] )
-	] );
+        $response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
+                'headers' => [
+                        'Authorization' => 'Bearer ' . $api_key,
+                        'Content-Type' => 'application/json'
+                ],
+                'body' => json_encode( [
+                        'model' => get_option( 'jaggrok_model', 'grok-3-mini' ),
+                        'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
+                        'max_tokens' => get_option( 'jaggrok_max_tokens', 2000 )
+                ] )
+        ] );
 
-	if ( is_wp_error( $response ) ) {
-		wp_send_json_error( 'API request failed' );
-	}
+        if ( is_wp_error( $response ) ) {
+                $error_message = $response->get_error_message();
+                jaggrok_log_error( 'API request failed: ' . $error_message );
+                wp_send_json_error( 'API request failed: ' . $error_message );
+        }
 
-	$body = json_decode( wp_remote_retrieve_body( $response ), true );
-	$generated = $body['choices'][0]['message']['content'] ?? 'Generation failed';
+        $status_code = wp_remote_retrieve_response_code( $response );
+        $raw_body   = wp_remote_retrieve_body( $response );
+        $body       = json_decode( $raw_body, true );
+        $json_error = json_last_error();
 
-	if ( $is_pro ) {
-		$elementor_json = json_decode( $generated, true );
-		if ( json_last_error() === JSON_ERROR_NONE ) {
-			wp_send_json_success( [ 'canvas_json' => $elementor_json ] );
-		}
-	}
+        if ( 200 !== $status_code ) {
+                $error_detail = '';
+                if ( is_array( $body ) && isset( $body['error']['message'] ) ) {
+                        $error_detail = $body['error']['message'];
+                } elseif ( ! empty( $raw_body ) ) {
+                        $error_detail = $raw_body;
+                }
 
-	wp_send_json_success( [ 'html' => $generated ] );
+                $error_message = sprintf( 'API request failed with HTTP %d', $status_code );
+                if ( ! empty( $error_detail ) ) {
+                        $error_message .= ': ' . $error_detail;
+                }
+
+                jaggrok_log_error( $error_message . ' | Raw Body: ' . $raw_body );
+                wp_send_json_error( $error_message, $status_code );
+        }
+
+        if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
+                $error_message = __( 'Unexpected response from the API.', 'jaggrok-elementor' );
+                jaggrok_log_error( $error_message . ' Raw: ' . $raw_body );
+                wp_send_json_error( $error_message );
+        }
+
+        $generated = $body['choices'][0]['message']['content'] ?? null;
+
+        if ( empty( $generated ) ) {
+                $error_message = __( 'The API response did not include generated content.', 'jaggrok-elementor' );
+                jaggrok_log_error( $error_message . ' Body: ' . print_r( $body, true ) );
+                wp_send_json_error( $error_message );
+        }
+
+        if ( $is_pro ) {
+                $elementor_json = json_decode( $generated, true );
+                if ( json_last_error() !== JSON_ERROR_NONE ) {
+                        $error_message = __( 'The response was not valid Elementor JSON.', 'jaggrok-elementor' );
+                        jaggrok_log_error( $error_message . ' Content: ' . $generated );
+                        wp_send_json_error( $error_message );
+                }
+
+                wp_send_json_success( [ 'canvas_json' => $elementor_json ] );
+        }
+
+        wp_send_json_success( [ 'html' => $generated ] );
 }
 
 // Include uninstall
