@@ -1,5 +1,5 @@
 # Distribution Artifacts
 
-- `aimentor-elementor-v1.4.3.zip` — WordPress plugin package containing the AiMentor-branded folder structure (`aimentor-elementor/aimentor-elementor.php`, assets, and includes).
+- `aimentor-elementor-v*.zip` — WordPress plugin package containing the AiMentor-branded folder structure (`aimentor-elementor/aimentor-elementor.php`, assets, and includes).
 
-> **Note:** The ZIP is not stored in this repository. Build the archive locally and upload it to `https://jaggrok-elementor.jagjourney.com/downloads/` so the manifest can serve it to clients.
+> **Note:** Tagged releases trigger `.github/workflows/release.yml`, which builds this ZIP and uploads it to the GitHub release automatically. For manual hotfixes, attach the archive to a draft release so the workflow can republish it once the release is published.
