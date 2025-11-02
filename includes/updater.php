@@ -1,10 +1,10 @@
 <?php
 // ============================================================================
-// JAGJourney GITHUB UPDATER v1.3.6
+// AiMentor GITHUB UPDATER v1.3.6
 // ============================================================================
 
-if ( ! class_exists( 'JagGrok_Updater' ) ) {
-	class JagGrok_Updater {
+if ( ! class_exists( 'AiMentor_Updater' ) ) {
+	class AiMentor_Updater {
 		public string $repo;
 		public string $slug;
 		public string $manifest_url;
@@ -12,7 +12,7 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 		public function __construct( $repo, $slug ) {
 			$this->repo = $repo;
 			$this->slug = $slug;
-			$this->manifest_url = 'https://jaggrok-elementor.jagjourney.com/plugin-info.json';
+			$this->manifest_url = 'https://aimentor-elementor.jagjourney.com/plugin-info.json';
 
 			add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
 			add_filter( 'plugins_api', array( $this, 'plugin_info' ), 10, 3 );
@@ -24,7 +24,11 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 			$remote = $this->get_remote_info();
 			if ( ! $remote ) return $transient;
 
-			$main_file = WP_PLUGIN_DIR . '/jaggrok-elementor/jaggrok-elementor.php';
+                        $main_file = WP_PLUGIN_DIR . '/aimentor-elementor/aimentor-elementor.php';
+
+                        if ( ! file_exists( $main_file ) ) {
+                                $main_file = WP_PLUGIN_DIR . '/jaggrok-elementor/aimentor-elementor.php';
+                        }
 			$current = get_plugin_data( $main_file );
 
 			if ( version_compare( $remote->version, $current['Version'], 'gt' ) ) {
@@ -61,7 +65,7 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 		}
 
 		private function get_remote_info() {
-			$response = wp_remote_get( $this->manifest_url, array( 'user-agent' => 'JagGrok Updater' ) );
+                        $response = wp_remote_get( $this->manifest_url, array( 'user-agent' => 'AiMentor Updater' ) );
 			if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) return false;
 
 			$remote = json_decode( wp_remote_retrieve_body( $response ) );
@@ -77,7 +81,7 @@ if ( ! class_exists( 'JagGrok_Updater' ) ) {
 
 // Initialize updater
 add_action( 'plugins_loaded', function() {
-	if ( class_exists( 'JagGrok_Updater' ) ) {
-		new JagGrok_Updater( 'jagjourney/jaggrok-elementor', 'jaggrok-elementor' );
-	}
+        if ( class_exists( 'AiMentor_Updater' ) ) {
+                new AiMentor_Updater( 'jagjourney/aimentor-elementor', 'aimentor-elementor' );
+        }
 });

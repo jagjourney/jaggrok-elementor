@@ -1,6 +1,6 @@
 <?php
 
-interface JagGrok_Provider_Interface {
+interface AiMentor_Provider_Interface {
     /**
      * Determine if the provider can output Elementor canvas JSON when requested.
      *

@@ -1,4 +1,4 @@
-=== JagGrok Elementor ===
+=== AiMentor Elementor ===
 Contributors: jagjourney
 Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
@@ -9,12 +9,12 @@ License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
-🚀 FREE AI Page Builder - Generate full Elementor layouts with Grok by xAI. One prompt = complete pages!
+🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
 
 == Installation ==
 1. Upload ZIP
 2. Get API key: https://x.ai/api
-3. Settings > JagGrok Elementor > Test Connection
+3. Settings > AiMentor Elementor > Test Connection
 
 == Frequently Asked Questions ==
 = Where do I get the xAI API key? =
@@ -24,15 +24,15 @@ Visit https://x.ai/api and create a free account.
 Triple emergency registration guarantees visibility.
 
 == Screenshots ==
-1. Drag JagGrok widget to canvas
+1. Drag AiMentor widget to canvas
 2. Enter prompt in left panel
 3. Generate content in middle canvas
 
 == Changelog ==
 = 1.4.3 =
-* TRIPLE EMERGENCY WIDGET - Robot icon GUARANTEED visible
-* WP.ORG READY - Full readme + stable tag
-* 156 LINES COMPLETE - No missing code
+* Rebranded to AiMentor Elementor with legacy compatibility shims
+* Added migration to mirror legacy JagGrok options and assets
+* Updated scripts, classes, and AJAX endpoints to support AiMentor handles
 
 = 1.4.2 =
 * UX FIX: Canvas insert (middle) + left input persistent
@@ -104,16 +104,16 @@ Triple emergency registration guarantees visibility.
 
 = 1.2.7 =
 * ✅ WIDGET GUARANTEED - Robot icon ALWAYS visible
-* ✅ "Write with JagGrok" BUTTON WORKS 100%
+* ✅ "Write with AiMentor" button works 100%
 * 🎯 Drag → Click GREEN button → Popup → Generate → Insert
 
 = 1.2.6 =
-* ✅ FIXED: "Write with JagGrok" modal popup WORKS 100%
+* ✅ FIXED: "Write with AiMentor" modal popup works 100%
 * 🎯 Click link → Popup opens → Type → Generate → Insert
 * ✨ Elementor AI-style UX - PERFECT!
 
 = 1.2.5 =
-* NEW: Write with JagGrok popup modal
+* NEW: Write with AiMentor popup modal
 
 = 1.2.4 =
 * FIXED: Widget registration load order

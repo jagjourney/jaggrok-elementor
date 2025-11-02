@@ -1,37 +1,37 @@
 <?php
 // ============================================================================
-// JAGJourney ELEMENTOR WIDGET v1.4.2 (CANVAS INSERT)
+// AiMentor ELEMENTOR WIDGET v1.4.2 (CANVAS INSERT)
 // ============================================================================
 
 use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 
-class JagGrok_AI_Generator_Widget extends Widget_Base {
-    public function get_name() { return 'jaggrok-ai-generator'; }
-    public function get_title() { return 'JagGrok AI Generator'; }
+class AiMentor_AI_Generator_Widget extends Widget_Base {
+    public function get_name() { return 'aimentor-ai-generator'; }
+    public function get_title() { return 'AiMentor AI Generator'; }
     public function get_icon() { return 'eicon-robot'; }
     public function get_categories() { return [ 'general' ]; }
 
     protected function register_controls() {
         $this->start_controls_section( 'prompt_section', [ 'label' => 'AI Prompt' ] );
-        $provider_meta = function_exists( 'jaggrok_get_provider_meta_map' ) ? jaggrok_get_provider_meta_map() : [
+        $provider_meta = function_exists( 'aimentor_get_provider_meta_map' ) ? aimentor_get_provider_meta_map() : [
                 'grok'   => [
-                        'label'      => __( 'xAI Grok', 'jaggrok-elementor' ),
+                        'label'      => __( 'xAI Grok', 'aimentor' ),
                         'icon'       => '🚀',
-                        'summary'    => sprintf( __( 'Content generated with %s.', 'jaggrok-elementor' ), __( 'xAI Grok', 'jaggrok-elementor' ) ),
-                        'badgeText'  => __( 'xAI', 'jaggrok-elementor' ),
+                        'summary'    => sprintf( __( 'Content generated with %s.', 'aimentor' ), __( 'xAI Grok', 'aimentor' ) ),
+                        'badgeText'  => __( 'xAI', 'aimentor' ),
                         'badgeColor' => '#1E1E1E',
                 ],
                 'openai' => [
-                        'label'      => __( 'OpenAI', 'jaggrok-elementor' ),
+                        'label'      => __( 'OpenAI', 'aimentor' ),
                         'icon'       => '🔷',
-                        'summary'    => sprintf( __( 'Content generated with %s.', 'jaggrok-elementor' ), __( 'OpenAI', 'jaggrok-elementor' ) ),
-                        'badgeText'  => __( 'OpenAI', 'jaggrok-elementor' ),
+                        'summary'    => sprintf( __( 'Content generated with %s.', 'aimentor' ), __( 'OpenAI', 'aimentor' ) ),
+                        'badgeText'  => __( 'OpenAI', 'aimentor' ),
                         'badgeColor' => '#2B8CFF',
                 ],
         ];
         $provider_labels = wp_list_pluck( $provider_meta, 'label' );
-        $default_provider = get_option( 'jaggrok_provider', 'grok' );
+        $default_provider = get_option( 'aimentor_provider', 'grok' );
         if ( ! array_key_exists( $default_provider, $provider_labels ) ) {
                 $provider_keys    = array_keys( $provider_labels );
                 $default_provider = isset( $provider_keys[0] ) ? $provider_keys[0] : 'grok';
@@ -51,7 +51,7 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
         $this->end_controls_section();
 
         $this->start_controls_section( 'advanced_section', [ 'label' => 'Advanced' ] );
-        if ( function_exists( 'jaggrok_is_pro_active' ) && jaggrok_is_pro_active() ) {
+        if ( function_exists( 'aimentor_is_pro_active' ) && aimentor_is_pro_active() ) {
             $this->add_control( 'pro_features', [
                     'label' => 'Pro Features',
                     'type' => Controls_Manager::SWITCHER,
@@ -64,9 +64,9 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
     protected function render() {
         $settings = $this->get_settings_for_display();
         $widget_id = $this->get_id();
-        $provider_meta = function_exists( 'jaggrok_get_provider_meta_map' ) ? jaggrok_get_provider_meta_map() : $provider_meta;
+        $provider_meta = function_exists( 'aimentor_get_provider_meta_map' ) ? aimentor_get_provider_meta_map() : $provider_meta;
         $provider_labels = wp_list_pluck( $provider_meta, 'label' );
-        $provider_setting = isset( $settings['provider'] ) ? $settings['provider'] : get_option( 'jaggrok_provider', 'grok' );
+        $provider_setting = isset( $settings['provider'] ) ? $settings['provider'] : get_option( 'aimentor_provider', 'grok' );
         if ( ! array_key_exists( $provider_setting, $provider_meta ) ) {
                 $provider_keys    = array_keys( $provider_meta );
                 $provider_setting = isset( $provider_keys[0] ) ? $provider_keys[0] : 'grok';
@@ -77,12 +77,14 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                 $styles_printed = true;
                 ?>
                 <style>
+                        .aimentor-provider-display,
                         .jaggrok-provider-display {
                                 display: flex;
                                 align-items: center;
                                 gap: 8px;
                                 margin-top: 8px;
                         }
+                        .aimentor-provider-badge,
                         .jaggrok-provider-badge {
                                 display: inline-flex;
                                 align-items: center;
@@ -98,48 +100,49 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                 <?php
         }
         ?>
-        <div class="jaggrok-widget">
-            <div class="jaggrok-provider-selector">
-                <label for="jaggrok-provider-<?php echo esc_attr( $widget_id ); ?>"><?php esc_html_e( 'Provider', 'jaggrok-elementor' ); ?></label>
-                <select class="jaggrok-provider-control" id="jaggrok-provider-<?php echo esc_attr( $widget_id ); ?>">
+        <div class="aimentor-widget jaggrok-widget">
+            <div class="aimentor-provider-selector jaggrok-provider-selector">
+                <label for="aimentor-provider-<?php echo esc_attr( $widget_id ); ?>"><?php esc_html_e( 'Provider', 'aimentor' ); ?></label>
+                <select class="aimentor-provider-control jaggrok-provider-control" id="aimentor-provider-<?php echo esc_attr( $widget_id ); ?>">
                     <?php foreach ( $provider_labels as $key => $label ) : ?>
                         <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $provider_setting, $key ); ?>><?php echo esc_html( $label ); ?></option>
                     <?php endforeach; ?>
                 </select>
-                <div class="jaggrok-provider-display">
-                    <span class="jaggrok-provider-active-icon" id="jaggrok-provider-icon-<?php echo esc_attr( $widget_id ); ?>" aria-hidden="true"><?php echo esc_html( $active_provider_meta['icon'] ); ?></span>
-                    <span class="jaggrok-provider-active-label" id="jaggrok-provider-label-<?php echo esc_attr( $widget_id ); ?>"><?php echo esc_html( $active_provider_meta['label'] ); ?></span>
-                    <span class="jaggrok-provider-badge" id="jaggrok-provider-badge-<?php echo esc_attr( $widget_id ); ?>" style="background-color: <?php echo esc_attr( $active_provider_meta['badgeColor'] ); ?>;">
+                <div class="aimentor-provider-display jaggrok-provider-display">
+                    <span class="aimentor-provider-active-icon jaggrok-provider-active-icon" id="aimentor-provider-icon-<?php echo esc_attr( $widget_id ); ?>" aria-hidden="true"><?php echo esc_html( $active_provider_meta['icon'] ); ?></span>
+                    <span class="aimentor-provider-active-label jaggrok-provider-active-label" id="aimentor-provider-label-<?php echo esc_attr( $widget_id ); ?>"><?php echo esc_html( $active_provider_meta['label'] ); ?></span>
+                    <span class="aimentor-provider-badge jaggrok-provider-badge" id="aimentor-provider-badge-<?php echo esc_attr( $widget_id ); ?>" style="background-color: <?php echo esc_attr( $active_provider_meta['badgeColor'] ); ?>;">
                         <?php echo esc_html( $active_provider_meta['badgeText'] ); ?>
                     </span>
                 </div>
-                <p class="jaggrok-provider-summary" id="jaggrok-provider-summary-<?php echo esc_attr( $widget_id ); ?>"><?php echo esc_html( $active_provider_meta['summary'] ); ?></p>
+                <p class="aimentor-provider-summary jaggrok-provider-summary" id="aimentor-provider-summary-<?php echo esc_attr( $widget_id ); ?>"><?php echo esc_html( $active_provider_meta['summary'] ); ?></p>
             </div>
-            <textarea class="jaggrok-prompt" id="jaggrok-prompt-<?php echo $widget_id; ?>" rows="4" style="width:100%;"><?php echo esc_textarea( $settings['prompt'] ); ?></textarea>
-            <button class="jaggrok-generate-btn" id="jaggrok-btn-<?php echo esc_attr( $widget_id ); ?>" style="margin:10px 0;">
-                <?php echo esc_html( sprintf( __( 'Generate with %s', 'jaggrok-elementor' ), $active_provider_meta['label'] ) ); ?>
+            <textarea class="aimentor-prompt jaggrok-prompt" id="aimentor-prompt-<?php echo $widget_id; ?>" rows="4" style="width:100%;"><?php echo esc_textarea( $settings['prompt'] ); ?></textarea>
+            <button class="aimentor-generate-btn jaggrok-generate-btn" id="aimentor-btn-<?php echo esc_attr( $widget_id ); ?>" style="margin:10px 0;">
+                <?php echo esc_html( sprintf( __( 'Generate with %s', 'aimentor' ), $active_provider_meta['label'] ) ); ?>
             </button>
-            <div class="jaggrok-output" id="jaggrok-output-<?php echo $widget_id; ?>"></div>
+            <div class="aimentor-output jaggrok-output" id="aimentor-output-<?php echo $widget_id; ?>"></div>
         </div>
         <script>
             jQuery(document).ready(function($) {
-                var $button = $('#jaggrok-btn-<?php echo esc_js( $widget_id ); ?>');
-                var $output = $('#jaggrok-output-<?php echo esc_js( $widget_id ); ?>');
-                var $providerSelect = $('#jaggrok-provider-<?php echo esc_js( $widget_id ); ?>');
-                var $providerIcon = $('#jaggrok-provider-icon-<?php echo esc_js( $widget_id ); ?>');
-                var $providerLabel = $('#jaggrok-provider-label-<?php echo esc_js( $widget_id ); ?>');
-                var $providerSummary = $('#jaggrok-provider-summary-<?php echo esc_js( $widget_id ); ?>');
-                var $providerBadge = $('#jaggrok-provider-badge-<?php echo esc_js( $widget_id ); ?>');
-                var jaggrokData = window.jaggrokAjax;
-                window.JagGrokProviders = Object.assign({}, window.JagGrokProviders || {}, <?php echo wp_json_encode( $provider_meta ); ?>);
+                var $button = $('#aimentor-btn-<?php echo esc_js( $widget_id ); ?>');
+                var $output = $('#aimentor-output-<?php echo esc_js( $widget_id ); ?>');
+                var $providerSelect = $('#aimentor-provider-<?php echo esc_js( $widget_id ); ?>');
+                var $providerIcon = $('#aimentor-provider-icon-<?php echo esc_js( $widget_id ); ?>');
+                var $providerLabel = $('#aimentor-provider-label-<?php echo esc_js( $widget_id ); ?>');
+                var $providerSummary = $('#aimentor-provider-summary-<?php echo esc_js( $widget_id ); ?>');
+                var $providerBadge = $('#aimentor-provider-badge-<?php echo esc_js( $widget_id ); ?>');
+                var aimentorData = window.aimentorAjax || {};
+                window.AiMentorProviders = Object.assign({}, window.AiMentorProviders || {}, <?php echo wp_json_encode( $provider_meta ); ?>);
+                window.JagGrokProviders = window.JagGrokProviders || window.AiMentorProviders;
 
                 function getProviderMeta(providerKey) {
-                    var meta = window.JagGrokProviders || {};
+                    var meta = window.AiMentorProviders || window.JagGrokProviders || {};
                     return meta[providerKey] || {
                         label: providerKey,
                         icon: '🤖',
-                        summary: (jaggrokData && jaggrokData.strings && jaggrokData.strings.contentGenerated)
-                            ? jaggrokData.strings.contentGenerated.replace('%s', providerKey)
+                        summary: (aimentorData && aimentorData.strings && aimentorData.strings.contentGenerated)
+                            ? aimentorData.strings.contentGenerated.replace('%s', providerKey)
                             : 'Content generated with ' + providerKey + '.',
                         badgeText: providerKey,
                         badgeColor: '#444444'
@@ -157,8 +160,8 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                     if ($providerBadge.length) {
                         $providerBadge.text(meta.badgeText || providerKey);
                     }
-                    if (jaggrokData && jaggrokData.strings && jaggrokData.strings.generateWith) {
-                        $button.text(jaggrokData.strings.generateWith.replace('%s', meta.label || providerKey));
+                    if (aimentorData && aimentorData.strings && aimentorData.strings.generateWith) {
+                        $button.text(aimentorData.strings.generateWith.replace('%s', meta.label || providerKey));
                     } else {
                         $button.text('Generate with ' + (meta.label || providerKey));
                     }
@@ -168,12 +171,12 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                     updateProviderUI($(this).val());
                 });
 
-                if (!jaggrokData || !jaggrokData.ajaxurl || !jaggrokData.nonce) {
-                    var noticeHtml = '<div class="notice notice-error jaggrok-missing-config"><p>' +
-                        '<?php echo esc_js( __( 'JagGrok AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.', 'jaggrok-elementor' ) ); ?>' +
+                if (!aimentorData || !aimentorData.ajaxurl || !aimentorData.nonce) {
+                    var noticeHtml = '<div class="notice notice-error aimentor-missing-config jaggrok-missing-config"><p>' +
+                        '<?php echo esc_js( __( 'AiMentor AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.', 'aimentor' ) ); ?>' +
                         '</p></div>';
 
-                    var $widget = $button.closest('.jaggrok-widget');
+                    var $widget = $button.closest('.aimentor-widget');
                     if ($widget.length) {
                         $widget.prepend(noticeHtml);
                     } else {
@@ -181,32 +184,32 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                     }
 
                     $button.prop('disabled', true);
-                    console.error('JagGrok AJAX configuration missing: expected window.jaggrokAjax.');
+                    console.error('AiMentor AJAX configuration missing: expected window.aimentorAjax.');
                     return;
                 }
 
                 $button.on('click', function() {
-                    var prompt = $('#jaggrok-prompt-<?php echo esc_js( $widget_id ); ?>').val();
+                    var prompt = $('#aimentor-prompt-<?php echo esc_js( $widget_id ); ?>').val();
                     var provider = $providerSelect.val();
                     var providerMeta = getProviderMeta(provider);
 
-                    if (jaggrokData && jaggrokData.strings && jaggrokData.strings.generatingWith) {
-                        $output.html('<p>' + jaggrokData.strings.generatingWith.replace('%s', providerMeta.label || provider) + '</p>');
+                    if (aimentorData && aimentorData.strings && aimentorData.strings.generatingWith) {
+                        $output.html('<p>' + aimentorData.strings.generatingWith.replace('%s', providerMeta.label || provider) + '</p>');
                     } else {
                         $output.html('<p>Generating with ' + (providerMeta.label || provider) + '...</p>');
                     }
-                    $.post(jaggrokData.ajaxurl, {
-                        action: 'jaggrok_generate_page',
+                    $.post(aimentorData.ajaxurl, {
+                        action: 'aimentor_generate_page',
                         prompt: prompt,
                         provider: provider,
-                        nonce: jaggrokData.nonce
+                        nonce: aimentorData.nonce
                     }, function(response) {
                         var responseProvider = response && response.data && response.data.provider ? response.data.provider : provider;
                         var responseMeta = getProviderMeta(responseProvider);
                         var summaryText;
                         if (response && response.data && response.data.provider_label) {
-                            if (jaggrokData && jaggrokData.strings && jaggrokData.strings.contentGenerated) {
-                                summaryText = jaggrokData.strings.contentGenerated.replace('%s', response.data.provider_label);
+                            if (aimentorData && aimentorData.strings && aimentorData.strings.contentGenerated) {
+                                summaryText = aimentorData.strings.contentGenerated.replace('%s', response.data.provider_label);
                             } else {
                                 summaryText = 'Content generated with ' + response.data.provider_label + '.';
                             }
@@ -217,13 +220,13 @@ class JagGrok_AI_Generator_Widget extends Widget_Base {
                             if (response.data.canvas_json) {
                                 // INSERT TO CANVAS (v1.4.2 FIX)
                                 elementorFrontend.elementsHandler.addElements( response.data.canvas_json );
-                                $output.html('<p class="jaggrok-provider-message">' + summaryText + '</p>');
+                                $output.html('<p class="aimentor-provider-message jaggrok-provider-message">' + summaryText + '</p>');
                             } else {
                                 var html = response.data.html || '';
-                                $output.html('<p class="jaggrok-provider-message">' + summaryText + '</p>' + html);
+                                $output.html('<p class="aimentor-provider-message jaggrok-provider-message">' + summaryText + '</p>' + html);
                             }
                         } else {
-                            var errorPrefix = (jaggrokData && jaggrokData.strings && jaggrokData.strings.errorPrefix) ? jaggrokData.strings.errorPrefix : 'Error:';
+                            var errorPrefix = (aimentorData && aimentorData.strings && aimentorData.strings.errorPrefix) ? aimentorData.strings.errorPrefix : 'Error:';
                             $output.html('<p style="color:red">' + errorPrefix + ' ' + response.data + '</p>');
                         }
                     });
