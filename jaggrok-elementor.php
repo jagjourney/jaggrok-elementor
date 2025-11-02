@@ -84,7 +84,17 @@ add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
 function jaggrok_generate_page_ajax() {
         check_ajax_referer( 'jaggrok_test', 'nonce' );
 
-	$prompt = sanitize_textarea_field( $_POST['prompt'] );
+        if ( ! current_user_can( 'edit_posts' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to generate content.', 'jaggrok-elementor' ),
+                                'code'    => 'jaggrok_insufficient_permissions',
+                        ],
+                        403
+                );
+        }
+
+        $prompt = sanitize_textarea_field( $_POST['prompt'] );
 	$api_key = get_option( 'jaggrok_xai_api_key' );
 	$is_pro = jaggrok_is_pro_active();
 

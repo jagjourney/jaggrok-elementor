@@ -115,9 +115,20 @@ function jaggrok_settings_page_callback() {
 
 // AJAX Test API (v1.3.8 - MODEL UPDATE + TIMEOUT LOG)
 function jaggrok_test_api_connection() {
-	check_ajax_referer( 'jaggrok_test', 'nonce' );
-	$api_key = sanitize_text_field( $_POST['api_key'] );
-	update_option( 'jaggrok_xai_api_key', $api_key );
+        check_ajax_referer( 'jaggrok_test', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to test the API connection.', 'jaggrok-elementor' ),
+                                'code'    => 'jaggrok_insufficient_permissions',
+                        ],
+                        403
+                );
+        }
+
+        $api_key = sanitize_text_field( $_POST['api_key'] );
+        update_option( 'jaggrok_xai_api_key', $api_key );
 
 	$response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
 		'headers' => [ 'Authorization' => 'Bearer ' . $api_key, 'Content-Type' => 'application/json' ],

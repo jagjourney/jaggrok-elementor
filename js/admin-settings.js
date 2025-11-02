@@ -19,7 +19,11 @@ jQuery(document).ready(function($) {
                 status.html('<span style="color:green">✅ Connected!</span>');
                 location.reload();
             } else {
-                status.html('<span style="color:red">❌ ' + response.data + '</span>');
+                var message = response && response.data ? response.data : 'Unknown error';
+                if (typeof message === 'object' && message !== null) {
+                    message = message.message || 'Unknown error';
+                }
+                status.html('<span style="color:red">❌ ' + message + '</span>');
             }
         });
     });
