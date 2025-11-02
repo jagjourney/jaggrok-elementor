@@ -83,6 +83,11 @@ function jaggrok_get_ajax_payload() {
         );
 }
 
+// Providers
+require_once plugin_dir_path( __FILE__ ) . 'includes/providers/class-jaggrok-provider-interface.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/providers/class-jaggrok-grok-provider.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/providers/class-jaggrok-openai-provider.php';
+
 // Include settings page (v1.4.3)
 require_once plugin_dir_path( __FILE__ ) . 'includes/settings.php';
 
@@ -96,6 +101,18 @@ add_action( 'elementor/widgets/register', function() {
 // Include updater (v1.4.3)
 if ( jaggrok_check_dependencies() ) {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/updater.php';
+}
+
+function jaggrok_get_active_provider() {
+        $provider_key = get_option( 'jaggrok_provider', 'grok' );
+
+        switch ( $provider_key ) {
+                case 'openai':
+                        return new JagGrok_OpenAI_Provider();
+                case 'grok':
+                default:
+                        return new JagGrok_Grok_Provider();
+        }
 }
 
 // AJAX: Generate Page with Grok (v1.4.3)
@@ -114,85 +131,50 @@ function jaggrok_generate_page_ajax() {
         }
 
         $prompt = sanitize_textarea_field( $_POST['prompt'] );
-	$api_key = get_option( 'jaggrok_xai_api_key' );
-	$is_pro = jaggrok_is_pro_active();
+        $is_pro = jaggrok_is_pro_active();
 
-	if ( empty( $api_key ) ) {
-		wp_send_json_error( 'API key not configured' );
-	}
+        $provider = jaggrok_get_active_provider();
 
-	if ( $is_pro && ! empty( $_POST['pro_features'] ) ) {
-		$prompt .= ' Output as structured Elementor JSON with dynamic content and forms.';
-	} else {
-		$prompt .= ' Output as clean HTML sections for Elementor.';
-	}
+        if ( ! $provider instanceof JagGrok_Provider_Interface ) {
+                jaggrok_log_error( 'Invalid provider configuration.' );
+                wp_send_json_error( __( 'Provider configuration error.', 'jaggrok-elementor' ) );
+        }
 
-        $response = wp_remote_post( 'https://api.x.ai/v1/chat/completions', [
-                'headers' => [
-                        'Authorization' => 'Bearer ' . $api_key,
-                        'Content-Type' => 'application/json'
-                ],
-                'body' => json_encode( [
-                        'model' => get_option( 'jaggrok_model', 'grok-3-mini' ),
-                        'messages' => [ [ 'role' => 'user', 'content' => $prompt ] ],
-                        'max_tokens' => get_option( 'jaggrok_max_tokens', 2000 )
-                ] )
+        $provider_key = get_option( 'jaggrok_provider', 'grok' );
+
+        switch ( $provider_key ) {
+                case 'openai':
+                        $api_key = get_option( 'jaggrok_openai_api_key' );
+                        $model   = get_option( 'jaggrok_openai_model', 'gpt-4o-mini' );
+                        break;
+                case 'grok':
+                default:
+                        $api_key = get_option( 'jaggrok_xai_api_key' );
+                        $model   = get_option( 'jaggrok_model', 'grok-3-mini' );
+                        break;
+        }
+
+        $is_canvas_requested = $is_pro && ! empty( $_POST['pro_features'] );
+        $is_canvas = $is_canvas_requested && $provider->supports_canvas();
+
+        $result = $provider->request( $prompt, [
+                'api_key'   => $api_key,
+                'model'     => $model,
+                'max_tokens'=> get_option( 'jaggrok_max_tokens', 2000 ),
+                'is_canvas' => $is_canvas,
         ] );
 
-        if ( is_wp_error( $response ) ) {
-                $error_message = $response->get_error_message();
-                jaggrok_log_error( 'API request failed: ' . $error_message );
-                wp_send_json_error( 'API request failed: ' . $error_message );
-        }
-
-        $status_code = wp_remote_retrieve_response_code( $response );
-        $raw_body   = wp_remote_retrieve_body( $response );
-        $body       = json_decode( $raw_body, true );
-        $json_error = json_last_error();
-
-        if ( 200 !== $status_code ) {
-                $error_detail = '';
-                if ( is_array( $body ) && isset( $body['error']['message'] ) ) {
-                        $error_detail = $body['error']['message'];
-                } elseif ( ! empty( $raw_body ) ) {
-                        $error_detail = $raw_body;
-                }
-
-                $error_message = sprintf( 'API request failed with HTTP %d', $status_code );
-                if ( ! empty( $error_detail ) ) {
-                        $error_message .= ': ' . $error_detail;
-                }
-
-                jaggrok_log_error( $error_message . ' | Raw Body: ' . $raw_body );
-                wp_send_json_error( $error_message, $status_code );
-        }
-
-        if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
-                $error_message = __( 'Unexpected response from the API.', 'jaggrok-elementor' );
-                jaggrok_log_error( $error_message . ' Raw: ' . $raw_body );
+        if ( is_wp_error( $result ) ) {
+                $error_message = $result->get_error_message();
+                jaggrok_log_error( $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ) );
                 wp_send_json_error( $error_message );
         }
 
-        $generated = $body['choices'][0]['message']['content'] ?? null;
-
-        if ( empty( $generated ) ) {
-                $error_message = __( 'The API response did not include generated content.', 'jaggrok-elementor' );
-                jaggrok_log_error( $error_message . ' Body: ' . print_r( $body, true ) );
-                wp_send_json_error( $error_message );
+        if ( 'canvas' === $result['type'] ) {
+                wp_send_json_success( [ 'canvas_json' => $result['content'] ] );
         }
 
-        if ( $is_pro ) {
-                $elementor_json = json_decode( $generated, true );
-                if ( json_last_error() !== JSON_ERROR_NONE ) {
-                        $error_message = __( 'The response was not valid Elementor JSON.', 'jaggrok-elementor' );
-                        jaggrok_log_error( $error_message . ' Content: ' . $generated );
-                        wp_send_json_error( $error_message );
-                }
-
-                wp_send_json_success( [ 'canvas_json' => $elementor_json ] );
-        }
-
-        wp_send_json_success( [ 'html' => $generated ] );
+        wp_send_json_success( [ 'html' => $result['content'] ] );
 }
 
 // Include uninstall

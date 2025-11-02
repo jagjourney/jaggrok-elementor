@@ -2,11 +2,21 @@
     <h1><img src="<?php echo plugin_dir_url( __DIR__ ); ?>assets/icon-128x128.png" style="height:40px; vertical-align:middle;">
         JagGrok Elementor Settings</h1>
 
-    <p class="description">Connect to xAI's Grok API and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By Jag Journey, LLC</a></p>
+    <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By Jag Journey, LLC</a></p>
 
     <form method="post" action="options.php">
         <?php settings_fields( 'jaggrok_settings' ); ?>
         <table class="form-table">
+            <tr><th><label for="jaggrok_provider">Provider</label></th>
+                <td>
+                    <?php $provider = get_option( 'jaggrok_provider', 'grok' ); ?>
+                    <select id="jaggrok_provider" name="jaggrok_provider">
+                        <option value="grok" <?php selected( $provider, 'grok' ); ?>>xAI Grok</option>
+                        <option value="openai" <?php selected( $provider, 'openai' ); ?>>OpenAI</option>
+                    </select>
+                    <p class="description">Choose which AI service powers your content generation.</p>
+                </td>
+            </tr>
             <tr><th><label for="jaggrok_xai_api_key">xAI API Key <span class="required">*</span></label></th>
                 <td>
                     <div class="jaggrok-api-key-container" style="display: flex; align-items: center; gap: 8px;">
@@ -21,6 +31,20 @@
                     <p class="description"><a href="https://x.ai/api" target="_blank">Get key</a> |
                         <button type="button" class="button" id="jaggrok-test-api">Test Connection</button>
                         <span id="jaggrok-api-status"></span></p>
+                </td></tr>
+
+            <tr><th><label for="jaggrok_openai_api_key">OpenAI API Key</label></th>
+                <td>
+                    <div class="jaggrok-api-key-container" style="display: flex; align-items: center; gap: 8px;">
+                        <input type="password" id="jaggrok_openai_api_key" name="jaggrok_openai_api_key"
+                               value="<?php echo esc_attr( get_option( 'jaggrok_openai_api_key' ) ); ?>"
+                               class="regular-text jaggrok-api-input"
+                               style="width: auto; flex: 1; min-width: 200px;" />
+                        <button type="button" class="jaggrok-eye-btn toggle-openai-key" style="margin-left: 8px;">
+                            👁️
+                        </button>
+                    </div>
+                    <p class="description"><a href="https://platform.openai.com/" target="_blank">Get key</a></p>
                 </td></tr>
 
             <tr><th>Auto-Insert</th><td>
@@ -52,6 +76,11 @@
                         <option value="grok-4-code" <?php selected( $model, 'grok-4-code' ); ?>>Grok 4 Code</option>
                     </select>
                     <p class="description">* Recommended default (updated Oct 2025)</p></td></tr>
+
+            <tr><th>OpenAI Model</th><td>
+                    <?php $openai_model = get_option( 'jaggrok_openai_model', 'gpt-4o-mini' ); ?>
+                    <input type="text" name="jaggrok_openai_model" value="<?php echo esc_attr( $openai_model ); ?>" class="regular-text" />
+                    <p class="description">Set the model identifier, e.g. <code>gpt-4o-mini</code> or <code>gpt-4.1</code>.</p></td></tr>
         </table>
         <?php submit_button(); ?>
     </form>
@@ -89,6 +118,17 @@
         // EYE TOGGLE FOR API KEY
         $('#toggle-api-key').click(function() {
             var $input = $('#jaggrok_xai_api_key');
+            if ($input.attr('type') === 'password') {
+                $input.attr('type', 'text');
+                $(this).html('🙈');
+            } else {
+                $input.attr('type', 'password');
+                $(this).html('👁️');
+            }
+        });
+
+        $('.toggle-openai-key').click(function() {
+            var $input = $('#jaggrok_openai_api_key');
             if ($input.attr('type') === 'password') {
                 $input.attr('type', 'text');
                 $(this).html('🙈');
