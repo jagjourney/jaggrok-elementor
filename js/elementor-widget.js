@@ -307,4 +307,6 @@ jQuery(document).on('elementor/init', function() {
 
     elementor.hooks.addAction( 'panel/widgets/aimentor-ai-generator/controls/write_with_jaggrok/event', openAimentorModal );
     elementor.hooks.addAction( 'panel/widgets/aimentor-ai-generator/controls/write_with_aimentor/event', openAimentorModal );
+    elementor.hooks.addAction( 'panel/widgets/jaggrok-ai-generator/controls/write_with_jaggrok/event', openAimentorModal );
+    elementor.hooks.addAction( 'panel/widgets/jaggrok-ai-generator/controls/write_with_aimentor/event', openAimentorModal );
 });

@@ -7,8 +7,20 @@ use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 
 class AiMentor_AI_Generator_Widget extends Widget_Base {
-    public function get_name() { return 'aimentor-ai-generator'; }
-    public function get_title() { return 'AiMentor AI Generator'; }
+    const LEGACY_WIDGET_SLUG = 'jaggrok-ai-generator';
+
+    public function get_name() {
+        return 'aimentor-ai-generator';
+    }
+
+    public function get_title() {
+        return __( 'AiMentor AI Generator', 'aimentor' );
+    }
+
+    public function get_legacy_title() {
+        return __( 'JagGrok AI Generator', 'aimentor' );
+    }
+
     public function get_icon() { return 'eicon-robot'; }
     public function get_categories() { return [ 'general' ]; }
 
@@ -236,5 +248,21 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
             });
         </script>
         <?php
+    }
+}
+
+if ( ! class_exists( 'JagGrok_AI_Generator_Widget' ) ) {
+    class JagGrok_AI_Generator_Widget extends AiMentor_AI_Generator_Widget {
+        public function get_name() {
+            return self::LEGACY_WIDGET_SLUG;
+        }
+
+        public function get_title() {
+            return $this->get_legacy_title();
+        }
+
+        public function show_in_panel() {
+            return false;
+        }
     }
 }

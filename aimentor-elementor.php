@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.4.3' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '0.0.001' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -247,7 +247,6 @@ function aimentor_enqueue_assets( $hook ) {
         }
 
         wp_enqueue_script( 'aimentor-admin-settings' );
-        wp_enqueue_script( 'jaggrok-admin-settings' );
         wp_localize_script( 'aimentor-admin-settings', 'aimentorAjax', aimentor_get_ajax_payload() );
         wp_add_inline_script(
                 'aimentor-admin-settings',
@@ -266,7 +265,6 @@ function aimentor_enqueue_elementor_assets() {
         aimentor_register_asset_handles();
 
         wp_enqueue_script( 'aimentor-elementor-widget' );
-        wp_enqueue_script( 'jaggrok-elementor-widget' );
         wp_localize_script( 'aimentor-elementor-widget', 'aimentorAjax', aimentor_get_ajax_payload() );
         wp_add_inline_script(
                 'aimentor-elementor-widget',
@@ -350,11 +348,13 @@ add_action( 'elementor/widgets/register', function( $widgets_manager ) {
 
         require_once AIMENTOR_PLUGIN_DIR . 'includes/elementor-widget.php';
 
-        if ( class_exists( 'AiMentor_AI_Generator_Widget' ) && ! class_exists( 'JagGrok_AI_Generator_Widget' ) ) {
-                class_alias( 'AiMentor_AI_Generator_Widget', 'JagGrok_AI_Generator_Widget' );
-        }
+        if ( class_exists( 'AiMentor_AI_Generator_Widget' ) ) {
+                $widgets_manager->register( new AiMentor_AI_Generator_Widget() );
 
-        $widgets_manager->register( new AiMentor_AI_Generator_Widget() );
+                if ( class_exists( 'JagGrok_AI_Generator_Widget' ) ) {
+                        $widgets_manager->register( new JagGrok_AI_Generator_Widget() );
+                }
+        }
 } );
 
 // Updater.
@@ -515,11 +515,13 @@ $emergency_register = function() {
         add_action( 'elementor/widgets/register', function( $widgets_manager ) {
                 require_once AIMENTOR_PLUGIN_DIR . 'includes/elementor-widget.php';
 
-                if ( class_exists( 'AiMentor_AI_Generator_Widget' ) && ! class_exists( 'JagGrok_AI_Generator_Widget' ) ) {
-                        class_alias( 'AiMentor_AI_Generator_Widget', 'JagGrok_AI_Generator_Widget' );
-                }
+                if ( class_exists( 'AiMentor_AI_Generator_Widget' ) ) {
+                        $widgets_manager->register( new AiMentor_AI_Generator_Widget() );
 
-                $widgets_manager->register( new AiMentor_AI_Generator_Widget() );
+                        if ( class_exists( 'JagGrok_AI_Generator_Widget' ) ) {
+                                $widgets_manager->register( new JagGrok_AI_Generator_Widget() );
+                        }
+                }
         }, 999 );
 };
 
