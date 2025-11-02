@@ -177,12 +177,12 @@ function aimentor_format_provider_status_for_display( $provider_key, $status_dat
 
 function aimentor_add_settings_page() {
         add_options_page(
-                'AiMentor Elementor Settings',
-                'AiMentor Elementor',
-		'manage_options',
-		'aimentor-settings',
-		'aimentor_settings_page_callback'
-	);
+                __( 'AiMentor Control Center', 'aimentor' ),
+                __( 'AiMentor', 'aimentor' ),
+                'manage_options',
+                'aimentor-settings',
+                'aimentor_settings_page_callback'
+        );
 }
 add_action( 'admin_menu', 'aimentor_add_settings_page' );
 

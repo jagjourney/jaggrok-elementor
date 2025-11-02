@@ -1,6 +1,6 @@
 === AiMentor Elementor ===
-Contributors: jagjourney
-Tags: elementor, ai, grok, page builder, xai
+Contributors: aimentor
+Tags: elementor, ai, grok, openai, builder, automation
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
@@ -9,125 +9,116 @@ License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
-🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
+AiMentor Elementor turns every prompt into a polished Elementor layout. Choose between leading AI providers like xAI Grok and OpenAI, swap models per project, and keep creative control with instant previews inside the WordPress editor.
+
+* ⚡ Rapid section, page, and template generation inside Elementor.
+* 🔁 Multi-provider switching with provider-specific defaults and limits.
+* 🔒 Secure key handling, visibility toggles, and connection health badges.
+* 📊 Error logging and rate-limit visibility for confident production use.
+
+AiMentor was built for agencies that need reliable AI output without leaving WordPress. Bring your preferred provider, align the models with your workflow, and let AiMentor keep the content flowing.
 
 == Installation ==
-1. Upload ZIP
-2. Get API key: https://x.ai/api
-3. Settings > AiMentor Elementor > Test Connection
+1. Upload the `aimentor-elementor` folder to `/wp-content/plugins/` or install the ZIP through **Plugins → Add New**.
+2. Activate **AiMentor Elementor** through the **Plugins** menu in WordPress.
+3. Visit **Settings → AiMentor** to choose your provider and paste API keys for xAI Grok and/or OpenAI.
+4. Click **Test Connection** to confirm connectivity, then start generating blocks directly from the Elementor panel.
 
 == Frequently Asked Questions ==
-= Where do I get the xAI API key? =
-Visit https://x.ai/api and create a free account.
+= Does AiMentor support multiple AI providers? =
+Yes. The control center lets you pick between xAI Grok and OpenAI today, with room to add additional providers as new APIs are released. Each provider keeps its own defaults and usage limits.
 
-= Why is the widget missing? =
-Triple emergency registration guarantees visibility.
+= Where are my API keys stored? =
+Keys are saved in your WordPress database using the standard options table. You can hide or show keys on demand from the settings screen, and revoke them at any time from your AI provider dashboard.
+
+= Can I disable automatic insertion into the canvas? =
+Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generated content drops straight into Elementor or if you prefer manual placement.
 
 == Screenshots ==
-1. Drag AiMentor widget to canvas
-2. Enter prompt in left panel
-3. Generate content in middle canvas
+1. AiMentor settings highlighting multi-provider connectivity.
+2. Elementor sidebar with the AiMentor widget selected.
+3. Generated layout preview ready to insert into the canvas.
 
 == Changelog ==
 = 1.4.3 =
-* Rebranded to AiMentor Elementor with legacy compatibility shims
-* Added migration to mirror legacy JagGrok options and assets
-* Updated scripts, classes, and AJAX endpoints to support AiMentor handles
+* Rebranded the experience as **AiMentor** with refreshed assets and menu labels.
+* Added migrations for legacy pre-rebrand options, maintaining backward compatibility.
+* Expanded copy and interface elements to highlight multi-provider switching.
 
 = 1.4.2 =
-* UX FIX: Canvas insert (middle) + left input persistent
-* No header/footer unless specified
-* Focus on page type only
+* Improved canvas insertion reliability and prompt persistence.
+* Generated layouts stay focused on the requested page type unless headers/footers are specified.
 
 = 1.4.1 =
-* EMERGENCY WIDGET GUARANTEED - Robot icon ALWAYS visible
-* 141 LINES RESTORED - No more missing code
+* Guaranteed Elementor widget visibility with refreshed iconography.
+* Restored missing logic to keep generator buttons available.
 
 = 1.4.0 =
-* MAJOR: 6 VALID 2025 MODELS (grok-3-beta default)
-* FIXED: HTTP 422 errors completely
+* Added new 2025-ready Grok model presets with `grok-3-beta` default.
+* Resolved HTTP 422 responses with better request validation.
 
 = 1.3.10 =
-* FIXED: Array key warnings (safe explode)
-* ADDED: Emergency widget registration
-* FIXED: Model default (grok-3-mini)
+* Hardened array access for the error log viewer.
+* Ensured emergency widget registration for all Elementor loads.
+* Synced default model selection logic across providers.
 
 = 1.3.9 =
-* ✅ FINAL: All models + timeout fixes complete
+* Finalized provider timeouts and completion handling.
 
 = 1.3.8 =
-* FIXED: Model deprecation + TIMEOUT increased
+* Updated deprecated model references and increased generation timeout.
 
 = 1.3.6 =
-* FIXED: Array key warnings in error log table
+* Patched error log table warnings for cleaner debugging.
 
 = 1.3.5 =
-* ✅ COMPLETE: All fixes + eye toggle + auto-width + logging
+* Added password visibility toggles, auto-sizing inputs, and improved logging.
 
 = 1.3.4 =
-* ✅ FIXED: Fatal error - Duplicate jaggrok_settings_link() removed
-* ✅ NO MORE CRASHES - Settings page loads perfectly
-* ✅ ENHANCED: SSL Bypass toggle for local dev
+* Removed duplicate settings link registration to prevent fatal errors.
+* Added SSL bypass toggle for local development environments.
 
 = 1.3.3 =
-* 👁️ NEW: Toggle eye for API key (show/hide with 2 spaces gap)
-* ✅ AUTO-WIDTH: Key box resizes to text length
+* Introduced eye icon toggle for API keys with improved spacing.
 
 = 1.3.2 =
-* 👁️ NEW: Toggle eye icon for API key (show/hide password)
-* ✅ PERFECT UX: Click eye = see key / click again = hide
+* Enhanced eye toggle workflow for password fields.
 
 = 1.3.1 =
-* ✅ FIXED: Fatal error - Missing uninstall.php created
-* ✅ NO MORE CRASHES - Plugin loads perfectly
-* ✅ Error logging + pretty table = WORKING
+* Added uninstall script and reinforced error logging.
 
 = 1.3.0 =
-* ✅ NEW: Enhanced error handling + logging in settings
-* ✅ PRETTY: Error log table in settings page
-* ✅ FIXED: All xAI key validation with detailed errors
+* Expanded error handling with visible logs within the settings page.
 
 = 1.2.10 =
-* ✅ FIXED: ajaxurl not defined - INLINE AJAXURL + NONCE
-* ✅ BUTTON WORKS: Click = AI generation INSTANTLY
-* ✅ NO JS ERRORS - 100% RELIABLE
+* Defined `ajaxurl` inline and hardened nonce usage for admin requests.
 
 = 1.2.9 =
-* ✅ FIXED: ajaxurl not defined - Inline JS works!
-* ✅ BUTTON WORKS: Type prompt + Click = AI CONTENT
-* ✅ ERROR HANDLING: Clear messages for API issues
+* Improved frontend error handling for generator interactions.
 
 = 1.2.8 =
-* ✅ SIMPLIFIED: Direct Generate button INSIDE widget
-* ✅ NO JS COMPLICATIONS - Click = AI Content = DONE
-* ✅ WIDGET GUARANTEED + WORKING 100%
+* Embedded the generate button directly in the Elementor widget.
 
 = 1.2.7 =
-* ✅ WIDGET GUARANTEED - Robot icon ALWAYS visible
-* ✅ "Write with AiMentor" button works 100%
-* 🎯 Drag → Click GREEN button → Popup → Generate → Insert
+* Updated the “Write with AiMentor” CTA and ensured widget visibility.
 
 = 1.2.6 =
-* ✅ FIXED: "Write with AiMentor" modal popup works 100%
-* 🎯 Click link → Popup opens → Type → Generate → Insert
-* ✨ Elementor AI-style UX - PERFECT!
+* Refined the AiMentor modal popup workflow inside Elementor.
 
 = 1.2.5 =
-* NEW: Write with AiMentor popup modal
+* Added the first “Write with AiMentor” popup experience.
 
 = 1.2.4 =
-* FIXED: Widget registration load order
+* Adjusted widget registration timing for Elementor compatibility.
 
 = 1.2.3 =
-* FIXED: Working Generate button + Textarea
+* Restored the generate button and textarea pairing in the widget.
 
 = 1.2.2 =
-* ADDED: screenshot-1.png to assets
+* Added initial screenshot assets for the plugin listing.
 
 = 1.2.1 =
-* FIXED: Duplicate function error
-* ADDED: Grok models selector
-* ADDED: Settings link under plugin name
+* Resolved duplicate function declarations and introduced Grok model selector.
 
 = 1.2.0 =
-* NEW: Real Grok AI generation via xAI API
+* Launched Grok-powered AI generation through the xAI API.
