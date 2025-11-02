@@ -28,14 +28,17 @@
     <form method="post" action="options.php">
         <?php settings_fields( 'aimentor_settings' ); ?>
         <?php
-        $defaults       = aimentor_get_default_options();
-        $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
-        $api_keys       = [
+        $defaults         = aimentor_get_default_options();
+        $provider         = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
+        $api_keys         = [
                 'grok'   => get_option( 'aimentor_xai_api_key' ),
                 'openai' => get_option( 'aimentor_openai_api_key' ),
         ];
-        $models         = aimentor_get_provider_models();
-        $allowed_models = aimentor_get_allowed_provider_models();
+        $model_presets    = aimentor_get_model_presets();
+        $allowed_models   = aimentor_get_allowed_provider_models();
+        $legacy_models    = aimentor_map_presets_to_legacy_defaults( $model_presets );
+        $default_presets  = aimentor_get_provider_model_defaults();
+        $default_legacy   = aimentor_map_presets_to_legacy_defaults( $default_presets );
         $grok_model_labels = [
                 'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
                 'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
@@ -53,6 +56,32 @@
                 'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
                 'o4'           => __( 'o4 (Preview)', 'aimentor' ),
         ];
+        $preset_sections = [
+                'canvas'  => [
+                        'tiers' => [
+                                'fast'    => [
+                                        'label' => __( 'Page Building (Fast)', 'aimentor' ),
+                                        'help'  => __( 'Used when AiMentor assembles quick wireframes or previews in the Elementor canvas.', 'aimentor' ),
+                                ],
+                                'quality' => [
+                                        'label' => __( 'Page Building (Quality)', 'aimentor' ),
+                                        'help'  => __( 'Used for polished layouts and AI Canvas builds that favor fidelity over speed.', 'aimentor' ),
+                                ],
+                        ],
+                ],
+                'content' => [
+                        'tiers' => [
+                                'fast'    => [
+                                        'label' => __( 'Content (Fast)', 'aimentor' ),
+                                        'help'  => __( 'Used for short copy, headings, and quick brainstorming when you click generate.', 'aimentor' ),
+                                ],
+                                'quality' => [
+                                        'label' => __( 'Content (Quality)', 'aimentor' ),
+                                        'help'  => __( 'Used for longer marketing copy or when you rerun for richer detail.', 'aimentor' ),
+                                ],
+                        ],
+                ],
+        ];
         $provider_statuses = aimentor_get_provider_test_statuses();
         $provider_status_views = [];
 
@@ -66,8 +95,8 @@
                 printf(
                         /* translators: 1: Grok model, 2: OpenAI model, 3: max tokens */
                         esc_html__( 'Defaults: Grok starts on %1$s, OpenAI uses %2$s, and requests are capped at %3$s tokens until you change them.', 'aimentor' ),
-                        esc_html( strtoupper( $defaults['aimentor_model'] ) ),
-                        esc_html( strtoupper( $defaults['aimentor_openai_model'] ) ),
+                        esc_html( strtoupper( $default_legacy['grok'] ?? '' ) ),
+                        esc_html( strtoupper( $default_legacy['openai'] ?? '' ) ),
                         esc_html( number_format_i18n( $defaults['aimentor_max_tokens'] ) )
                 );
                 ?>
@@ -143,26 +172,32 @@
                 </td>
             </tr>
             <tr>
-                <th scope="row"><?php esc_html_e( 'Default Model', 'aimentor' ); ?></th>
+                <th scope="row"><?php esc_html_e( 'Model Presets', 'aimentor' ); ?></th>
                 <td>
-                    <div class="aimentor-provider-group" data-provider="grok">
-                        <label class="screen-reader-text" for="aimentor_provider_models_grok"><?php esc_html_e( 'xAI Grok default model', 'aimentor' ); ?></label>
-                        <select name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" class="regular-text">
-                            <?php foreach ( $allowed_models['grok'] as $model_key ) : ?>
-                                <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['grok'], $model_key ); ?>><?php echo esc_html( $grok_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
+                    <?php $provider_model_labels = [ 'grok' => $grok_model_labels, 'openai' => $openai_model_labels ]; ?>
+                    <?php foreach ( aimentor_get_provider_labels() as $provider_key => $provider_label ) : ?>
+                        <div class="aimentor-provider-group" data-provider="<?php echo esc_attr( $provider_key ); ?>">
+                            <p class="description aimentor-model-presets-summary"><?php printf( esc_html__( '%s presets drive which model AiMentor calls for layouts and copy.', 'aimentor' ), esc_html( $provider_label ) ); ?></p>
+                            <?php foreach ( $preset_sections as $task => $config ) : ?>
+                                <?php foreach ( $config['tiers'] as $tier => $tier_config ) : ?>
+                                    <?php
+                                    $select_id   = sprintf( 'aimentor_model_presets_%s_%s_%s', $provider_key, $task, $tier );
+                                    $name        = sprintf( 'aimentor_model_presets[%s][%s][%s]', $provider_key, $task, $tier );
+                                    $current     = $model_presets[ $provider_key ][ $task ][ $tier ] ?? ( $default_presets[ $provider_key ][ $task ][ $tier ] ?? '' );
+                                    $choices     = $allowed_models[ $provider_key ][ $task ][ $tier ] ?? [];
+                                    $labels      = $provider_model_labels[ $provider_key ] ?? [];
+                                    ?>
+                                    <label for="<?php echo esc_attr( $select_id ); ?>" class="aimentor-provider-group__label"><?php echo esc_html( $tier_config['label'] ); ?></label>
+                                    <select name="<?php echo esc_attr( $name ); ?>" id="<?php echo esc_attr( $select_id ); ?>" class="regular-text">
+                                        <?php foreach ( $choices as $model_key ) : ?>
+                                            <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $current, $model_key ); ?>><?php echo esc_html( $labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <p class="description aimentor-model-preset-help"><?php echo esc_html( $tier_config['help'] ); ?></p>
+                                <?php endforeach; ?>
                             <?php endforeach; ?>
-                        </select>
-                        <p class="description"><?php esc_html_e( 'Grok 3 Beta is a reliable balance of quality and speed for most Elementor flows.', 'aimentor' ); ?></p>
-                    </div>
-                    <div class="aimentor-provider-group" data-provider="openai">
-                        <label class="screen-reader-text" for="aimentor_provider_models_openai"><?php esc_html_e( 'OpenAI default model', 'aimentor' ); ?></label>
-                        <select name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" class="regular-text">
-                            <?php foreach ( $allowed_models['openai'] as $model_key ) : ?>
-                                <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['openai'], $model_key ); ?>><?php echo esc_html( $openai_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <p class="description"><?php esc_html_e( 'GPT-4o mini delivers strong reasoning with lower cost; upgrade as your budget allows.', 'aimentor' ); ?></p>
-                    </div>
+                        </div>
+                    <?php endforeach; ?>
                 </td>
             </tr>
             <tr>
@@ -193,8 +228,10 @@
                 </td>
             </tr>
         </table>
-        <input type="hidden" name="aimentor_model" id="aimentor_model_legacy" value="<?php echo esc_attr( $models['grok'] ); ?>" />
-        <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $models['openai'] ); ?>" />
+        <input type="hidden" name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" value="<?php echo esc_attr( $legacy_models['grok'] ?? '' ); ?>" />
+        <input type="hidden" name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" value="<?php echo esc_attr( $legacy_models['openai'] ?? '' ); ?>" />
+        <input type="hidden" name="aimentor_model" id="aimentor_model_legacy" value="<?php echo esc_attr( $legacy_models['grok'] ?? '' ); ?>" />
+        <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $legacy_models['openai'] ?? '' ); ?>" />
         <?php submit_button(); ?>
     </form>
     <!-- ERROR LOG TABLE -->
@@ -255,6 +292,8 @@
 .aimentor-provider-group { margin-bottom: 16px; }
 .js .aimentor-provider-group { display: none; }
 .aimentor-provider-group__label { font-weight: 600; display: block; margin-bottom: 4px; }
+.aimentor-model-presets-summary { margin-bottom: 12px; max-width: 640px; }
+.aimentor-model-preset-help { margin-top: 4px; margin-bottom: 12px; max-width: 640px; }
 .aimentor-provider-help { margin-top: 8px; max-width: 640px; }
 .js .aimentor-provider-help { display: none; }
 .aimentor-api-key-container { display: flex; align-items: center; gap: 8px; max-width: 420px; }
@@ -304,12 +343,43 @@
             $button.text(isPassword ? hideLabel : showLabel);
         });
 
-        $('#aimentor_provider_models_grok').on('change', function() {
-            $('#aimentor_model_legacy').val($(this).val());
-        });
+        var legacyProviders = [ 'grok', 'openai' ];
 
-        $('#aimentor_provider_models_openai').on('change', function() {
-            $('#aimentor_openai_model_legacy').val($(this).val());
+        function syncLegacyModel(provider) {
+            var selector = '#aimentor_model_presets_' + provider + '_content_fast';
+            var $select = $(selector);
+
+            if ( ! $select.length ) {
+                return;
+            }
+
+            var value = $select.val();
+
+            if ( 'grok' === provider ) {
+                $('#aimentor_model_legacy').val(value);
+            }
+
+            if ( 'openai' === provider ) {
+                $('#aimentor_openai_model_legacy').val(value);
+            }
+
+            $('#aimentor_provider_models_' + provider).val(value);
+        }
+
+        $.each(legacyProviders, function(_, provider) {
+            var selector = '#aimentor_model_presets_' + provider + '_content_fast';
+
+            var $select = $(selector);
+
+            if ( ! $select.length ) {
+                return;
+            }
+
+            $select.on('change', function() {
+                syncLegacyModel(provider);
+            });
+
+            syncLegacyModel(provider);
         });
     });
 </script>

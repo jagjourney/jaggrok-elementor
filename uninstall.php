@@ -12,6 +12,7 @@ foreach ( [
         'aimentor_auto_insert',
         'aimentor_theme_style',
         'aimentor_max_tokens',
+        'aimentor_model_presets',
         'aimentor_model',
         'aimentor_openai_model',
         'aimentor_provider',
