@@ -1,31 +1,31 @@
 <?php
 // ============================================================================
-// JAGJourney SETTINGS PAGE v1.3.8 (MODEL UPDATE + TIMEOUT LOG)
+// AiMentor SETTINGS PAGE v1.3.8 (MODEL UPDATE + TIMEOUT LOG)
 // ============================================================================
 
-function jaggrok_get_provider_model_defaults() {
+function aimentor_get_provider_model_defaults() {
         return [
                 'grok'   => 'grok-3-beta',
                 'openai' => 'gpt-4o-mini',
         ];
 }
 
-function jaggrok_get_allowed_provider_models() {
+function aimentor_get_allowed_provider_models() {
         return [
                 'grok'   => [ 'grok-3-mini', 'grok-3-beta', 'grok-3', 'grok-4-mini', 'grok-4', 'grok-4-code' ],
                 'openai' => [ 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o4-mini', 'o4' ],
         ];
 }
 
-function jaggrok_get_provider_labels() {
+function aimentor_get_provider_labels() {
         return [
-                'grok'   => __( 'xAI Grok', 'jaggrok-elementor' ),
-                'openai' => __( 'OpenAI', 'jaggrok-elementor' ),
+                'grok'   => __( 'xAI Grok', 'aimentor' ),
+                'openai' => __( 'OpenAI', 'aimentor' ),
         ];
 }
 
-function jaggrok_get_provider_test_statuses() {
-        $providers = array_keys( jaggrok_get_provider_labels() );
+function aimentor_get_provider_test_statuses() {
+        $providers = array_keys( aimentor_get_provider_labels() );
         $defaults  = [];
 
         foreach ( $providers as $provider ) {
@@ -36,7 +36,7 @@ function jaggrok_get_provider_test_statuses() {
                 ];
         }
 
-        $stored = get_option( 'jaggrok_provider_test_statuses', [] );
+        $stored = get_option( 'aimentor_provider_test_statuses', [] );
 
         if ( ! is_array( $stored ) ) {
                 return $defaults;
@@ -62,24 +62,24 @@ function jaggrok_get_provider_test_statuses() {
         return $defaults;
 }
 
-function jaggrok_get_default_options() {
-        $provider_defaults = jaggrok_get_provider_model_defaults();
+function aimentor_get_default_options() {
+        $provider_defaults = aimentor_get_provider_model_defaults();
 
         return [
-                'jaggrok_provider'        => 'grok',
-                'jaggrok_xai_api_key'     => '',
-                'jaggrok_openai_api_key'  => '',
-                'jaggrok_auto_insert'     => 'yes',
-                'jaggrok_theme_style'     => 'modern',
-                'jaggrok_max_tokens'      => 2000,
-                'jaggrok_provider_models' => $provider_defaults,
-                'jaggrok_model'           => $provider_defaults['grok'],
-                'jaggrok_openai_model'    => $provider_defaults['openai'],
+                'aimentor_provider'        => 'grok',
+                'aimentor_xai_api_key'     => '',
+                'aimentor_openai_api_key'  => '',
+                'aimentor_auto_insert'     => 'yes',
+                'aimentor_theme_style'     => 'modern',
+                'aimentor_max_tokens'      => 2000,
+                'aimentor_provider_models' => $provider_defaults,
+                'aimentor_model'           => $provider_defaults['grok'],
+                'aimentor_openai_model'    => $provider_defaults['openai'],
         ];
 }
 
-function jaggrok_seed_default_options() {
-        $defaults = jaggrok_get_default_options();
+function aimentor_seed_default_options() {
+        $defaults = aimentor_get_default_options();
 
         foreach ( $defaults as $option => $default ) {
                 $current = get_option( $option, false );
@@ -103,14 +103,14 @@ function jaggrok_seed_default_options() {
         }
 }
 
-function jaggrok_update_provider_test_status( $provider_key, $status, $message ) {
+function aimentor_update_provider_test_status( $provider_key, $status, $message ) {
         $allowed_statuses = [ 'success', 'error' ];
 
-        if ( ! in_array( $provider_key, array_keys( jaggrok_get_provider_labels() ), true ) ) {
+        if ( ! in_array( $provider_key, array_keys( aimentor_get_provider_labels() ), true ) ) {
                 return;
         }
 
-        $statuses = get_option( 'jaggrok_provider_test_statuses', [] );
+        $statuses = get_option( 'aimentor_provider_test_statuses', [] );
 
         if ( ! is_array( $statuses ) ) {
                 $statuses = [];
@@ -124,39 +124,39 @@ function jaggrok_update_provider_test_status( $provider_key, $status, $message )
                 'timestamp' => current_time( 'timestamp' ),
         ];
 
-        update_option( 'jaggrok_provider_test_statuses', $statuses );
+        update_option( 'aimentor_provider_test_statuses', $statuses );
 }
 
-function jaggrok_format_provider_status_for_display( $provider_key, $status_data ) {
-        $labels          = jaggrok_get_provider_labels();
+function aimentor_format_provider_status_for_display( $provider_key, $status_data ) {
+        $labels          = aimentor_get_provider_labels();
         $provider_label  = $labels[ $provider_key ] ?? ucfirst( $provider_key );
         $badge_labels    = [
-                'success' => __( 'Connected', 'jaggrok-elementor' ),
-                'error'   => __( 'Error', 'jaggrok-elementor' ),
-                'idle'    => __( 'Not tested', 'jaggrok-elementor' ),
-                'pending' => __( 'Testing', 'jaggrok-elementor' ),
+                'success' => __( 'Connected', 'aimentor' ),
+                'error'   => __( 'Error', 'aimentor' ),
+                'idle'    => __( 'Not tested', 'aimentor' ),
+                'pending' => __( 'Testing', 'aimentor' ),
         ];
         $state           = isset( $status_data['status'] ) && in_array( $status_data['status'], [ 'success', 'error' ], true )
                 ? $status_data['status']
                 : 'idle';
         $timestamp       = isset( $status_data['timestamp'] ) ? absint( $status_data['timestamp'] ) : 0;
         $message         = isset( $status_data['message'] ) ? $status_data['message'] : '';
-        $description     = __( 'No tests have been run yet.', 'jaggrok-elementor' );
+        $description     = __( 'No tests have been run yet.', 'aimentor' );
 
         if ( $timestamp > 0 ) {
                 $relative = human_time_diff( $timestamp, current_time( 'timestamp' ) );
 
                 if ( 'success' === $state ) {
-                        $default_message = sprintf( __( '%s API key is valid.', 'jaggrok-elementor' ), $provider_label );
+                        $default_message = sprintf( __( '%s API key is valid.', 'aimentor' ), $provider_label );
                         $description     = sprintf(
-                                __( 'Last tested %1$s ago — %2$s', 'jaggrok-elementor' ),
+                                __( 'Last tested %1$s ago — %2$s', 'aimentor' ),
                                 $relative,
                                 $message ? $message : $default_message
                         );
                 } else {
-                        $default_message = sprintf( __( 'Unable to connect to %s.', 'jaggrok-elementor' ), $provider_label );
+                        $default_message = sprintf( __( 'Unable to connect to %s.', 'aimentor' ), $provider_label );
                         $description     = sprintf(
-                                __( 'Last attempt %1$s ago — %2$s', 'jaggrok-elementor' ),
+                                __( 'Last attempt %1$s ago — %2$s', 'aimentor' ),
                                 $relative,
                                 $message ? $message : $default_message
                         );
@@ -175,121 +175,121 @@ function jaggrok_format_provider_status_for_display( $provider_key, $status_data
         ];
 }
 
-function jaggrok_add_settings_page() {
-	add_options_page(
-		'JagGrok Elementor Settings',
-		'JagGrok Elementor',
+function aimentor_add_settings_page() {
+        add_options_page(
+                'AiMentor Elementor Settings',
+                'AiMentor Elementor',
 		'manage_options',
-		'jaggrok-settings',
-		'jaggrok_settings_page_callback'
+		'aimentor-settings',
+		'aimentor_settings_page_callback'
 	);
 }
-add_action( 'admin_menu', 'jaggrok_add_settings_page' );
+add_action( 'admin_menu', 'aimentor_add_settings_page' );
 
-function jaggrok_register_settings() {
-        $defaults = jaggrok_get_default_options();
+function aimentor_register_settings() {
+        $defaults = aimentor_get_default_options();
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_xai_api_key',
+                'aimentor_settings',
+                'aimentor_xai_api_key',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_api_key',
-                        'default' => $defaults['jaggrok_xai_api_key'],
+                        'sanitize_callback' => 'aimentor_sanitize_api_key',
+                        'default' => $defaults['aimentor_xai_api_key'],
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_openai_api_key',
+                'aimentor_settings',
+                'aimentor_openai_api_key',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_api_key',
-                        'default' => $defaults['jaggrok_openai_api_key'],
+                        'sanitize_callback' => 'aimentor_sanitize_api_key',
+                        'default' => $defaults['aimentor_openai_api_key'],
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_auto_insert',
+                'aimentor_settings',
+                'aimentor_auto_insert',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_auto_insert',
-                        'default' => $defaults['jaggrok_auto_insert'],
+                        'sanitize_callback' => 'aimentor_sanitize_auto_insert',
+                        'default' => $defaults['aimentor_auto_insert'],
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_theme_style',
+                'aimentor_settings',
+                'aimentor_theme_style',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_theme_style',
-                        'default' => $defaults['jaggrok_theme_style'],
+                        'sanitize_callback' => 'aimentor_sanitize_theme_style',
+                        'default' => $defaults['aimentor_theme_style'],
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_max_tokens',
+                'aimentor_settings',
+                'aimentor_max_tokens',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_max_tokens',
-                        'default' => $defaults['jaggrok_max_tokens'],
+                        'sanitize_callback' => 'aimentor_sanitize_max_tokens',
+                        'default' => $defaults['aimentor_max_tokens'],
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_provider_models',
+                'aimentor_settings',
+                'aimentor_provider_models',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_provider_models',
-                        'default' => $defaults['jaggrok_provider_models'],
+                        'sanitize_callback' => 'aimentor_sanitize_provider_models',
+                        'default' => $defaults['aimentor_provider_models'],
                         'type' => 'array',
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_model',
+                'aimentor_settings',
+                'aimentor_model',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_model',
-                        'default' => $defaults['jaggrok_model'],
+                        'sanitize_callback' => 'aimentor_sanitize_model',
+                        'default' => $defaults['aimentor_model'],
                 ]
         ); // v1.4.0: Better default
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_openai_model',
+                'aimentor_settings',
+                'aimentor_openai_model',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_openai_model',
-                        'default' => $defaults['jaggrok_openai_model'],
+                        'sanitize_callback' => 'aimentor_sanitize_openai_model',
+                        'default' => $defaults['aimentor_openai_model'],
                 ]
         );
 
         register_setting(
-                'jaggrok_settings',
-                'jaggrok_provider',
+                'aimentor_settings',
+                'aimentor_provider',
                 [
-                        'sanitize_callback' => 'jaggrok_sanitize_provider',
-                        'default' => $defaults['jaggrok_provider'],
+                        'sanitize_callback' => 'aimentor_sanitize_provider',
+                        'default' => $defaults['aimentor_provider'],
                 ]
         );
 
-        jaggrok_seed_default_options();
+        aimentor_seed_default_options();
 }
-add_action( 'admin_init', 'jaggrok_register_settings' );
+add_action( 'admin_init', 'aimentor_register_settings' );
 
-function jaggrok_sanitize_api_key( $value ) {
+function aimentor_sanitize_api_key( $value ) {
         return sanitize_text_field( $value );
 }
 
-function jaggrok_sanitize_auto_insert( $value ) {
+function aimentor_sanitize_auto_insert( $value ) {
         $allowed = [ 'yes', 'no' ];
         return in_array( $value, $allowed, true ) ? $value : 'yes';
 }
 
-function jaggrok_sanitize_theme_style( $value ) {
+function aimentor_sanitize_theme_style( $value ) {
         $allowed = [ 'modern', 'bold', 'minimal' ];
         return in_array( $value, $allowed, true ) ? $value : 'modern';
 }
 
-function jaggrok_sanitize_max_tokens( $value ) {
+function aimentor_sanitize_max_tokens( $value ) {
         $value = absint( $value );
         if ( $value < 500 ) {
                 $value = 500;
@@ -300,9 +300,9 @@ function jaggrok_sanitize_max_tokens( $value ) {
         return $value > 0 ? $value : 2000;
 }
 
-function jaggrok_sanitize_provider_models( $value ) {
-        $defaults = jaggrok_get_provider_model_defaults();
-        $allowed  = jaggrok_get_allowed_provider_models();
+function aimentor_sanitize_provider_models( $value ) {
+        $defaults = aimentor_get_provider_model_defaults();
+        $allowed  = aimentor_get_allowed_provider_models();
 
         if ( ! is_array( $value ) ) {
                 $value = [];
@@ -322,81 +322,91 @@ function jaggrok_sanitize_provider_models( $value ) {
         return $sanitized;
 }
 
-function jaggrok_get_provider_models() {
-        $stored = get_option( 'jaggrok_provider_models', [] );
+function aimentor_get_provider_models() {
+        $stored = get_option( 'aimentor_provider_models', [] );
 
         if ( ! is_array( $stored ) ) {
                 $stored = [];
         }
 
-        return jaggrok_sanitize_provider_models( array_merge( jaggrok_get_provider_model_defaults(), $stored ) );
+        return aimentor_sanitize_provider_models( array_merge( aimentor_get_provider_model_defaults(), $stored ) );
 }
 
-function jaggrok_sanitize_model( $value ) {
-        $allowed = jaggrok_get_allowed_provider_models();
+function aimentor_sanitize_model( $value ) {
+        $allowed = aimentor_get_allowed_provider_models();
         $value   = sanitize_text_field( $value );
         $grok    = isset( $allowed['grok'] ) && is_array( $allowed['grok'] ) ? $allowed['grok'] : [];
 
-        return in_array( $value, $grok, true ) ? $value : jaggrok_get_provider_model_defaults()['grok'];
+        return in_array( $value, $grok, true ) ? $value : aimentor_get_provider_model_defaults()['grok'];
 }
 
-function jaggrok_sanitize_openai_model( $value ) {
-        $allowed = jaggrok_get_allowed_provider_models();
+function aimentor_sanitize_openai_model( $value ) {
+        $allowed = aimentor_get_allowed_provider_models();
         $value   = sanitize_text_field( $value );
         $openai  = isset( $allowed['openai'] ) && is_array( $allowed['openai'] ) ? $allowed['openai'] : [];
 
-        return in_array( $value, $openai, true ) ? $value : jaggrok_get_provider_model_defaults()['openai'];
+        return in_array( $value, $openai, true ) ? $value : aimentor_get_provider_model_defaults()['openai'];
 }
 
-function jaggrok_sync_legacy_model_options( $value, $old_value ) {
+function aimentor_sync_legacy_model_options( $value, $old_value ) {
         if ( is_array( $value ) ) {
                 if ( isset( $value['grok'] ) ) {
-                        update_option( 'jaggrok_model', jaggrok_sanitize_model( $value['grok'] ) );
+                        update_option( 'aimentor_model', aimentor_sanitize_model( $value['grok'] ) );
                 }
 
                 if ( isset( $value['openai'] ) ) {
-                        update_option( 'jaggrok_openai_model', jaggrok_sanitize_openai_model( $value['openai'] ) );
+                        update_option( 'aimentor_openai_model', aimentor_sanitize_openai_model( $value['openai'] ) );
                 }
         }
 
         return $value;
 }
-add_filter( 'pre_update_option_jaggrok_provider_models', 'jaggrok_sync_legacy_model_options', 10, 2 );
+add_filter( 'pre_update_option_aimentor_provider_models', 'aimentor_sync_legacy_model_options', 10, 2 );
 
-function jaggrok_sanitize_provider( $value ) {
+function aimentor_sanitize_provider( $value ) {
         $allowed = [ 'grok', 'openai' ];
         return in_array( $value, $allowed, true ) ? $value : 'grok';
 }
 
-function jaggrok_settings_page_callback() {
+function aimentor_settings_page_callback() {
 	include plugin_dir_path( __FILE__ ) . 'settings-template.php';
 }
 
 // AJAX Test API (v1.3.8 - MODEL UPDATE + TIMEOUT LOG)
-function jaggrok_test_api_connection() {
-        check_ajax_referer( 'jaggrok_test', 'nonce' );
+function aimentor_test_api_connection() {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_test' ) && ! wp_verify_nonce( $nonce, 'jaggrok_test' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_nonce',
+                        ],
+                        403
+                );
+        }
 
         if ( ! current_user_can( 'manage_options' ) ) {
                 wp_send_json_error(
                         [
-                                'message' => __( 'Insufficient permissions to test the API connection.', 'jaggrok-elementor' ),
-                                'code'    => 'jaggrok_insufficient_permissions',
+                                'message' => __( 'Insufficient permissions to test the API connection.', 'aimentor' ),
+                                'code'    => 'aimentor_insufficient_permissions',
                         ],
                         403
                 );
         }
 
         $provider_key    = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : 'grok';
-        $provider_labels = jaggrok_get_provider_labels();
+        $provider_labels = aimentor_get_provider_labels();
 
         if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
                 wp_send_json_error(
                         [
-                                'message' => __( 'Invalid provider selected.', 'jaggrok-elementor' ),
-                                'code'    => 'jaggrok_invalid_provider',
+                                'message' => __( 'Invalid provider selected.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_provider',
                                 'badge_state' => 'error',
-                                'badge_label' => __( 'Error', 'jaggrok-elementor' ),
-                                'description' => __( 'Select a valid provider and try again.', 'jaggrok-elementor' ),
+                                'badge_label' => __( 'Error', 'aimentor' ),
+                                'description' => __( 'Select a valid provider and try again.', 'aimentor' ),
                                 'provider'    => $provider_key,
                         ],
                         400
@@ -407,36 +417,36 @@ function jaggrok_test_api_connection() {
 	$label   = $provider_labels[ $provider_key ];
 
 	if ( '' === $api_key ) {
-		$message = sprintf( __( '%s API key is required to test the connection.', 'jaggrok-elementor' ), $label );
-		jaggrok_update_provider_test_status( $provider_key, 'error', $message );
-		$status = jaggrok_get_provider_test_statuses();
-		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		$message = sprintf( __( '%s API key is required to test the connection.', 'aimentor' ), $label );
+		aimentor_update_provider_test_status( $provider_key, 'error', $message );
+		$status = aimentor_get_provider_test_statuses();
+		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
 		$view['provider'] = $provider_key;
 		$view['message']  = $message;
 		wp_send_json_error( $view, 400 );
 	}
 
-	$models        = jaggrok_get_provider_models();
-	$model_default = jaggrok_get_provider_model_defaults();
+	$models        = aimentor_get_provider_models();
+	$model_default = aimentor_get_provider_model_defaults();
 	$model         = $models[ $provider_key ] ?? ( $model_default[ $provider_key ] ?? '' );
 
 	switch ( $provider_key ) {
 		case 'openai':
-			update_option( 'jaggrok_openai_api_key', $api_key );
+			update_option( 'aimentor_openai_api_key', $api_key );
 			$model = $models['openai'] ?? ( $model_default['openai'] ?? '' );
 			break;
 		case 'grok':
 		default:
-			update_option( 'jaggrok_xai_api_key', $api_key );
+			update_option( 'aimentor_xai_api_key', $api_key );
 			$model = $models['grok'] ?? ( $model_default['grok'] ?? '' );
 			break;
 	}
 
-	$provider = jaggrok_get_active_provider( $provider_key );
+	$provider = aimentor_get_active_provider( $provider_key );
 
-	if ( ! $provider instanceof JagGrok_Provider_Interface ) {
-		$message = __( 'Provider configuration error.', 'jaggrok-elementor' );
-		jaggrok_log_error(
+	if ( ! $provider instanceof AiMentor_Provider_Interface ) {
+		$message = __( 'Provider configuration error.', 'aimentor' );
+		aimentor_log_error(
 			$message,
 			[
 				'provider' => $provider_key,
@@ -444,16 +454,16 @@ function jaggrok_test_api_connection() {
 				'user_id'  => get_current_user_id(),
 			]
 		);
-		jaggrok_update_provider_test_status( $provider_key, 'error', $message );
-		$status = jaggrok_get_provider_test_statuses();
-		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		aimentor_update_provider_test_status( $provider_key, 'error', $message );
+		$status = aimentor_get_provider_test_statuses();
+		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
 		$view['provider'] = $provider_key;
 		$view['message']  = $message;
 		wp_send_json_error( $view );
 	}
 
 	$result = $provider->request(
-		__( 'Respond with a short confirmation to verify the JagGrok Elementor integration.', 'jaggrok-elementor' ),
+            __( 'Respond with a short confirmation to verify the AiMentor Elementor integration.', 'aimentor' ),
 		[
 			'api_key'    => $api_key,
 			'model'      => $model,
@@ -463,8 +473,8 @@ function jaggrok_test_api_connection() {
 	);
 
 	if ( is_wp_error( $result ) ) {
-		$error_message = sprintf( __( '%1$s connection failed: %2$s', 'jaggrok-elementor' ), $label, $result->get_error_message() );
-		jaggrok_log_error(
+		$error_message = sprintf( __( '%1$s connection failed: %2$s', 'aimentor' ), $label, $result->get_error_message() );
+		aimentor_log_error(
 			$error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
 			[
 				'provider' => $provider_key,
@@ -472,17 +482,17 @@ function jaggrok_test_api_connection() {
 				'user_id'  => get_current_user_id(),
 			]
 		);
-		jaggrok_update_provider_test_status( $provider_key, 'error', $error_message );
-		$status = jaggrok_get_provider_test_statuses();
-		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		aimentor_update_provider_test_status( $provider_key, 'error', $error_message );
+		$status = aimentor_get_provider_test_statuses();
+		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
 		$view['provider'] = $provider_key;
 		$view['message']  = $error_message;
 		wp_send_json_error( $view );
 	}
 
 	if ( ! is_array( $result ) || ! isset( $result['type'] ) ) {
-		$error_message = sprintf( __( '%s returned an unexpected response.', 'jaggrok-elementor' ), $label );
-		jaggrok_log_error(
+		$error_message = sprintf( __( '%s returned an unexpected response.', 'aimentor' ), $label );
+		aimentor_log_error(
 			$error_message . ' | Result: ' . wp_json_encode( $result ),
 			[
 				'provider' => $provider_key,
@@ -490,29 +500,30 @@ function jaggrok_test_api_connection() {
 				'user_id'  => get_current_user_id(),
 			]
 		);
-		jaggrok_update_provider_test_status( $provider_key, 'error', $error_message );
-		$status = jaggrok_get_provider_test_statuses();
-		$view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+		aimentor_update_provider_test_status( $provider_key, 'error', $error_message );
+		$status = aimentor_get_provider_test_statuses();
+		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
 		$view['provider'] = $provider_key;
 		$view['message']  = $error_message;
 		wp_send_json_error( $view );
 	}
 
-        $success_message = sprintf( __( '%s API key verified successfully.', 'jaggrok-elementor' ), $label );
-        jaggrok_update_provider_test_status( $provider_key, 'success', $success_message );
-        update_option( 'jaggrok_api_tested', true );
+        $success_message = sprintf( __( '%s API key verified successfully.', 'aimentor' ), $label );
+        aimentor_update_provider_test_status( $provider_key, 'success', $success_message );
+        update_option( 'aimentor_api_tested', true );
 
-        $status = jaggrok_get_provider_test_statuses();
-        $view   = jaggrok_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+        $status = aimentor_get_provider_test_statuses();
+        $view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
         $view['provider'] = $provider_key;
 
         wp_send_json_success( $view );
 }
-add_action( 'wp_ajax_jaggrok_test_api', 'jaggrok_test_api_connection' );
+add_action( 'wp_ajax_aimentor_test_api', 'aimentor_test_api_connection' );
+add_action( 'wp_ajax_jaggrok_test_api', 'aimentor_test_api_connection' );
 
 // ERROR LOGGING FUNCTION (v1.3.8)
-function jaggrok_log_error( $message, $context = [] ) {
-	$log_file  = plugin_dir_path( __FILE__ ) . 'jaggrok-errors.log';
+function aimentor_log_error( $message, $context = [] ) {
+	$log_file  = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
 	$timestamp = gmdate( 'Y-m-d H:i:s' );
 	$log_entry = $message;
 
@@ -534,7 +545,55 @@ function jaggrok_log_error( $message, $context = [] ) {
 				]
 			);
 		}
-	}
+        }
 
-	file_put_contents( $log_file, $timestamp . ' - ' . $log_entry . "\n", FILE_APPEND | LOCK_EX );
+        file_put_contents( $log_file, $timestamp . ' - ' . $log_entry . "\n", FILE_APPEND | LOCK_EX );
+}
+
+function aimentor_mirror_option_to_legacy( $modern_option, $value ) {
+        if ( 0 !== strpos( $modern_option, 'aimentor_' ) ) {
+                return;
+        }
+
+        $legacy_option = str_replace( 'aimentor_', 'jaggrok_', $modern_option );
+
+        if ( $legacy_option === $modern_option ) {
+                return;
+        }
+
+        update_option( $legacy_option, $value );
+}
+
+$aimentor_options_to_mirror = [
+        'aimentor_provider',
+        'aimentor_xai_api_key',
+        'aimentor_openai_api_key',
+        'aimentor_auto_insert',
+        'aimentor_theme_style',
+        'aimentor_max_tokens',
+        'aimentor_model',
+        'aimentor_openai_model',
+        'aimentor_provider_models',
+        'aimentor_api_tested',
+        'aimentor_provider_test_statuses',
+];
+
+foreach ( $aimentor_options_to_mirror as $option_name ) {
+        add_action(
+                "update_option_{$option_name}",
+                function( $old_value, $value ) use ( $option_name ) {
+                        aimentor_mirror_option_to_legacy( $option_name, $value );
+                },
+                10,
+                2
+        );
+
+        add_action(
+                "add_option_{$option_name}",
+                function( $option, $value ) use ( $option_name ) {
+                        aimentor_mirror_option_to_legacy( $option_name, $value );
+                },
+                10,
+                2
+        );
 }

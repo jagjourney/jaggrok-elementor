@@ -1,7 +1,7 @@
 <?php
 
-class JagGrok_Grok_Provider implements JagGrok_Provider_Interface {
-    const API_URL = 'https://api.x.ai/v1/chat/completions';
+class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
+    const API_URL = 'https://api.openai.com/v1/chat/completions';
 
     public function supports_canvas() {
         return true;
@@ -11,12 +11,12 @@ class JagGrok_Grok_Provider implements JagGrok_Provider_Interface {
         $api_key = isset( $args['api_key'] ) ? trim( $args['api_key'] ) : '';
 
         if ( empty( $api_key ) ) {
-            return new WP_Error( 'jaggrok_missing_api_key', __( 'xAI API key not configured.', 'jaggrok-elementor' ) );
+            return new WP_Error( 'aimentor_missing_api_key', __( 'OpenAI API key not configured.', 'aimentor' ) );
         }
 
         $is_canvas = ! empty( $args['is_canvas'] );
         $max_tokens = isset( $args['max_tokens'] ) ? absint( $args['max_tokens'] ) : 2000;
-        $model      = ! empty( $args['model'] ) ? sanitize_text_field( $args['model'] ) : 'grok-3-mini';
+        $model      = ! empty( $args['model'] ) ? sanitize_text_field( $args['model'] ) : 'gpt-4o-mini';
 
         $prompt_suffix = $is_canvas
             ? ' Output as structured Elementor JSON with dynamic content and forms.'
@@ -27,6 +27,10 @@ class JagGrok_Grok_Provider implements JagGrok_Provider_Interface {
             'messages' => [ [ 'role' => 'user', 'content' => $prompt . $prompt_suffix ] ],
             'max_tokens' => $max_tokens,
         ];
+
+        if ( $is_canvas ) {
+            $body['response_format'] = [ 'type' => 'json_object' ];
+        }
 
         return [
             'url'  => self::API_URL,
@@ -52,8 +56,8 @@ class JagGrok_Grok_Provider implements JagGrok_Provider_Interface {
 
         if ( is_wp_error( $response ) ) {
             return new WP_Error(
-                'jaggrok_http_request_failed',
-                sprintf( __( 'API request failed: %s', 'jaggrok-elementor' ), $response->get_error_message() ),
+                'aimentor_http_request_failed',
+                sprintf( __( 'API request failed: %s', 'aimentor' ), $response->get_error_message() ),
                 [ 'original' => $response ]
             );
         }
@@ -81,25 +85,37 @@ class JagGrok_Grok_Provider implements JagGrok_Provider_Interface {
                 $message .= ': ' . $error_detail;
             }
 
-            return new WP_Error( 'jaggrok_http_error', $message, [ 'status_code' => $status_code, 'raw_body' => $raw_body ] );
+            return new WP_Error( 'aimentor_http_error', $message, [ 'status_code' => $status_code, 'raw_body' => $raw_body ] );
         }
 
         if ( JSON_ERROR_NONE !== $json_error || ! is_array( $body ) ) {
-            return new WP_Error( 'jaggrok_invalid_response', __( 'Unexpected response from the API.', 'jaggrok-elementor' ), [ 'raw_body' => $raw_body ] );
+            return new WP_Error( 'aimentor_invalid_response', __( 'Unexpected response from the API.', 'aimentor' ), [ 'raw_body' => $raw_body ] );
         }
 
-        $generated = $body['choices'][0]['message']['content'] ?? null;
+        $message = $body['choices'][0]['message'] ?? [];
+        $content = '';
 
-        if ( empty( $generated ) ) {
-            return new WP_Error( 'jaggrok_empty_response', __( 'The API response did not include generated content.', 'jaggrok-elementor' ), [ 'body' => $body ] );
+        if ( is_string( $message['content'] ?? null ) ) {
+            $content = $message['content'];
+        } elseif ( ! empty( $message['content'] ) && is_array( $message['content'] ) ) {
+            // Handle the new content array format.
+            foreach ( $message['content'] as $part ) {
+                if ( isset( $part['text'] ) ) {
+                    $content .= $part['text'];
+                }
+            }
+        }
+
+        if ( empty( $content ) ) {
+            return new WP_Error( 'aimentor_empty_response', __( 'The API response did not include generated content.', 'aimentor' ), [ 'body' => $body ] );
         }
 
         $is_canvas = ! empty( $args['is_canvas'] );
 
         if ( $is_canvas ) {
-            $elementor_json = json_decode( $generated, true );
+            $elementor_json = json_decode( $content, true );
             if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $elementor_json ) ) {
-                return new WP_Error( 'jaggrok_invalid_canvas', __( 'The response was not valid Elementor JSON.', 'jaggrok-elementor' ), [ 'content' => $generated ] );
+                return new WP_Error( 'aimentor_invalid_canvas', __( 'The response was not valid Elementor JSON.', 'aimentor' ), [ 'content' => $content ] );
             }
 
             return [
@@ -110,7 +126,7 @@ class JagGrok_Grok_Provider implements JagGrok_Provider_Interface {
 
         return [
             'type'    => 'html',
-            'content' => $generated,
+            'content' => $content,
         ];
     }
 }
