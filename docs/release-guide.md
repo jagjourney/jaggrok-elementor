@@ -68,6 +68,7 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
    - [ ] Leave the release as a **draft** (or mark it as a **pre-release**) until QA approves publication. The downstream `.github/workflows/release.yml` run starts as soon as the draft is created and attaches the canonical ZIP even while the release remains private. The workflow logs explicitly call out that the manifest refresh is deferred until publication.
 4. **Monitor automation**
    - [ ] Watch the release workflow in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds. Draft or pre-release runs will skip the manifest step by design; re-run the workflow after publishing if you make note edits while the release is live.
+   - [ ] If the workflow fails on **Verify archive structure**, inspect the `zipinfo -1` output in the logs. Every entry must be nested under `aimentor-elementor/`; a file at the archive root usually means an excluded path slipped back into the rsync allowlist or a manual asset was attached. Fix the packaging rules, rebuild, and rerun the job before publishing.
 
 > **Publish when ready:** Once QA signs off, publish the release (or toggle off the pre-release flag). Publication triggers another workflow run that updates the `gh-pages` manifest so WordPress sites see the new version.
    - [ ] Capture logs or screenshots if you need to document unusual warnings for later follow-up.
