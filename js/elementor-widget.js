@@ -84,6 +84,7 @@
         var savedPromptsStore = normalizeSavedPrompts(savedPromptsData);
         var savedPromptSelectNodes = [];
         var promptPresetLookup = buildPromptPresetLookup(aimentorData.promptPresets || {});
+        var savedPromptCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
 
         ensureBadgeStyles();
 
@@ -113,6 +114,23 @@
             };
         }
 
+        function sortSavedPromptEntries(list) {
+            if (!Array.isArray(list)) {
+                return [];
+            }
+
+            return list.slice().sort(function(a, b) {
+                var labelA = a && typeof a.label === 'string' ? a.label : '';
+                var labelB = b && typeof b.label === 'string' ? b.label : '';
+
+                if (savedPromptCollator) {
+                    return savedPromptCollator.compare(labelA, labelB);
+                }
+
+                return labelA.localeCompare(labelB);
+            });
+        }
+
         function normalizeSavedPrompts(data) {
             var normalized = { global: [], user: [] };
 
@@ -121,15 +139,15 @@
             }
 
             if (Array.isArray(data.user)) {
-                normalized.user = data.user.map(function(entry) {
+                normalized.user = sortSavedPromptEntries(data.user.map(function(entry) {
                     return normalizeSavedPromptEntry(entry, 'user');
-                }).filter(Boolean);
+                }).filter(Boolean));
             }
 
             if (Array.isArray(data.global)) {
-                normalized.global = data.global.map(function(entry) {
+                normalized.global = sortSavedPromptEntries(data.global.map(function(entry) {
                     return normalizeSavedPromptEntry(entry, 'global');
-                }).filter(Boolean);
+                }).filter(Boolean));
             }
 
             return normalized;
@@ -153,6 +171,27 @@
 
         function getAllSavedPrompts() {
             return savedPromptsStore.user.concat(savedPromptsStore.global);
+        }
+
+        function applySavedPromptToField(entry, $field) {
+            if (!entry || !$field || !$field.length) {
+                return;
+            }
+
+            $field.val(entry.prompt).trigger('input');
+        }
+
+        function bindSavedPromptSelect($select, $field) {
+            if (!$select || !$select.length) {
+                return;
+            }
+
+            registerSavedPromptSelect($select);
+
+            $select.off('change.aimentor').on('change.aimentor', function() {
+                var selectedPrompt = findSavedPromptById($(this).val());
+                applySavedPromptToField(selectedPrompt, $field);
+            });
         }
 
         function findSavedPromptById(id) {
@@ -474,6 +513,7 @@
         function setSavedPrompts(data) {
             savedPromptsStore = normalizeSavedPrompts(data);
             refreshRegisteredSavedPromptSelects();
+            $(document).trigger('aimentor:saved-prompts-refreshed', { prompts: cloneSavedPrompts() });
         }
 
         function refreshSavedPrompts() {
@@ -593,13 +633,7 @@
             }
 
             if ($savedPromptSelect.length) {
-                registerSavedPromptSelect($savedPromptSelect);
-                $savedPromptSelect.off('change.aimentor').on('change.aimentor', function() {
-                    var savedPrompt = findSavedPromptById($(this).val());
-                    if (savedPrompt && $prompt.length) {
-                        $prompt.val(savedPrompt.prompt).trigger('input');
-                    }
-                });
+                bindSavedPromptSelect($savedPromptSelect, $prompt);
             }
 
             if ($presetSelect.length) {
@@ -849,16 +883,10 @@
                 return;
             }
 
-            registerSavedPromptSelect($savedPromptSelect);
+            bindSavedPromptSelect($savedPromptSelect, $prompt);
             $savedPromptSelect.val('');
             refreshSavedPrompts().then(function() {
                 populateSavedPromptSelect($savedPromptSelect);
-            });
-            $savedPromptSelect.off('change.aimentor').on('change.aimentor', function() {
-                var selected = findSavedPromptById($(this).val());
-                if (selected) {
-                    $prompt.val(selected.prompt).trigger('input');
-                }
             });
 
             $providerRadios.off('change.aimentor').on('change.aimentor', function() {

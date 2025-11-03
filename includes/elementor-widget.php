@@ -67,7 +67,19 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
             $options[ $id ] = $label;
         }
 
-        return $options;
+        if ( $options ) {
+            natcasesort( $options );
+        }
+
+        /**
+         * Filter the saved prompt options exposed to the Elementor widget control.
+         *
+         * @since 0.0.001
+         *
+         * @param array $options Saved prompt select options.
+         * @param array $payload Raw saved prompt payload grouped by scope.
+         */
+        return apply_filters( 'aimentor_widget_saved_prompt_options', $options, $payload );
     }
 
     protected function register_controls() {
@@ -97,7 +109,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
             'aimentor_saved_prompt',
             [
                 'label'       => __( 'Saved Prompts', 'aimentor' ),
-                'type'        => Controls_Manager::SELECT,
+                'type'        => Controls_Manager::SELECT2,
                 'options'     => $select_options,
                 'default'     => '',
                 'label_block' => true,

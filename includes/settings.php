@@ -374,11 +374,17 @@ set_transient( aimentor_get_usage_transient_key(), $data, DAY_IN_SECONDS );
 
 
 function aimentor_get_saved_prompts_option_name() {
-	return 'aimentor_saved_prompts';
+        return 'aimentor_saved_prompts';
 }
 
 function aimentor_get_saved_prompts_user_meta_key() {
-	return 'aimentor_saved_prompts';
+        return 'aimentor_saved_prompts';
+}
+
+function aimentor_normalize_saved_prompt_scope( $scope ) {
+        $normalized = sanitize_key( (string) $scope );
+
+        return 'global' === $normalized ? 'global' : 'user';
 }
 
 function aimentor_generate_saved_prompt_label( $label, $prompt ) {
@@ -429,7 +435,7 @@ function aimentor_normalize_saved_prompt_entry( $entry, $scope = 'user' ) {
 }
 
 function aimentor_get_saved_prompts_raw( $scope = 'global', $user_id = 0 ) {
-	$scope = 'global' === $scope ? 'global' : 'user';
+        $scope = aimentor_normalize_saved_prompt_scope( $scope );
 
 	if ( 'global' === $scope ) {
 		$prompts = get_option( aimentor_get_saved_prompts_option_name(), [] );
@@ -447,7 +453,7 @@ function aimentor_get_saved_prompts_raw( $scope = 'global', $user_id = 0 ) {
 }
 
 function aimentor_store_saved_prompts_raw( $scope, $prompts, $user_id = 0 ) {
-	$scope   = 'global' === $scope ? 'global' : 'user';
+        $scope   = aimentor_normalize_saved_prompt_scope( $scope );
 	$prompts = is_array( $prompts ) ? array_values( $prompts ) : [];
 
 	if ( 'global' === $scope ) {
@@ -465,7 +471,7 @@ function aimentor_store_saved_prompts_raw( $scope, $prompts, $user_id = 0 ) {
 }
 
 function aimentor_get_saved_prompts_by_scope( $scope = 'global', $user_id = 0 ) {
-	$scope    = 'global' === $scope ? 'global' : 'user';
+        $scope    = aimentor_normalize_saved_prompt_scope( $scope );
 	$prompts  = aimentor_get_saved_prompts_raw( $scope, $user_id );
 	$prepared = [];
 
@@ -490,7 +496,7 @@ function aimentor_get_saved_prompts_payload( $user_id = 0 ) {
 }
 
 function aimentor_add_saved_prompt( $label, $prompt, $scope = 'user', $user_id = 0 ) {
-	if ( ! current_user_can( 'edit_posts' ) ) {
+        if ( ! current_user_can( 'edit_posts' ) ) {
 		return new WP_Error(
 		'aimentor_saved_prompts_forbidden',
 		__( 'Sorry, you are not allowed to manage saved prompts.', 'aimentor' ),
@@ -498,7 +504,7 @@ function aimentor_add_saved_prompt( $label, $prompt, $scope = 'user', $user_id =
 		);
 	}
 
-	$scope  = 'global' === $scope ? 'global' : 'user';
+        $scope  = aimentor_normalize_saved_prompt_scope( $scope );
 	$prompt = sanitize_textarea_field( (string) $prompt );
 
 	if ( '' === trim( $prompt ) ) {
@@ -551,7 +557,7 @@ function aimentor_add_saved_prompt( $label, $prompt, $scope = 'user', $user_id =
 }
 
 function aimentor_delete_saved_prompt( $id, $scope = 'user', $user_id = 0 ) {
-	if ( ! current_user_can( 'edit_posts' ) ) {
+        if ( ! current_user_can( 'edit_posts' ) ) {
 		return new WP_Error(
 		'aimentor_saved_prompts_forbidden',
 		__( 'Sorry, you are not allowed to manage saved prompts.', 'aimentor' ),
@@ -559,7 +565,7 @@ function aimentor_delete_saved_prompt( $id, $scope = 'user', $user_id = 0 ) {
 		);
 	}
 
-	$scope = 'global' === $scope ? 'global' : 'user';
+        $scope = aimentor_normalize_saved_prompt_scope( $scope );
 	$id    = sanitize_text_field( (string) $id );
 
 	if ( '' === $id ) {
@@ -631,11 +637,11 @@ function aimentor_rest_get_saved_prompts( WP_REST_Request $request ) {
 }
 
 function aimentor_rest_create_saved_prompt( WP_REST_Request $request ) {
-	$label  = $request->get_param( 'label' );
-	$scope  = $request->get_param( 'scope' );
-	$prompt = $request->get_param( 'prompt' );
+        $label  = $request->get_param( 'label' );
+        $scope  = aimentor_normalize_saved_prompt_scope( $request->get_param( 'scope' ) );
+        $prompt = $request->get_param( 'prompt' );
 
-	$result = aimentor_add_saved_prompt( $label, $prompt, $scope );
+        $result = aimentor_add_saved_prompt( $label, $prompt, $scope );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;
@@ -652,10 +658,10 @@ function aimentor_rest_create_saved_prompt( WP_REST_Request $request ) {
 }
 
 function aimentor_rest_delete_saved_prompt( WP_REST_Request $request ) {
-	$id    = $request->get_param( 'id' );
-	$scope = $request->get_param( 'scope' );
+        $id    = $request->get_param( 'id' );
+        $scope = aimentor_normalize_saved_prompt_scope( $request->get_param( 'scope' ) );
 
-	$result = aimentor_delete_saved_prompt( $id, $scope );
+        $result = aimentor_delete_saved_prompt( $id, $scope );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;
@@ -697,12 +703,14 @@ function aimentor_register_saved_prompts_routes() {
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_textarea_field',
 					],
-					'scope'  => [
-						'type'              => 'string',
-						'required'          => false,
-						'sanitize_callback' => 'sanitize_key',
-					],
-				],
+                                        'scope'  => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                                'default'           => 'user',
+                                                'enum'              => [ 'user', 'global' ],
+                                        ],
+                                ],
 			],
 		]
 	);
@@ -720,12 +728,14 @@ function aimentor_register_saved_prompts_routes() {
 						'type'     => 'string',
 						'required' => true,
 					],
-					'scope' => [
-						'type'              => 'string',
-						'required'          => false,
-						'sanitize_callback' => 'sanitize_key',
-					],
-				],
+                                        'scope' => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                                'default'           => 'user',
+                                                'enum'              => [ 'user', 'global' ],
+                                        ],
+                                ],
 			],
 		]
 	);
@@ -733,13 +743,14 @@ function aimentor_register_saved_prompts_routes() {
 add_action( 'rest_api_init', 'aimentor_register_saved_prompts_routes' );
 
 function aimentor_ajax_add_saved_prompt() {
-	check_ajax_referer( 'aimentor_saved_prompts', 'nonce' );
+        check_ajax_referer( 'aimentor_saved_prompts', 'nonce' );
 
-	$label  = isset( $_POST['label'] ) ? wp_unslash( $_POST['label'] ) : '';
-	$scope  = isset( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : 'user';
-	$prompt = isset( $_POST['prompt'] ) ? wp_unslash( $_POST['prompt'] ) : '';
+        $label  = isset( $_POST['label'] ) ? wp_unslash( $_POST['label'] ) : '';
+        $scope  = isset( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : 'user';
+        $scope  = aimentor_normalize_saved_prompt_scope( $scope );
+        $prompt = isset( $_POST['prompt'] ) ? wp_unslash( $_POST['prompt'] ) : '';
 
-	$result = aimentor_add_saved_prompt( $label, $prompt, $scope );
+        $result = aimentor_add_saved_prompt( $label, $prompt, $scope );
 
 	if ( is_wp_error( $result ) ) {
 		$error_data = $result->get_error_data();
@@ -764,12 +775,13 @@ function aimentor_ajax_add_saved_prompt() {
 add_action( 'wp_ajax_aimentor_add_saved_prompt', 'aimentor_ajax_add_saved_prompt' );
 
 function aimentor_ajax_delete_saved_prompt() {
-	check_ajax_referer( 'aimentor_saved_prompts', 'nonce' );
+        check_ajax_referer( 'aimentor_saved_prompts', 'nonce' );
 
-	$scope = isset( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : 'user';
-	$id    = isset( $_POST['id'] ) ? wp_unslash( $_POST['id'] ) : '';
+        $scope = isset( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : 'user';
+        $scope = aimentor_normalize_saved_prompt_scope( $scope );
+        $id    = isset( $_POST['id'] ) ? wp_unslash( $_POST['id'] ) : '';
 
-	$result = aimentor_delete_saved_prompt( $id, $scope );
+        $result = aimentor_delete_saved_prompt( $id, $scope );
 
 	if ( is_wp_error( $result ) ) {
 		$error_data = $result->get_error_data();
