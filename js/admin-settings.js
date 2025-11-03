@@ -51,6 +51,9 @@
 jQuery(document).ready(function($) {
     var strings = (typeof aimentorAjax !== 'undefined' && aimentorAjax.strings) ? aimentorAjax.strings : {};
     var statusStates = ['success', 'error', 'idle', 'pending'];
+    var usageNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.usageNonce) ? aimentorAjax.usageNonce : '';
+    var usageRefreshInterval = (typeof aimentorAjax !== 'undefined' && aimentorAjax.usageRefreshInterval) ? parseInt(aimentorAjax.usageRefreshInterval, 10) : 0;
+    var usageTimer = null;
 
     function getString(key, fallback) {
         if (strings && Object.prototype.hasOwnProperty.call(strings, key) && strings[key]) {
@@ -67,6 +70,162 @@ jQuery(document).ready(function($) {
 
     var badgeClassList = buildClassList();
     var wpAjax = (typeof window.wp !== 'undefined' && window.wp.ajax && typeof window.wp.ajax.post === 'function') ? window.wp.ajax : null;
+
+    function formatNumber(value) {
+        if (typeof window.Intl !== 'undefined' && typeof Intl.NumberFormat === 'function') {
+            try {
+                return new Intl.NumberFormat().format(value);
+            } catch (error) {
+                return String(value);
+            }
+        }
+
+        return String(value);
+    }
+
+    function buildUsageEventSummary(entry) {
+        if (!entry || typeof entry !== 'object') {
+            return '';
+        }
+
+        var parts = [];
+
+        if (entry.last_event_human) {
+            parts.push(entry.last_event_human);
+        }
+
+        if (entry.origin_label) {
+            parts.push(entry.origin_label);
+        }
+
+        if (!parts.length && entry.total_requests > 0) {
+            parts.push(getString('usageJustNow', 'Just now'));
+        }
+
+        return parts.join(' — ');
+    }
+
+    function renderUsageMetrics(metrics) {
+        var $container = jQuery('#aimentor-usage-metrics');
+
+        if (!$container.length || !metrics || typeof metrics !== 'object') {
+            return;
+        }
+
+        if (typeof metrics.generated_at !== 'undefined') {
+            $container.attr('data-generated-at', metrics.generated_at);
+        }
+
+        if (metrics.generated_at_human) {
+            var updatedLabel = getString('usageUpdated', 'Updated %s');
+            $container.find('[data-metric="generated_at"]').text(updatedLabel.replace('%s', metrics.generated_at_human));
+        }
+
+        if (!metrics.providers || typeof metrics.providers !== 'object') {
+            return;
+        }
+
+        Object.keys(metrics.providers).forEach(function(provider) {
+            var entry = metrics.providers[provider];
+            var $provider = $container.find('.aimentor-usage-provider[data-provider="' + provider + '"]');
+
+            if (!$provider.length || !entry) {
+                return;
+            }
+
+            var totals = {
+                total_requests: entry.total_requests,
+                success_total: entry.success_total,
+                error_total: entry.error_total
+            };
+
+            Object.keys(totals).forEach(function(metricKey) {
+                var $target = $provider.find('[data-metric="' + metricKey + '"]');
+
+                if (!$target.length || typeof totals[metricKey] === 'undefined') {
+                    return;
+                }
+
+                $target.text(formatNumber(totals[metricKey] || 0));
+            });
+
+            var eventSummary = buildUsageEventSummary(Object.assign({}, entry, { total_requests: totals.total_requests || 0 }));
+            var $eventTarget = $provider.find('[data-metric="last_event_summary"]');
+
+            if ($eventTarget.length) {
+                if (eventSummary) {
+                    $eventTarget.text(eventSummary);
+                } else {
+                    $eventTarget.text(getString('usageNoActivity', 'No activity yet'));
+                }
+            }
+
+            var $contextTarget = $provider.find('[data-metric="context_summary"]');
+
+            if ($contextTarget.length) {
+                if (entry.context_summary) {
+                    $contextTarget.text(entry.context_summary);
+                } else {
+                    $contextTarget.text(getString('usageNoContext', 'Most recent context unavailable.'));
+                }
+            }
+        });
+    }
+
+    function requestUsageMetrics() {
+        if (!usageNonce) {
+            return jQuery.Deferred().reject().promise();
+        }
+
+        if (wpAjax) {
+            return wpAjax.post('aimentor_get_usage_metrics', { nonce: usageNonce });
+        }
+
+        var ajaxUrl = (typeof aimentorAjax !== 'undefined' && aimentorAjax.ajaxurl) ? aimentorAjax.ajaxurl : (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
+
+        if (!ajaxUrl) {
+            return jQuery.Deferred().reject().promise();
+        }
+
+        return jQuery.post(ajaxUrl, { action: 'aimentor_get_usage_metrics', nonce: usageNonce });
+    }
+
+    function handleUsageResponse(response) {
+        if (!response) {
+            return;
+        }
+
+        if (response.metrics) {
+            renderUsageMetrics(response.metrics);
+            return;
+        }
+
+        if (response.success && response.data && response.data.metrics) {
+            renderUsageMetrics(response.data.metrics);
+        }
+    }
+
+    function refreshUsageMetrics() {
+        var $container = jQuery('#aimentor-usage-metrics');
+
+        if (!$container.length) {
+            return;
+        }
+
+        requestUsageMetrics().done(handleUsageResponse);
+    }
+
+    function scheduleUsageRefresh() {
+        if (usageTimer) {
+            window.clearInterval(usageTimer);
+        }
+
+        if (!usageRefreshInterval || usageRefreshInterval < 15000) {
+            usageRefreshInterval = 60000;
+        }
+
+        usageTimer = window.setInterval(refreshUsageMetrics, usageRefreshInterval);
+    }
 
     function updateProviderStatus(provider, data) {
         var $container = $('.aimentor-provider-status[data-provider="' + provider + '"]');
@@ -225,4 +384,9 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    if ($('#aimentor-usage-metrics').length && usageNonce) {
+        refreshUsageMetrics();
+        scheduleUsageRefresh();
+    }
 });
