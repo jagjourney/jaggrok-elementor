@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.01
+Stable tag: 1.3.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,6 +38,14 @@ AiMentor's widget mirrors the native Elementor workflow: pick your provider from
 
 == Operational Tooling ==
 * **Error log access:** Every request writes structured context to `wp-content/uploads/aimentor/aimentor-errors.log`, and the settings screen renders the last 10 entries with timestamps and provider names for fast triage.
+
+== WP-CLI ==
+Run AiMentor generations from the command line once the plugin is active and the provider API keys are configured.
+
+* **Prerequisites:** Install [WP-CLI](https://wp-cli.org/) on the WordPress host, ensure the AiMentor plugin is active, and store the necessary provider API key in the plugin settings.
+* **Generate content:** `wp aimentor generate --prompt="Homepage hero for a bakery" --provider=grok`
+* **Generate canvas JSON to a file:** `wp aimentor generate --prompt="Landing page wireframe" --task=canvas --out=canvas.json`
+* **Override defaults:** Use `--tier`, `--max_tokens`, or `--provider` to align the run with stored presets without altering the saved configuration.
 * **Connection health badges:** The settings dashboard keeps a persistent badge per provider—Success, Pending, Error, or Idle—so agencies can verify API uptime before teams start building.
 
 == Installation ==
@@ -87,6 +95,10 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.11 =
+* Added a `wp aimentor generate` WP-CLI command that mirrors the AJAX generation flow, records history, and optionally saves output to disk.
+* Documented the WP-CLI workflow with prerequisites and usage examples for both content and canvas exports.
+
 = 1.3.01 =
 * Hardened the WordPress option stubs and regression tests to ensure preloaded option values stay untouched when default seeding runs.
 

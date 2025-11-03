@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.3.01
+ * Version: 1.3.11
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.3.01' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.3.11' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -1102,6 +1102,246 @@ if ( ! function_exists( 'aimentor_generate_page_ajax' ) ) {
         function aimentor_generate_page_ajax() {
                 jaggrok_generate_page_ajax();
         }
+}
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+        require_once AIMENTOR_PLUGIN_DIR . 'includes/settings.php';
+
+        if ( ! class_exists( 'AiMentor_CLI_Command' ) ) {
+                /**
+                 * Manage AiMentor generation workflows from WP-CLI.
+                 */
+                class AiMentor_CLI_Command extends WP_CLI_Command {
+                        /**
+                         * Generate Elementor content or canvas JSON via the configured provider.
+                         *
+                         * ## OPTIONS
+                         *
+                         * [--prompt=<prompt>]
+                         * : Prompt text to send to the provider. Required.
+                         *
+                         * [--provider=<provider>]
+                         * : Provider slug to use (grok or openai). Defaults to the saved provider option.
+                         *
+                         * [--task=<task>]
+                         * : Optional generation task to request (content or canvas).
+                         *
+                         * [--tier=<tier>]
+                         * : Optional performance tier to request (fast or quality).
+                         *
+                         * [--out=<file>]
+                         * : Optional file path where the generated output should be written.
+                         *
+                         * [--max_tokens=<tokens>]
+                         * : Override the stored max token limit for this run.
+                         *
+                         * ## EXAMPLES
+                         *
+                         *     wp aimentor generate --prompt="Homepage hero for a bakery" --provider=grok
+                         *     wp aimentor generate --prompt="Canvas layout" --task=canvas --out=canvas.json
+                         *
+                         * @when after_wp_load
+                         *
+                         * @param array $args       Positional arguments (unused).
+                         * @param array $assoc_args Associative arguments.
+                         */
+                        public function generate( $args, $assoc_args ) {
+                                $prompt = \WP_CLI\Utils\get_flag_value( $assoc_args, 'prompt', '' );
+                                $prompt = sanitize_textarea_field( wp_unslash( (string) $prompt ) );
+
+                                if ( '' === $prompt ) {
+                                        WP_CLI::error( __( 'Prompt is required.', 'aimentor' ) );
+                                }
+
+                                $stored_provider = get_option( 'aimentor_provider', 'grok' );
+                                $provider_key    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'provider', $stored_provider );
+                                $provider_key    = sanitize_key( $provider_key );
+
+                                if ( function_exists( 'aimentor_sanitize_provider' ) ) {
+                                        $provider_key = aimentor_sanitize_provider( $provider_key );
+                                }
+
+                                $requested_task = sanitize_key( (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'task', '' ) );
+                                $requested_tier = sanitize_key( (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'tier', '' ) );
+
+                                $provider = jaggrok_get_active_provider( $provider_key );
+
+                                if ( ! $provider instanceof AiMentor_Provider_Interface ) {
+                                        WP_CLI::error( __( 'Provider configuration error.', 'aimentor' ) );
+                                }
+
+                                $is_pro          = function_exists( 'aimentor_is_pro_active' ) ? aimentor_is_pro_active() : false;
+                                $supports_canvas = $provider->supports_canvas();
+                                $resolution      = jaggrok_resolve_generation_preset(
+                                        $provider_key,
+                                        $requested_task,
+                                        $requested_tier,
+                                        $supports_canvas,
+                                        $is_pro
+                                );
+
+                                $task  = $resolution['task'];
+                                $tier  = $resolution['tier'];
+                                $model = $resolution['model'];
+
+                                $max_tokens_flag = \WP_CLI\Utils\get_flag_value( $assoc_args, 'max_tokens', null );
+                                $max_tokens      = null !== $max_tokens_flag ? absint( $max_tokens_flag ) : get_option( 'aimentor_max_tokens', 2000 );
+
+                                if ( function_exists( 'aimentor_sanitize_max_tokens' ) ) {
+                                        $max_tokens = aimentor_sanitize_max_tokens( $max_tokens );
+                                }
+
+                                switch ( $provider_key ) {
+                                        case 'openai':
+                                                $api_key = get_option( 'aimentor_openai_api_key' );
+                                                break;
+                                        case 'grok':
+                                        default:
+                                                $api_key = get_option( 'aimentor_xai_api_key' );
+                                                break;
+                                }
+
+                                $context = array(
+                                        'task'   => $task,
+                                        'tier'   => $tier,
+                                        'origin' => 'cli',
+                                );
+
+                                $result = $provider->request(
+                                        $prompt,
+                                        array(
+                                                'api_key'    => $api_key,
+                                                'model'      => $model,
+                                                'max_tokens' => $max_tokens,
+                                                'context'    => $context,
+                                        )
+                                );
+
+                                if ( is_wp_error( $result ) ) {
+                                        if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                                                aimentor_record_provider_usage(
+                                                        $provider_key,
+                                                        'error',
+                                                        array(
+                                                                'model'  => $model,
+                                                                'task'   => $task,
+                                                                'tier'   => $tier,
+                                                                'origin' => 'cli',
+                                                        )
+                                                );
+                                        }
+
+                                        if ( function_exists( 'aimentor_log_error' ) ) {
+                                                aimentor_log_error(
+                                                        $result->get_error_message(),
+                                                        array(
+                                                                'provider' => $provider_key,
+                                                                'model'    => $model,
+                                                                'task'     => $task,
+                                                                'tier'     => $tier,
+                                                                'origin'   => 'cli',
+                                                        )
+                                                );
+                                        }
+
+                                        $error_data = $result->get_error_data();
+
+                                        if ( is_array( $error_data ) && isset( $error_data['rate_limit'] ) ) {
+                                                WP_CLI::warning( sprintf( 'Rate limit details: %s', wp_json_encode( $error_data['rate_limit'] ) ) );
+                                        }
+
+                                        WP_CLI::error( $result->get_error_message() );
+                                }
+
+                                if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                                        aimentor_record_provider_usage(
+                                                $provider_key,
+                                                'success',
+                                                array(
+                                                        'model'  => $model,
+                                                        'task'   => $task,
+                                                        'tier'   => $tier,
+                                                        'origin' => 'cli',
+                                                )
+                                        );
+                                }
+
+                                if ( function_exists( 'aimentor_store_generation_history_entry' ) ) {
+                                        $history_result = aimentor_store_generation_history_entry( $prompt, $provider_key );
+
+                                        if ( is_wp_error( $history_result ) ) {
+                                                WP_CLI::warning( $history_result->get_error_message() );
+                                        }
+                                }
+
+                                if ( function_exists( 'aimentor_maybe_archive_generation_payload' ) ) {
+                                        aimentor_maybe_archive_generation_payload(
+                                                $result['content'],
+                                                array(
+                                                        'type'     => $result['type'],
+                                                        'prompt'   => $prompt,
+                                                        'provider' => $provider_key,
+                                                        'model'    => $model,
+                                                        'task'     => $task,
+                                                        'tier'     => $tier,
+                                                        'origin'   => 'cli',
+                                                )
+                                        );
+                                }
+
+                                $output = 'canvas' === ( $result['type'] ?? 'content' )
+                                        ? wp_json_encode( $result['content'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES )
+                                        : (string) $result['content'];
+
+                                if ( false === $output || null === $output ) {
+                                        $output = '';
+                                }
+
+                                $summary = sprintf(
+                                        /* translators: 1: provider, 2: task, 3: tier */
+                                        __( 'Generated output with %1$s (%2$s/%3$s).', 'aimentor' ),
+                                        $provider_key,
+                                        $task,
+                                        $tier
+                                );
+
+                                WP_CLI::log( $summary );
+
+                                if ( '' !== $output ) {
+                                        WP_CLI::line( $output );
+                                }
+
+                                if ( ! empty( $result['rate_limit'] ) ) {
+                                        WP_CLI::log( sprintf( 'Rate limit: %s', wp_json_encode( $result['rate_limit'] ) ) );
+                                }
+
+                                $out_path = \WP_CLI\Utils\get_flag_value( $assoc_args, 'out', '' );
+                                $out_path = is_string( $out_path ) ? trim( $out_path ) : '';
+
+                                if ( '' !== $out_path ) {
+                                        $normalized_path = function_exists( 'wp_normalize_path' ) ? wp_normalize_path( $out_path ) : $out_path;
+                                        $dir             = dirname( $normalized_path );
+
+                                        if ( ! file_exists( $dir ) && function_exists( 'wp_mkdir_p' ) ) {
+                                                wp_mkdir_p( $dir );
+                                        }
+
+                                        $bytes = file_put_contents( $normalized_path, $output );
+
+                                        if ( false === $bytes ) {
+                                                WP_CLI::warning( sprintf( __( 'Unable to write output to %s.', 'aimentor' ), $normalized_path ) );
+                                        } else {
+                                                WP_CLI::success( sprintf( __( 'Saved generation output to %s.', 'aimentor' ), $normalized_path ) );
+                                                return;
+                                        }
+                                }
+
+                                WP_CLI::success( __( 'Generation complete.', 'aimentor' ) );
+                        }
+                }
+        }
+
+        WP_CLI::add_command( 'aimentor', 'AiMentor_CLI_Command' );
 }
 
 register_uninstall_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_uninstall' );
