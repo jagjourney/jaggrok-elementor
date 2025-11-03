@@ -935,6 +935,7 @@ function aimentor_get_error_logs_ajax() {
                         [
                                 'message' => __( 'Security check failed.', 'aimentor' ),
                                 'code'    => 'aimentor_invalid_nonce',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
                         ],
                         403
                 );
@@ -945,6 +946,7 @@ function aimentor_get_error_logs_ajax() {
                         [
                                 'message' => __( 'Insufficient permissions to view the error log.', 'aimentor' ),
                                 'code'    => 'aimentor_insufficient_permissions',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
                         ],
                         403
                 );
@@ -978,6 +980,223 @@ function aimentor_get_error_logs_ajax() {
 }
 add_action( 'wp_ajax_aimentor_get_error_logs', 'aimentor_get_error_logs_ajax' );
 add_action( 'wp_ajax_jaggrok_get_error_logs', 'aimentor_get_error_logs_ajax' );
+
+function aimentor_download_error_log_ajax() {
+        $nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_error_log' ) && ! wp_verify_nonce( $nonce, 'jaggrok_error_log' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_nonce',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        403
+                );
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to download the error log.', 'aimentor' ),
+                                'code'    => 'aimentor_insufficient_permissions',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        403
+                );
+        }
+
+        if ( ! function_exists( 'aimentor_get_error_log_path' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Error log path is unavailable.', 'aimentor' ),
+                                'code'    => 'aimentor_missing_log_path',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        500
+                );
+        }
+
+        $log_file = aimentor_get_error_log_path();
+
+        if ( empty( $log_file ) || ! file_exists( $log_file ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'The error log file could not be found.', 'aimentor' ),
+                                'code'    => 'aimentor_missing_log_file',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        404
+                );
+        }
+
+        if ( ! is_readable( $log_file ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'The error log file is not readable.', 'aimentor' ),
+                                'code'    => 'aimentor_unreadable_log_file',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        500
+                );
+        }
+
+        $contents = file_get_contents( $log_file );
+
+        if ( false === $contents ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Unable to read the error log file.', 'aimentor' ),
+                                'code'    => 'aimentor_unreadable_log_file',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        500
+                );
+        }
+
+        $filename  = basename( $log_file );
+        $new_nonce = wp_create_nonce( 'aimentor_error_log' );
+
+        nocache_headers();
+        header( 'Content-Type: text/plain; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        header( 'Content-Length: ' . strlen( $contents ) );
+        header( 'X-AiMentor-Log-Nonce: ' . $new_nonce );
+
+        echo $contents; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        exit;
+}
+add_action( 'wp_ajax_aimentor_download_error_log', 'aimentor_download_error_log_ajax' );
+add_action( 'wp_ajax_jaggrok_download_error_log', 'aimentor_download_error_log_ajax' );
+
+function aimentor_clear_error_log_ajax() {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_error_log' ) && ! wp_verify_nonce( $nonce, 'jaggrok_error_log' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_nonce',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        403
+                );
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to clear the error log.', 'aimentor' ),
+                                'code'    => 'aimentor_insufficient_permissions',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        403
+                );
+        }
+
+        if ( ! function_exists( 'aimentor_get_error_log_path' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Error log path is unavailable.', 'aimentor' ),
+                                'code'    => 'aimentor_missing_log_path',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        500
+                );
+        }
+
+        $log_file = aimentor_get_error_log_path();
+
+        if ( empty( $log_file ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'The error log file could not be determined.', 'aimentor' ),
+                                'code'    => 'aimentor_missing_log_file',
+                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                        ],
+                        500
+                );
+        }
+
+        $directory = dirname( $log_file );
+
+        if ( file_exists( $log_file ) ) {
+                if ( ! is_writable( $log_file ) ) {
+                        wp_send_json_error(
+                                [
+                                        'message' => __( 'The error log file is not writable.', 'aimentor' ),
+                                        'code'    => 'aimentor_unwritable_log_file',
+                                        'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                                ],
+                                500
+                        );
+                }
+
+                $handle = @fopen( $log_file, 'cb' );
+
+                if ( false === $handle ) {
+                        wp_send_json_error(
+                                [
+                                        'message' => __( 'Unable to open the error log file.', 'aimentor' ),
+                                        'code'    => 'aimentor_unwritable_log_file',
+                                        'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                                ],
+                                500
+                        );
+                }
+
+                if ( function_exists( 'flock' ) ) {
+                        @flock( $handle, LOCK_EX );
+                }
+
+                $truncated = @ftruncate( $handle, 0 );
+
+                if ( function_exists( 'flock' ) ) {
+                        @flock( $handle, LOCK_UN );
+                }
+
+                fclose( $handle );
+
+                if ( ! $truncated ) {
+                        wp_send_json_error(
+                                [
+                                        'message' => __( 'Unable to clear the error log file.', 'aimentor' ),
+                                        'code'    => 'aimentor_unwritable_log_file',
+                                        'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                                ],
+                                500
+                        );
+                }
+
+                clearstatcache( true, $log_file );
+        } else {
+                if ( ! file_exists( $directory ) ) {
+                        if ( ! wp_mkdir_p( $directory ) ) {
+                                wp_send_json_error(
+                                        [
+                                                'message' => __( 'Unable to prepare the error log directory.', 'aimentor' ),
+                                                'code'    => 'aimentor_unwritable_log_file',
+                                                'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                                        ],
+                                        500
+                                );
+                        }
+                }
+
+                if ( file_exists( $directory ) && is_dir( $directory ) && ! file_exists( $log_file ) ) {
+                        @touch( $log_file );
+                }
+        }
+
+        wp_send_json_success(
+                [
+                        'message' => __( 'Error log cleared.', 'aimentor' ),
+                        'nonce'   => wp_create_nonce( 'aimentor_error_log' ),
+                ]
+        );
+}
+add_action( 'wp_ajax_aimentor_clear_error_log', 'aimentor_clear_error_log_ajax' );
+add_action( 'wp_ajax_jaggrok_clear_error_log', 'aimentor_clear_error_log_ajax' );
 
 function aimentor_settings_page_callback() {
         $aimentor_usage_metrics = aimentor_get_provider_usage_summary();

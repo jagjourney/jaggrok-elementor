@@ -330,7 +330,18 @@
         <?php submit_button(); ?>
     </form>
     <!-- ERROR LOG TABLE -->
-    <h2><?php esc_html_e( 'Error Log', 'aimentor' ); ?></h2>
+    <div class="aimentor-error-log-header">
+        <h2><?php esc_html_e( 'Error Log', 'aimentor' ); ?></h2>
+        <div class="aimentor-error-log-actions">
+            <button type="button" class="button button-secondary" id="aimentor-download-log">
+                <?php esc_html_e( 'Download Log', 'aimentor' ); ?>
+            </button>
+            <button type="button" class="button button-link-delete" id="aimentor-clear-log">
+                <?php esc_html_e( 'Clear Log', 'aimentor' ); ?>
+            </button>
+        </div>
+    </div>
+    <p id="aimentor-error-log-feedback" class="aimentor-error-log-feedback" role="status" aria-live="polite" hidden></p>
     <?php
     $log_filter_provider = isset( $_GET['provider'] ) ? sanitize_key( wp_unslash( $_GET['provider'] ) ) : '';
     $log_filter_keyword  = isset( $_GET['keyword'] ) ? sanitize_text_field( wp_unslash( $_GET['keyword'] ) ) : '';
@@ -406,6 +417,12 @@
 .aimentor-settings-heading { font-size: 26px; font-weight: 600; color: #1f2937; }
 .aimentor-settings-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); color: #ffffff; }
 .aimentor-provider-badge { display: inline-flex; align-items: center; padding: 2px 8px; margin-left: 6px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; }
+.aimentor-error-log-header { margin-top: 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }
+.aimentor-error-log-actions { display: flex; gap: 8px; align-items: center; }
+.aimentor-error-log-actions.is-busy button { pointer-events: none; }
+.aimentor-error-log-feedback { margin: 8px 0 0; font-size: 13px; }
+.aimentor-error-log-feedback.is-success { color: #116329; }
+.aimentor-error-log-feedback.is-error { color: #b32d2e; }
 .aimentor-error-log-form { margin-top: 12px; }
 .aimentor-error-log-form.is-loading { opacity: 0.7; pointer-events: none; }
 .aimentor-error-log-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
