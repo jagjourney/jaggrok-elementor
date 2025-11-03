@@ -83,15 +83,27 @@ if ( ! function_exists( 'jaggrok_get_provider_meta_map' ) ) {
 }
 
 if ( ! function_exists( 'jaggrok_get_provider_model_defaults' ) ) {
-	function jaggrok_get_provider_model_defaults( ...$args ) {
-		return aimentor_get_provider_model_defaults( ...$args );
-	}
+        function jaggrok_get_provider_model_defaults( ...$args ) {
+                return aimentor_get_provider_model_defaults( ...$args );
+        }
+}
+
+if ( ! function_exists( 'jaggrok_get_model_presets' ) ) {
+        function jaggrok_get_model_presets( ...$args ) {
+                return aimentor_get_model_presets( ...$args );
+        }
+}
+
+if ( ! function_exists( 'jaggrok_get_model_labels' ) ) {
+        function jaggrok_get_model_labels( ...$args ) {
+                return aimentor_get_model_labels( ...$args );
+        }
 }
 
 if ( ! function_exists( 'jaggrok_get_provider_models' ) ) {
-	function jaggrok_get_provider_models( ...$args ) {
-		return aimentor_get_provider_models( ...$args );
-	}
+        function jaggrok_get_provider_models( ...$args ) {
+                return aimentor_get_provider_models( ...$args );
+        }
 }
 
 if ( ! function_exists( 'jaggrok_get_provider_test_statuses' ) ) {

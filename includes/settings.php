@@ -50,6 +50,75 @@ function aimentor_get_allowed_provider_models() {
         ];
 }
 
+function aimentor_flatten_allowed_models_for_provider( $provider_key ) {
+        $allowed = aimentor_get_allowed_provider_models();
+
+        if ( ! isset( $allowed[ $provider_key ] ) || ! is_array( $allowed[ $provider_key ] ) ) {
+                return [];
+        }
+
+        $flattened = [];
+
+        $walker = static function( $items ) use ( &$walker, &$flattened ) {
+                foreach ( $items as $key => $value ) {
+                        if ( is_array( $value ) ) {
+                                $walker( $value );
+                                continue;
+                        }
+
+                        if ( is_string( $key ) && '' !== $key ) {
+                                $flattened[] = $key;
+                                continue;
+                        }
+
+                        if ( is_string( $value ) && '' !== $value ) {
+                                $flattened[] = $value;
+                        }
+                }
+        };
+
+        $walker( $allowed[ $provider_key ] );
+
+        return array_values( array_unique( $flattened ) );
+}
+
+function aimentor_map_presets_to_legacy_defaults( $presets ) {
+        $mapped = [];
+
+        if ( ! is_array( $presets ) ) {
+                return $mapped;
+        }
+
+        foreach ( $presets as $provider => $tasks ) {
+                $fallback = '';
+
+                if ( isset( $tasks['content']['fast'] ) && is_string( $tasks['content']['fast'] ) ) {
+                        $fallback = $tasks['content']['fast'];
+                } else {
+                        foreach ( $tasks as $task ) {
+                                if ( ! is_array( $task ) ) {
+                                        continue;
+                                }
+
+                                foreach ( $task as $model ) {
+                                        if ( is_string( $model ) && '' !== $model ) {
+                                                $fallback = $model;
+                                                break 2;
+                                        }
+                                }
+                        }
+                }
+
+                $mapped[ $provider ] = $fallback;
+        }
+
+        return $mapped;
+}
+
+function aimentor_get_model_labels() {
+        return aimentor_get_allowed_provider_models();
+}
+
 function aimentor_get_provider_labels() {
         return [
                 'grok'   => __( 'xAI Grok', 'aimentor' ),
@@ -97,6 +166,7 @@ function aimentor_get_provider_test_statuses() {
 
 function aimentor_get_default_options() {
         $provider_defaults = aimentor_get_provider_model_defaults();
+        $legacy_defaults   = aimentor_map_presets_to_legacy_defaults( $provider_defaults );
 
         return [
                 'aimentor_provider'        => 'grok',
@@ -105,9 +175,10 @@ function aimentor_get_default_options() {
                 'aimentor_auto_insert'     => 'yes',
                 'aimentor_theme_style'     => 'modern',
                 'aimentor_max_tokens'      => 2000,
-                'aimentor_provider_models' => $provider_defaults,
-                'aimentor_model'           => $provider_defaults['grok'],
-                'aimentor_openai_model'    => $provider_defaults['openai'],
+                'aimentor_provider_models' => $legacy_defaults,
+                'aimentor_model_presets'   => $provider_defaults,
+                'aimentor_model'           => $legacy_defaults['grok'] ?? '',
+                'aimentor_openai_model'    => $legacy_defaults['openai'] ?? '',
         ];
 }
 
@@ -342,9 +413,8 @@ function aimentor_sanitize_max_tokens( $value ) {
         return $value > 0 ? $value : 2000;
 }
 
-function aimentor_sanitize_provider_models( $value ) {
+function aimentor_sanitize_model_presets( $value ) {
         $defaults = aimentor_get_provider_model_defaults();
-        $allowed  = aimentor_get_allowed_provider_models();
 
         if ( ! is_array( $value ) ) {
                 $value = [];
@@ -354,6 +424,7 @@ function aimentor_sanitize_provider_models( $value ) {
 
         foreach ( $defaults as $provider => $tasks ) {
                 $sanitized[ $provider ] = [];
+                $allowed_models          = aimentor_flatten_allowed_models_for_provider( $provider );
 
                 foreach ( $tasks as $task => $tiers ) {
                         $sanitized[ $provider ][ $task ] = [];
@@ -362,11 +433,6 @@ function aimentor_sanitize_provider_models( $value ) {
                                 $incoming = isset( $value[ $provider ][ $task ][ $tier ] )
                                         ? sanitize_text_field( $value[ $provider ][ $task ][ $tier ] )
                                         : '';
-
-                                $allowed_models = $allowed[ $provider ][ $task ][ $tier ] ?? [];
-                                if ( ! is_array( $allowed_models ) ) {
-                                        $allowed_models = [];
-                                }
 
                                 $sanitized[ $provider ][ $task ][ $tier ] = in_array( $incoming, $allowed_models, true )
                                         ? $incoming
@@ -399,6 +465,18 @@ function aimentor_sanitize_provider_models( $value ) {
         return $sanitized;
 }
 
+function aimentor_get_model_presets() {
+        $stored = get_option( 'aimentor_model_presets', [] );
+
+        if ( ! is_array( $stored ) ) {
+                $stored = [];
+        }
+
+        $presets = array_replace_recursive( aimentor_get_provider_model_defaults(), $stored );
+
+        return aimentor_sanitize_model_presets( $presets );
+}
+
 function aimentor_get_provider_models() {
         $stored = get_option( 'aimentor_provider_models', [] );
 
@@ -406,41 +484,57 @@ function aimentor_get_provider_models() {
                 $stored = [];
         }
 
-        return aimentor_sanitize_provider_models( array_merge( aimentor_get_provider_model_defaults(), $stored ) );
+        return aimentor_sanitize_provider_models( $stored );
 }
 
 function aimentor_sanitize_model( $value ) {
-        $allowed = aimentor_get_allowed_provider_models();
-        $value   = sanitize_text_field( $value );
-        $allowed = aimentor_flatten_allowed_models_for_provider( 'grok' );
-        $defaults = aimentor_get_provider_model_defaults();
-        $fallback = $defaults['grok']['content']['fast'] ?? '';
+        $value     = sanitize_text_field( $value );
+        $allowed   = aimentor_flatten_allowed_models_for_provider( 'grok' );
+        $defaults  = aimentor_map_presets_to_legacy_defaults( aimentor_get_provider_model_defaults() );
+        $fallback  = $defaults['grok'] ?? '';
 
-        return in_array( $value, $grok, true ) ? $value : aimentor_get_provider_model_defaults()['grok'];
+        return in_array( $value, $allowed, true ) ? $value : $fallback;
 }
 
 function aimentor_sanitize_openai_model( $value ) {
-        $allowed = aimentor_get_allowed_provider_models();
-        $value   = sanitize_text_field( $value );
-        $allowed = aimentor_flatten_allowed_models_for_provider( 'openai' );
-        $defaults = aimentor_get_provider_model_defaults();
-        $fallback = $defaults['openai']['content']['fast'] ?? '';
+        $value     = sanitize_text_field( $value );
+        $allowed   = aimentor_flatten_allowed_models_for_provider( 'openai' );
+        $defaults  = aimentor_map_presets_to_legacy_defaults( aimentor_get_provider_model_defaults() );
+        $fallback  = $defaults['openai'] ?? '';
 
-        return in_array( $value, $openai, true ) ? $value : aimentor_get_provider_model_defaults()['openai'];
+        return in_array( $value, $allowed, true ) ? $value : $fallback;
 }
 
 function aimentor_sync_legacy_model_options( $value, $old_value ) {
-        if ( is_array( $value ) ) {
-                if ( isset( $value['grok'] ) ) {
-                        update_option( 'aimentor_model', aimentor_sanitize_model( $value['grok'] ) );
+        $sanitized = aimentor_sanitize_provider_models( $value );
+        $presets   = aimentor_get_provider_model_defaults();
+
+        foreach ( $sanitized as $provider => $model ) {
+                if ( '' === $model || ! isset( $presets[ $provider ] ) ) {
+                        continue;
                 }
 
-                if ( isset( $value['openai'] ) ) {
-                        update_option( 'aimentor_openai_model', aimentor_sanitize_openai_model( $value['openai'] ) );
+                foreach ( $presets[ $provider ] as $task => $tiers ) {
+                        if ( ! is_array( $tiers ) ) {
+                                continue;
+                        }
+
+                        if ( isset( $presets[ $provider ][ $task ]['fast'] ) ) {
+                                $presets[ $provider ][ $task ]['fast'] = $model;
+                        }
                 }
         }
 
-        update_option( 'aimentor_model_presets', aimentor_sanitize_model_presets( $presets ) );
+        $sanitized_presets = aimentor_sanitize_model_presets( $presets );
+        update_option( 'aimentor_model_presets', $sanitized_presets );
+
+        if ( isset( $sanitized['grok'] ) ) {
+                update_option( 'aimentor_model', aimentor_sanitize_model( $sanitized['grok'] ) );
+        }
+
+        if ( isset( $sanitized['openai'] ) ) {
+                update_option( 'aimentor_openai_model', aimentor_sanitize_openai_model( $sanitized['openai'] ) );
+        }
 
         return $sanitized;
 }
@@ -663,6 +757,7 @@ $aimentor_options_to_mirror = [
         'aimentor_theme_style',
         'aimentor_max_tokens',
         'aimentor_model',
+        'aimentor_model_presets',
         'aimentor_openai_model',
         'aimentor_provider_models',
         'aimentor_api_tested',
