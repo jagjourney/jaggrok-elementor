@@ -19,9 +19,10 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 AiMentor was built for agencies that need reliable AI output without leaving WordPress. Bring your preferred provider, align the models with your workflow, and let AiMentor keep the content flowing.
 
 == Installation ==
-1. Upload ZIP
-2. Get API key: https://x.ai/api
-3. Settings > AiMentor Elementor > Test Connection
+1. Upload ZIP.
+2. Bring API credentials for your preferred provider—generate an xAI Grok key at https://x.ai/api or create an OpenAI key at https://platform.openai.com/account/api-keys.
+3. Open **Settings → AiMentor Elementor** and choose **xAI Grok** or **OpenAI** under **Provider** to set the active radio option.
+4. Paste your keys and click the **Test Connection** buttons to verify each provider so you know when their API keys are valid.
 
 == Automatic Updates ==
 AiMentor Elementor now advertises GitHub Releases as its canonical update source. The plugin bootstrap includes an `Update URI`
