@@ -3,7 +3,9 @@ name: Release
 on:
   release:
     types:
+      - created
       - published
+      - prereleased
 
 jobs:
   build-and-publish:
@@ -126,8 +128,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Skip manifest update for draft or pre-release
+        if: ${{ github.event.release.draft || github.event.release.prerelease }}
+        run: |
+          echo "Release is marked as draft or pre-release; manifest refresh will be deferred until publication."
+
       - name: Update manifest on gh-pages
-        if: ${{ steps.package.outputs.zip_path != '' }}
+        if: ${{ steps.package.outputs.zip_path != '' && !github.event.release.draft && !github.event.release.prerelease }}
         run: |
           set -euo pipefail
 
