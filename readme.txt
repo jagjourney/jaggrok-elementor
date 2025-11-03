@@ -88,6 +88,7 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 
 == Changelog ==
 = 1.0.00 =
-* Rebranded to AiMentor Elementor with legacy compatibility shims
-* Added migration to mirror legacy JagGrok options and assets
-* Updated scripts, classes, and AJAX endpoints to support AiMentor handles
+* Reset the public changelog to establish AiMentor Elementor as the new baseline.
+* Rebranded the plugin from JagGrok to AiMentor Elementor with compatibility shims for existing installs.
+* Added migrations to mirror legacy options and asset paths so previous settings continue to work.
+* Updated scripts, classes, and AJAX endpoints to use the new AiMentor handles across WordPress and Elementor.
