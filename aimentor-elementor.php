@@ -2,12 +2,12 @@
 <?php
 /**
  * Plugin Name: AiMentor Elementor
- * Plugin URI: https://aimentor.ai/
+ * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
  * Version: 0.0.001
  * Author: AiMentor
- * Author URI: https://aimentor.ai/
+ * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
  * Text Domain: aimentor
  * Requires at least: 5.0

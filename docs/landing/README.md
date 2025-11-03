@@ -27,4 +27,4 @@ Upgrade from JagGrok Elementor to AiMentor's multi-provider page builder in minu
 - Retain the JagGrok documentation link but annotate that the GitHub-hosted AiMentor channel is the preferred update path going forward.
 
 ## Support CTA
-Need help migrating? Contact **support@aimentor.ai** for concierge onboarding to the multi-provider release.
+Need help migrating? Contact **support@jagjourney.com** for concierge onboarding to the multi-provider release.

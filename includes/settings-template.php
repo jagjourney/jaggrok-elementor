@@ -16,7 +16,7 @@
         }
     </style>
 
-    <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://aimentor.ai/" target="_blank">By AiMentor</a></p>
+    <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By AiMentor</a></p>
 
     <form method="post" action="options.php">
         <?php settings_fields( 'aimentor_settings' ); ?>
