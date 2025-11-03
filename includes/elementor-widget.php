@@ -119,27 +119,56 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
         );
 
         $preset_catalog   = function_exists( 'aimentor_get_prompt_preset_catalog' ) ? aimentor_get_prompt_preset_catalog() : [];
-        $provider_labels   = function_exists( 'aimentor_get_provider_labels' ) ? aimentor_get_provider_labels() : [];
-        $preset_options    = [ '' => __( 'Custom prompt', 'aimentor' ) ];
+        $provider_labels  = function_exists( 'aimentor_get_provider_labels' ) ? aimentor_get_provider_labels() : [];
+        $category_options = [ '' => __( 'Select a preset category…', 'aimentor' ) ];
+        $preset_options   = [ '' => __( 'Custom prompt', 'aimentor' ) ];
 
-        foreach ( $preset_catalog as $provider_key => $presets ) {
-            if ( ! is_array( $presets ) ) {
+        foreach ( $preset_catalog as $provider_key => $categories ) {
+            if ( ! is_array( $categories ) ) {
                 continue;
             }
 
             $provider_label = isset( $provider_labels[ $provider_key ] ) ? $provider_labels[ $provider_key ] : ucfirst( (string) $provider_key );
 
-            foreach ( $presets as $preset_key => $preset_meta ) {
-                if ( ! is_array( $preset_meta ) ) {
+            foreach ( $categories as $category_key => $category_meta ) {
+                if ( ! is_array( $category_meta ) ) {
                     continue;
                 }
 
-                $preset_label = isset( $preset_meta['label'] ) ? (string) $preset_meta['label'] : ucfirst( str_replace( '_', ' ', (string) $preset_key ) );
-                $option_key   = $provider_key . '::' . $preset_key;
-                /* translators: 1: Provider label. 2: Preset label. */
-                $preset_options[ $option_key ] = sprintf( __( '%1$s — %2$s', 'aimentor' ), $provider_label, $preset_label );
+                $category_label = isset( $category_meta['label'] ) ? (string) $category_meta['label'] : ucfirst( str_replace( '_', ' ', (string) $category_key ) );
+                $category_value = $provider_key . '::' . $category_key;
+                /* translators: 1: Provider label. 2: Preset category label. */
+                $category_options[ $category_value ] = sprintf( __( '%1$s — %2$s', 'aimentor' ), $provider_label, $category_label );
+
+                if ( ! isset( $category_meta['presets'] ) || ! is_array( $category_meta['presets'] ) ) {
+                    continue;
+                }
+
+                foreach ( $category_meta['presets'] as $preset_key => $preset_meta ) {
+                    if ( ! is_array( $preset_meta ) ) {
+                        continue;
+                    }
+
+                    $preset_label = isset( $preset_meta['label'] ) ? (string) $preset_meta['label'] : ucfirst( str_replace( '_', ' ', (string) $preset_key ) );
+                    $option_key   = $provider_key . '::' . $category_key . '::' . $preset_key;
+                    /* translators: 1: Provider label. 2: Preset label. */
+                    $preset_options[ $option_key ] = sprintf( __( '%1$s — %2$s', 'aimentor' ), $provider_label, $preset_label );
+                }
             }
         }
+
+        $this->add_control(
+            'aimentor_prompt_category',
+            [
+                'label'       => __( 'Preset Category', 'aimentor' ),
+                'type'        => Controls_Manager::SELECT,
+                'options'     => $category_options,
+                'default'     => '',
+                'label_block' => true,
+                'separator'   => 'before',
+                'description' => __( 'Filter curated prompts by provider and use-case before selecting a preset.', 'aimentor' ),
+            ]
+        );
 
         $this->add_control(
             'aimentor_prompt_preset',
@@ -149,8 +178,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
                 'options'     => $preset_options,
                 'default'     => '',
                 'label_block' => true,
-                'separator'   => 'before',
-                'description' => __( 'Select a preset to append curated guidance to the prompt field.', 'aimentor' ),
+                'description' => __( 'Select a preset to merge curated guidance with the prompt field.', 'aimentor' ),
             ]
         );
 
@@ -163,7 +191,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
                 'default'     => '',
                 'placeholder' => __( 'Describe what you would like AiMentor to create.', 'aimentor' ),
                 'label_block' => true,
-                'description' => __( 'Use this field to customize the request that will be sent to AiMentor. Presets are appended here so you can refine them.', 'aimentor' ),
+                'description' => __( 'Use this field to customize the request that will be sent to AiMentor. Preset guidance is merged here so you can continue refining it.', 'aimentor' ),
             ]
         );
 
