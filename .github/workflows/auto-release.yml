@@ -104,7 +104,7 @@ jobs:
           TITLE="AiMentor Elementor ${TAG}"
 
           if [ -n "$NOTES_PATH" ]; then
-            gh release create "$TAG" --draft --title "$TITLE" --notes-file "$NOTES_PATH"
+            gh release create "$TAG" --latest --title "$TITLE" --notes-file "$NOTES_PATH"
           else
-            gh release create "$TAG" --draft --title "$TITLE" --notes "Draft release for ${TAG} generated automatically."
+            gh release create "$TAG" --latest --title "$TITLE" --notes "Release for ${TAG} generated automatically."
           fi
