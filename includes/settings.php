@@ -181,6 +181,8 @@ function aimentor_get_default_options() {
                 'aimentor_openai_model'              => $legacy_defaults['openai'] ?? '',
                 'aimentor_default_generation_type'   => 'content',
                 'aimentor_default_performance'       => 'fast',
+                'aimentor_api_tested'                => false,
+                'aimentor_onboarding_dismissed'      => 'no',
         ];
 }
 
@@ -580,8 +582,38 @@ function aimentor_sanitize_provider( $value ) {
 }
 
 function aimentor_settings_page_callback() {
-	include plugin_dir_path( __FILE__ ) . 'settings-template.php';
+        include plugin_dir_path( __FILE__ ) . 'settings-template.php';
 }
+
+function aimentor_dismiss_onboarding_notice() {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_onboarding' ) && ! wp_verify_nonce( $nonce, 'jaggrok_onboarding' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_nonce',
+                        ],
+                        403
+                );
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to update onboarding state.', 'aimentor' ),
+                                'code'    => 'aimentor_insufficient_permissions',
+                        ],
+                        403
+                );
+        }
+
+        update_option( 'aimentor_onboarding_dismissed', 'yes' );
+
+        wp_send_json_success();
+}
+add_action( 'wp_ajax_aimentor_dismiss_onboarding', 'aimentor_dismiss_onboarding_notice' );
+add_action( 'wp_ajax_jaggrok_dismiss_onboarding', 'aimentor_dismiss_onboarding_notice' );
 
 // AJAX Test API (v1.3.8 - MODEL UPDATE + TIMEOUT LOG)
 function aimentor_test_api_connection() {
@@ -810,6 +842,7 @@ $aimentor_options_to_mirror = [
         'aimentor_provider_models',
         'aimentor_api_tested',
         'aimentor_provider_test_statuses',
+        'aimentor_onboarding_dismissed',
 ];
 
 foreach ( $aimentor_options_to_mirror as $option_name ) {
