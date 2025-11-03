@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+declare -a VERSION_FILES=(
+  "aimentor-elementor.php"
+  "readme.txt"
+  "docs/landing/README.md"
+  "manifests/aimentor-plugin-info.json"
+)
+
 error() {
   echo "::error::$1" >&2
   exit 1
@@ -20,19 +27,39 @@ if [[ -z "$changed_files" ]]; then
   exit 0
 fi
 
-plugin_changed=0
+is_version_file() {
+  local path="$1"
+  for vf in "${VERSION_FILES[@]}"; do
+    if [[ "$path" == "$vf" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+non_version_changes=()
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
-  if [[ "$file" == *.php || "$file" == assets/* || "$file" == js/* ]]; then
-    plugin_changed=1
-    break
+  if ! is_version_file "$file"; then
+    non_version_changes+=("$file")
   fi
 done <<< "$changed_files"
 
-if [[ "$plugin_changed" -eq 0 ]]; then
-  echo "No plugin runtime files changed; skipping version verification."
-  exit 0
+if (( ${#non_version_changes[@]} == 0 )); then
+  echo "Only version metadata files changed; validating consistency."
+else
+  printf 'Detected non-version changes:\n' >&2
+  printf '  - %s\n' "${non_version_changes[@]}" >&2
+  echo "Ensuring version bump accompanies repository changes." >&2
 fi
+
+require_tool() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    error "Required tool '$1' is not available in PATH."
+  fi
+}
+
+require_tool jq
 
 extract_php_version() {
   local treeish="$1"
