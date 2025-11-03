@@ -11,6 +11,7 @@
 
 - **New version number:** <!-- e.g., 1.2.3 -->
 - **Planned Git tag:** <!-- e.g., v1.2.3 -->
+<!-- The CI guardrail will fail if the new version does not exceed the previous release. -->
 
 ## Testing
 

@@ -16,8 +16,8 @@ Before you start, make sure you have:
 
 AiMentor Elementor uses a three-part numeric version where each slot has a defined increment size so releases stay in sync with WordPress auto-update expectations:
 
-- **Small fix release (`+0.01`)** – For hotfixes or copy-only changes, bump the third slot by `0.01` (for example, `v1.0.04 → v1.0.05`).
-- **Medium feature release (`+0.10`)** – For additive features that touch PHP or JavaScript, bump the middle slot by `0.10` and reset the last slot to `00` (for example, `v1.0.05 → v1.1.00`).
+- **Small fix release (`+0.01`)** – For hotfixes or copy-only changes, bump the third slot by `0.01` (for example, `v1.0.05 → v1.0.06`).
+- **Medium feature release (`+0.10`)** – For additive features that touch PHP or JavaScript, bump the middle slot by `0.10` and reset the last slot to `00` (for example, `v1.0.06 → v1.1.00`).
 - **Major milestone release (`+1.00.00`)** – For large breaking changes or rebrands, bump the first slot by `1`, reset the remaining slots to `.0.00`, and ensure the changelog calls out upgrade guidance (for example, `v1.1.00 → v2.0.00`).
 
 Every bump must land in a dedicated pull request so the merged commit and the annotated tag share the exact version string. Keep the following files aligned:
@@ -37,11 +37,11 @@ Every bump must land in a dedicated pull request so the merged commit and the an
 
 ### Increment examples
 
-- **Small fix (`v1.0.04 → v1.0.05`)** – Update only the README copy and changelog, adjust the plugin header and constants, commit, then tag with `git tag -a v1.0.05 -m 'Release v1.0.05'`.
-- **Medium feature (`v1.0.05 → v1.1.00`)** – After merging PHP/JS enhancements, reset the third slot to `00` across the files above, document the feature in `readme.txt`, and create the `v1.1.00` tag.
+- **Small fix (`v1.0.05 → v1.0.06`)** – Update only the README copy and changelog, adjust the plugin header and constants, commit, then tag with `git tag -a v1.0.06 -m 'Release v1.0.06'`.
+- **Medium feature (`v1.0.06 → v1.1.00`)** – After merging PHP/JS enhancements, reset the third slot to `00` across the files above, document the feature in `readme.txt`, and create the `v1.1.00` tag.
 - **Major milestone (`v1.1.00 → v2.0.00`)** – Coordinate breaking changes, migrate documentation, ensure upgrade notes are prominent, and tag `v2.0.00` once all references match.
 
-> **CI guardrail:** Every pull request that changes anything beyond the version metadata files must update all of the version references above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump.
+> **CI guardrail:** Every pull request that changes anything beyond the version metadata files must update all of the version references above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump, and it also verifies that the new version is strictly greater than the previous release.
 
 Commit the version bump alongside the changelog updates. Tagging should only happen after the pull request is merged into `main`.
 
