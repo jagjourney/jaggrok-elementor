@@ -18,6 +18,22 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 AiMentor was built for agencies that need reliable AI output without leaving WordPress. Bring your preferred provider, align the models with your workflow, and let AiMentor keep the content flowing.
 
+== Features ==
+* **Provider model presets:** Ship with tuned defaults for Grok and OpenAI so each provider loads with recommended models, temperature, and safety guardrails tailored to their API capabilities.
+* **Auto-Insert toggle:** Decide if generated layouts land directly in the Elementor canvas or wait for manual placement—perfect for teams that want review checkpoints.
+* **Theme styling controls:** Keep generated sections on-brand by toggling AiMentor's theme-aware styling helpers on or off per site.
+* **Token limit management:** Configure per-provider token ceilings to prevent runaway prompts and stay inside your contract limits.
+* **API key visibility controls:** Reveal or mask keys instantly with the built-in eye toggle so only trusted teammates can view sensitive credentials.
+* **Connection status badges:** Test each provider and get immediate success, pending, or error badges that confirm when an integration is ready for production.
+* **Built-in error log viewer:** Inspect the most recent API issues without leaving WordPress; the underlying log file lives at `wp-content/uploads/aimentor/aimentor-errors.log` (with automatic fallbacks if that path is unavailable).
+
+== Elementor Widget Experience ==
+AiMentor's widget mirrors the native Elementor workflow: pick your provider from the branded badge selector, drop a prompt into the focused input field, and trigger generation without losing context. Provider-colored badges keep the active model obvious, while the same connection health indicators used in the settings surface directly in the widget so editors know when it's safe to launch a run.
+
+== Operational Tooling ==
+* **Error log access:** Every request writes structured context to `wp-content/uploads/aimentor/aimentor-errors.log`, and the settings screen renders the last 10 entries with timestamps and provider names for fast triage.
+* **Connection health badges:** The settings dashboard keeps a persistent badge per provider—Success, Pending, Error, or Idle—so agencies can verify API uptime before teams start building.
+
 == Installation ==
 1. Upload ZIP.
 2. Bring API credentials for your preferred provider—generate an xAI Grok key at https://x.ai/api or create an OpenAI key at https://platform.openai.com/account/api-keys.
