@@ -638,8 +638,40 @@ function jaggrok_generate_page_ajax() {
                 wp_send_json_error( __( 'Provider configuration error.', 'aimentor' ) );
         }
 
-        $requested_task = isset( $_POST['task_type'] ) ? sanitize_text_field( wp_unslash( $_POST['task_type'] ) ) : '';
-        $requested_tier = isset( $_POST['performance_tier'] ) ? sanitize_text_field( wp_unslash( $_POST['performance_tier'] ) ) : '';
+        $requested_task_raw = '';
+        foreach ( array( 'task', 'task_type' ) as $task_field ) {
+                if ( ! isset( $_POST[ $task_field ] ) ) {
+                        continue;
+                }
+
+                $candidate = sanitize_text_field( wp_unslash( $_POST[ $task_field ] ) );
+
+                if ( '' === $candidate ) {
+                        continue;
+                }
+
+                $requested_task_raw = $candidate;
+                break;
+        }
+
+        $requested_tier_raw = '';
+        foreach ( array( 'tier', 'performance_tier' ) as $tier_field ) {
+                if ( ! isset( $_POST[ $tier_field ] ) ) {
+                        continue;
+                }
+
+                $candidate = sanitize_text_field( wp_unslash( $_POST[ $tier_field ] ) );
+
+                if ( '' === $candidate ) {
+                        continue;
+                }
+
+                $requested_tier_raw = $candidate;
+                break;
+        }
+
+        $requested_task = $requested_task_raw;
+        $requested_tier = $requested_tier_raw;
 
         if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
                 $requested_task = aimentor_sanitize_generation_type( $requested_task );
