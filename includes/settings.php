@@ -997,6 +997,251 @@ function aimentor_store_generation_history_entry( $prompt, $provider ) {
         return $entry;
 }
 
+function aimentor_get_canvas_history_option_name() {
+        return 'aimentor_canvas_history';
+}
+
+function aimentor_get_canvas_history_max_items() {
+        $max_items = apply_filters( 'aimentor_canvas_history_max_items', 6 );
+
+        return max( 1, absint( $max_items ) );
+}
+
+function aimentor_normalize_canvas_history_entry( $entry ) {
+        if ( ! is_array( $entry ) ) {
+                return null;
+        }
+
+        $id        = isset( $entry['id'] ) ? sanitize_text_field( $entry['id'] ) : '';
+        $summary   = isset( $entry['summary'] ) ? sanitize_text_field( $entry['summary'] ) : '';
+        $provider  = isset( $entry['provider'] ) ? sanitize_key( $entry['provider'] ) : '';
+        $model     = isset( $entry['model'] ) ? sanitize_text_field( $entry['model'] ) : '';
+        $task      = isset( $entry['task'] ) ? sanitize_key( $entry['task'] ) : 'canvas';
+        $tier      = isset( $entry['tier'] ) ? sanitize_key( $entry['tier'] ) : '';
+        $timestamp = isset( $entry['timestamp'] ) ? absint( $entry['timestamp'] ) : 0;
+        $layout    = $entry['layout'] ?? '';
+
+        if ( '' === $id ) {
+                return null;
+        }
+
+        if ( '' === $provider ) {
+                $provider = 'grok';
+        }
+
+        if ( ! in_array( $task, [ 'canvas', 'content' ], true ) ) {
+                $task = 'canvas';
+        }
+
+        if ( '' !== $tier && ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
+                $tier = '';
+        }
+
+        if ( is_array( $layout ) ) {
+                $layout = wp_json_encode( $layout );
+        }
+
+        if ( ! is_string( $layout ) || '' === $layout ) {
+                return null;
+        }
+
+        $layout = wp_check_invalid_utf8( $layout );
+
+        $decoded_layout = json_decode( $layout, true );
+
+        if ( ! is_array( $decoded_layout ) ) {
+                return null;
+        }
+
+        $max_summary_length = 180;
+
+        if ( strlen( $summary ) > $max_summary_length ) {
+                $summary = rtrim( wp_html_excerpt( $summary, $max_summary_length - 1, '' ) ) . '…';
+        }
+
+        if ( ! $timestamp ) {
+                $timestamp = current_time( 'timestamp' );
+        }
+
+        return [
+                'id'        => $id,
+                'summary'   => $summary,
+                'provider'  => $provider,
+                'model'     => $model,
+                'task'      => $task,
+                'tier'      => $tier,
+                'timestamp' => $timestamp,
+                'layout'    => wp_json_encode( $decoded_layout ),
+        ];
+}
+
+function aimentor_get_canvas_history() {
+        $history = get_option( aimentor_get_canvas_history_option_name(), [] );
+
+        if ( ! is_array( $history ) ) {
+                return [];
+        }
+
+        $normalized = [];
+
+        foreach ( $history as $entry ) {
+                $normalized_entry = aimentor_normalize_canvas_history_entry( $entry );
+
+                if ( ! $normalized_entry ) {
+                        continue;
+                }
+
+                $normalized[] = $normalized_entry;
+        }
+
+        return $normalized;
+}
+
+function aimentor_store_canvas_history_entry( $layout, $meta ) {
+        if ( is_string( $layout ) ) {
+                $layout = wp_unslash( $layout );
+        }
+
+        if ( '' === $layout ) {
+                return new WP_Error(
+                        'aimentor_canvas_history_invalid_layout',
+                        __( 'Canvas layout payload cannot be empty.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        if ( is_string( $layout ) ) {
+                $decoded = json_decode( $layout, true );
+        } else {
+                $decoded = $layout;
+        }
+
+        if ( ! is_array( $decoded ) ) {
+                return new WP_Error(
+                        'aimentor_canvas_history_invalid_json',
+                        __( 'Canvas layout payload must be valid JSON.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        $summary  = isset( $meta['summary'] ) ? sanitize_text_field( $meta['summary'] ) : '';
+        $provider = isset( $meta['provider'] ) ? sanitize_key( $meta['provider'] ) : '';
+        $model    = isset( $meta['model'] ) ? sanitize_text_field( $meta['model'] ) : '';
+        $task     = isset( $meta['task'] ) ? sanitize_key( $meta['task'] ) : 'canvas';
+        $tier     = isset( $meta['tier'] ) ? sanitize_key( $meta['tier'] ) : '';
+
+        if ( '' === $provider ) {
+                $provider = 'grok';
+        }
+
+        if ( ! in_array( $task, [ 'canvas', 'content' ], true ) ) {
+                $task = 'canvas';
+        }
+
+        if ( '' !== $tier && ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
+                $tier = '';
+        }
+
+        $summary = trim( $summary );
+
+        $max_summary_length = 180;
+
+        if ( strlen( $summary ) > $max_summary_length ) {
+                $summary = rtrim( wp_html_excerpt( $summary, $max_summary_length - 1, '' ) ) . '…';
+        }
+
+        $entry = [
+                'id'        => wp_generate_uuid4(),
+                'summary'   => $summary,
+                'provider'  => $provider,
+                'model'     => $model,
+                'task'      => $task,
+                'tier'      => $tier,
+                'timestamp' => current_time( 'timestamp' ),
+                'layout'    => $decoded,
+        ];
+
+        $normalized_entry = aimentor_normalize_canvas_history_entry( $entry );
+
+        if ( ! $normalized_entry ) {
+                return new WP_Error(
+                        'aimentor_canvas_history_normalization_failed',
+                        __( 'Unable to normalize the canvas entry.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        $history = aimentor_get_canvas_history();
+
+        $hash = md5( $normalized_entry['layout'] );
+
+        $history = array_filter(
+                $history,
+                static function( $existing ) use ( $hash ) {
+                        $existing_hash = md5( $existing['layout'] ?? '' );
+
+                        return $existing_hash !== $hash;
+                }
+        );
+
+        array_unshift( $history, $normalized_entry );
+
+        $max_items = aimentor_get_canvas_history_max_items();
+
+        if ( count( $history ) > $max_items ) {
+                $history = array_slice( $history, 0, $max_items );
+        }
+
+        update_option( aimentor_get_canvas_history_option_name(), array_values( $history ), false );
+
+        return $normalized_entry;
+}
+
+function aimentor_ajax_store_canvas_history() {
+        check_ajax_referer( 'aimentor_canvas_history', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to store layouts.', 'aimentor' ),
+                                'code'    => 'aimentor_canvas_history_forbidden',
+                        ],
+                        403
+                );
+        }
+
+        $layout = isset( $_POST['layout'] ) ? wp_unslash( $_POST['layout'] ) : '';
+
+        $meta = [
+                'summary'  => isset( $_POST['summary'] ) ? wp_unslash( $_POST['summary'] ) : '',
+                'provider' => isset( $_POST['provider'] ) ? wp_unslash( $_POST['provider'] ) : '',
+                'model'    => isset( $_POST['model'] ) ? wp_unslash( $_POST['model'] ) : '',
+                'task'     => isset( $_POST['task'] ) ? wp_unslash( $_POST['task'] ) : '',
+                'tier'     => isset( $_POST['tier'] ) ? wp_unslash( $_POST['tier'] ) : '',
+        ];
+
+        $stored = aimentor_store_canvas_history_entry( $layout, $meta );
+
+        if ( is_wp_error( $stored ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => $stored->get_error_message(),
+                                'code'    => $stored->get_error_code(),
+                        ],
+                        absint( $stored->get_error_data()['status'] ?? 400 )
+                );
+        }
+
+        wp_send_json_success(
+                [
+                        'entry'   => $stored,
+                        'history' => aimentor_get_canvas_history(),
+                ]
+        );
+}
+add_action( 'wp_ajax_aimentor_store_canvas_history', 'aimentor_ajax_store_canvas_history' );
+add_action( 'wp_ajax_jaggrok_store_canvas_history', 'aimentor_ajax_store_canvas_history' );
+
 function aimentor_generation_history_permissions_check( WP_REST_Request $request ) {
         return current_user_can( 'edit_posts' );
 }

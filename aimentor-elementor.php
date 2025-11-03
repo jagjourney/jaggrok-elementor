@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.1.11
+ * Version: 1.2.00
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.1.11' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.2.00' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -342,6 +342,7 @@ function aimentor_get_ajax_payload() {
                 'global' => [],
                 'user'   => [],
         ];
+        $canvas_history        = function_exists( 'aimentor_get_canvas_history' ) ? aimentor_get_canvas_history() : [];
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
@@ -351,6 +352,7 @@ function aimentor_get_ajax_payload() {
                 'usageNonce'        => wp_create_nonce( 'aimentor_usage_metrics' ),
                 'logNonce'          => wp_create_nonce( 'aimentor_error_log' ),
                 'restNonce'         => wp_create_nonce( 'wp_rest' ),
+                'canvasHistoryNonce' => wp_create_nonce( 'aimentor_canvas_history' ),
                 'historyEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/history' ) ),
                 'promptsEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/prompts' ) ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
@@ -411,6 +413,12 @@ function aimentor_get_ajax_payload() {
                         'rateLimitCooldown'       => __( 'Please wait %s before trying again.', 'aimentor' ),
                         'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
                         'rateLimitSecondsFallback' => __( '%d seconds', 'aimentor' ),
+                        'recentLayoutsHeading'     => __( 'Recent layouts', 'aimentor' ),
+                        'recentLayoutsEmpty'       => __( 'Generate a layout to see it here after your next run.', 'aimentor' ),
+                        'recentLayoutsUse'         => __( 'Insert layout', 'aimentor' ),
+                        'recentLayoutsPreviewMissing' => __( 'Preview unavailable for this layout.', 'aimentor' ),
+                        'recentLayoutsTimestamp'   => __( 'Generated %s', 'aimentor' ),
+                        'recentLayoutsMetaSeparator' => _x( ' • ', 'separator between layout details', 'aimentor' ),
                 ),
                 'providerLabels'    => $provider_labels,
                 'providerSummaries' => $provider_summaries,
@@ -428,6 +436,8 @@ function aimentor_get_ajax_payload() {
                 'promptPresets'     => function_exists( 'aimentor_get_prompt_preset_catalog' ) ? aimentor_get_prompt_preset_catalog() : [],
                 'isProActive'       => aimentor_is_pro_active(),
                 'savedPrompts'      => $saved_prompts,
+                'canvasHistory'     => $canvas_history,
+                'canvasHistoryMax'  => function_exists( 'aimentor_get_canvas_history_max_items' ) ? aimentor_get_canvas_history_max_items() : 0,
         );
 }
 
