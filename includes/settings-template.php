@@ -136,6 +136,10 @@
             $provider_status_views[ $provider_key ] = aimentor_format_provider_status_for_display( $provider_key, $current_status );
     }
 
+    $health_checks_enabled   = aimentor_health_checks_enabled();
+    $health_check_recipients = aimentor_sanitize_health_check_recipients( get_option( 'aimentor_health_check_recipients', $defaults['aimentor_health_check_recipients'] ) );
+    $health_check_threshold  = aimentor_get_health_check_failure_threshold();
+
     $has_api_key           = ! empty( $api_keys['grok'] ) || ! empty( $api_keys['openai'] );
     $provider_tested       = (bool) get_option( 'aimentor_api_tested', $defaults['aimentor_api_tested'] );
     $onboarding_dismissed  = 'yes' === get_option( 'aimentor_onboarding_dismissed', $defaults['aimentor_onboarding_dismissed'] );
@@ -306,6 +310,23 @@
                             <span class="aimentor-status-description jaggrok-status-description" data-provider="openai"><?php echo esc_html( $openai_status['description'] ); ?></span>
                         </div>
                     </div>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Connection Monitoring', 'aimentor' ); ?></th>
+                <td>
+                    <fieldset>
+                        <legend class="screen-reader-text"><?php esc_html_e( 'Connection monitoring preferences', 'aimentor' ); ?></legend>
+                        <input type="hidden" name="aimentor_enable_health_checks" value="no" />
+                        <label>
+                            <input type="checkbox" name="aimentor_enable_health_checks" value="yes" <?php checked( $health_checks_enabled ); ?> />
+                            <?php esc_html_e( 'Run daily provider connection checks', 'aimentor' ); ?>
+                        </label>
+                        <p class="description"><?php echo esc_html( sprintf( __( 'AiMentor will re-test stored API keys daily and alert you after %d consecutive failures.', 'aimentor' ), $health_check_threshold ) ); ?></p>
+                    </fieldset>
+                    <label class="screen-reader-text" for="aimentor_health_check_recipients"><?php esc_html_e( 'Health check alert recipients', 'aimentor' ); ?></label>
+                    <input type="text" id="aimentor_health_check_recipients" name="aimentor_health_check_recipients" value="<?php echo esc_attr( $health_check_recipients ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'name@example.com, team@example.com', 'aimentor' ); ?>" />
+                    <p class="description"><?php esc_html_e( 'Leave blank to notify every site administrator using the built-in WordPress email system.', 'aimentor' ); ?></p>
                 </td>
             </tr>
             <tr>

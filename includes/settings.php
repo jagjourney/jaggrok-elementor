@@ -1189,6 +1189,8 @@ function aimentor_get_default_options() {
                 'aimentor_default_performance'       => 'fast',
                 'aimentor_api_tested'                => false,
                 'aimentor_onboarding_dismissed'      => 'no',
+                'aimentor_enable_health_checks'      => 'yes',
+                'aimentor_health_check_recipients'   => '',
         ];
 }
 
@@ -1440,6 +1442,24 @@ function aimentor_register_settings() {
                 ]
         );
 
+        register_setting(
+                'aimentor_settings',
+                'aimentor_enable_health_checks',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_enable_health_checks'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_health_check_recipients',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_health_check_recipients',
+                        'default' => $defaults['aimentor_health_check_recipients'],
+                ]
+        );
+
         aimentor_seed_default_options();
 }
 add_action( 'admin_init', 'aimentor_register_settings' );
@@ -1451,6 +1471,12 @@ function aimentor_sanitize_api_key( $value ) {
 function aimentor_sanitize_auto_insert( $value ) {
         $allowed = [ 'yes', 'no' ];
         return in_array( $value, $allowed, true ) ? $value : 'yes';
+}
+
+function aimentor_sanitize_toggle( $value ) {
+        $value = sanitize_key( $value );
+
+        return in_array( $value, [ 'yes', 'no' ], true ) ? $value : 'no';
 }
 
 function aimentor_sanitize_theme_style( $value ) {
@@ -1474,6 +1500,34 @@ function aimentor_sanitize_tone_keywords( $value ) {
         $value = trim( preg_replace( '/\s+/', ' ', $value ) );
 
         return $value;
+}
+
+function aimentor_sanitize_health_check_recipients( $value ) {
+        if ( is_array( $value ) ) {
+                $value = implode( ',', $value );
+        }
+
+        $value  = (string) $value;
+        $parts  = preg_split( '/[\s,;]+/', $value );
+        $emails = [];
+
+        foreach ( $parts as $part ) {
+                $part = trim( $part );
+
+                if ( '' === $part ) {
+                        continue;
+                }
+
+                $sanitized = sanitize_email( $part );
+
+                if ( $sanitized && is_email( $sanitized ) ) {
+                        $emails[] = $sanitized;
+                }
+        }
+
+        $emails = array_unique( $emails );
+
+        return implode( ', ', $emails );
 }
 
 function aimentor_get_brand_preferences() {
@@ -2395,6 +2449,185 @@ add_action( 'wp_ajax_aimentor_get_usage_metrics', 'aimentor_get_usage_metrics_aj
 add_action( 'wp_ajax_jaggrok_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 
 // AJAX Test API (v1.3.8 - MODEL UPDATE + TIMEOUT LOG)
+function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
+        $args = wp_parse_args(
+                $args,
+                [
+                        'origin'            => 'test',
+                        'update_status'     => true,
+                        'record_usage'      => true,
+                        'update_api_tested' => false,
+                        'persist_api_key'   => true,
+                        'user_id'           => get_current_user_id(),
+                ]
+        );
+
+        $provider_labels = aimentor_get_provider_labels();
+
+        if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
+                return new WP_Error( 'aimentor_invalid_provider', __( 'Invalid provider selected.', 'aimentor' ) );
+        }
+
+        $label   = $provider_labels[ $provider_key ];
+        $api_key = sanitize_text_field( $api_key );
+
+        if ( '' === $api_key ) {
+                $message = sprintf( __( '%s API key is required to test the connection.', 'aimentor' ), $label );
+
+                if ( $args['update_status'] ) {
+                        aimentor_update_provider_test_status( $provider_key, 'error', $message );
+                }
+
+                return new WP_Error( 'aimentor_missing_api_key', $message );
+        }
+
+        $models        = aimentor_get_provider_models();
+        $model_default = aimentor_get_provider_model_defaults();
+
+        switch ( $provider_key ) {
+                case 'openai':
+                        $model = $models['openai'] ?? ( $model_default['openai'] ?? '' );
+
+                        if ( $args['persist_api_key'] ) {
+                                update_option( 'aimentor_openai_api_key', $api_key );
+                        }
+                        break;
+                case 'grok':
+                default:
+                        $model = $models['grok'] ?? ( $model_default['grok'] ?? '' );
+
+                        if ( $args['persist_api_key'] ) {
+                                update_option( 'aimentor_xai_api_key', $api_key );
+                        }
+                        break;
+        }
+
+        $provider = aimentor_get_active_provider( $provider_key );
+
+        if ( ! $provider instanceof AiMentor_Provider_Interface ) {
+                $message = __( 'Provider configuration error.', 'aimentor' );
+
+                if ( function_exists( 'aimentor_log_error' ) ) {
+                        aimentor_log_error(
+                                $message,
+                                [
+                                        'provider' => $provider_key,
+                                        'model'    => $model,
+                                        'user_id'  => $args['user_id'],
+                                ]
+                        );
+                }
+
+                if ( $args['update_status'] ) {
+                        aimentor_update_provider_test_status( $provider_key, 'error', $message );
+                }
+
+                return new WP_Error( 'aimentor_provider_configuration', $message );
+        }
+
+        $result = $provider->request(
+                __( 'Respond with a short confirmation to verify the AiMentor Elementor integration.', 'aimentor' ),
+                [
+                        'api_key'    => $api_key,
+                        'model'      => $model,
+                        'max_tokens' => 32,
+                        'timeout'    => 20,
+                ]
+        );
+
+        if ( is_wp_error( $result ) ) {
+                if ( $args['record_usage'] ) {
+                        aimentor_record_provider_usage(
+                                $provider_key,
+                                'error',
+                                [
+                                        'model'  => $model,
+                                        'origin' => $args['origin'],
+                                ]
+                        );
+                }
+
+                $error_message = sprintf( __( '%1$s connection failed: %2$s', 'aimentor' ), $label, $result->get_error_message() );
+
+                if ( function_exists( 'aimentor_log_error' ) ) {
+                        aimentor_log_error(
+                                $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
+                                [
+                                        'provider' => $provider_key,
+                                        'model'    => $model,
+                                        'user_id'  => $args['user_id'],
+                                ]
+                        );
+                }
+
+                if ( $args['update_status'] ) {
+                        aimentor_update_provider_test_status( $provider_key, 'error', $error_message );
+                }
+
+                return new WP_Error( 'aimentor_connection_failed', $error_message );
+        }
+
+        if ( ! is_array( $result ) || ! isset( $result['type'] ) ) {
+                        if ( $args['record_usage'] ) {
+                                aimentor_record_provider_usage(
+                                        $provider_key,
+                                        'error',
+                                        [
+                                                'model'  => $model,
+                                                'origin' => $args['origin'],
+                                        ]
+                                );
+                        }
+
+                        $error_message = sprintf( __( '%s returned an unexpected response.', 'aimentor' ), $label );
+
+                        if ( function_exists( 'aimentor_log_error' ) ) {
+                                aimentor_log_error(
+                                        $error_message . ' | Result: ' . wp_json_encode( $result ),
+                                        [
+                                                'provider' => $provider_key,
+                                                'model'    => $model,
+                                                'user_id'  => $args['user_id'],
+                                        ]
+                                );
+                        }
+
+                        if ( $args['update_status'] ) {
+                                aimentor_update_provider_test_status( $provider_key, 'error', $error_message );
+                        }
+
+                        return new WP_Error( 'aimentor_unexpected_response', $error_message );
+        }
+
+        if ( $args['record_usage'] ) {
+                aimentor_record_provider_usage(
+                        $provider_key,
+                        'success',
+                        [
+                                'model'  => $model,
+                                'origin' => $args['origin'],
+                        ]
+                );
+        }
+
+        $success_message = sprintf( __( '%s API key verified successfully.', 'aimentor' ), $label );
+
+        if ( $args['update_status'] ) {
+                aimentor_update_provider_test_status( $provider_key, 'success', $success_message );
+        }
+
+        if ( $args['update_api_tested'] ) {
+                update_option( 'aimentor_api_tested', true );
+        }
+
+        return [
+                'provider' => $provider_key,
+                'model'    => $model,
+                'message'  => $success_message,
+                'response' => $result,
+        ];
+}
+
 function aimentor_test_api_connection() {
         $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 
@@ -2435,140 +2668,258 @@ function aimentor_test_api_connection() {
                 );
         }
 
-	$api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
-	$label   = $provider_labels[ $provider_key ];
+        $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 
-	if ( '' === $api_key ) {
-		$message = sprintf( __( '%s API key is required to test the connection.', 'aimentor' ), $label );
-		aimentor_update_provider_test_status( $provider_key, 'error', $message );
-		$status = aimentor_get_provider_test_statuses();
-		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-		$view['provider'] = $provider_key;
-		$view['message']  = $message;
-		wp_send_json_error( $view, 400 );
-	}
-
-	$models        = aimentor_get_provider_models();
-	$model_default = aimentor_get_provider_model_defaults();
-	$model         = $models[ $provider_key ] ?? ( $model_default[ $provider_key ] ?? '' );
-
-	switch ( $provider_key ) {
-		case 'openai':
-			update_option( 'aimentor_openai_api_key', $api_key );
-			$model = $models['openai'] ?? ( $model_default['openai'] ?? '' );
-			break;
-		case 'grok':
-		default:
-			update_option( 'aimentor_xai_api_key', $api_key );
-			$model = $models['grok'] ?? ( $model_default['grok'] ?? '' );
-			break;
-	}
-
-	$provider = aimentor_get_active_provider( $provider_key );
-
-	if ( ! $provider instanceof AiMentor_Provider_Interface ) {
-		$message = __( 'Provider configuration error.', 'aimentor' );
-		aimentor_log_error(
-			$message,
-			[
-				'provider' => $provider_key,
-				'model'    => $model,
-				'user_id'  => get_current_user_id(),
-			]
-		);
-		aimentor_update_provider_test_status( $provider_key, 'error', $message );
-		$status = aimentor_get_provider_test_statuses();
-		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-		$view['provider'] = $provider_key;
-		$view['message']  = $message;
-		wp_send_json_error( $view );
-	}
-
-	$result = $provider->request(
-            __( 'Respond with a short confirmation to verify the AiMentor Elementor integration.', 'aimentor' ),
-		[
-			'api_key'    => $api_key,
-			'model'      => $model,
-			'max_tokens' => 32,
-			'timeout'    => 20,
-		]
-	);
-
-        if ( is_wp_error( $result ) ) {
-                aimentor_record_provider_usage(
-                        $provider_key,
-                        'error',
-                        [
-                                'model'  => $model,
-                                'origin' => 'test',
-                        ]
-                );
-
-                $error_message = sprintf( __( '%1$s connection failed: %2$s', 'aimentor' ), $label, $result->get_error_message() );
-                aimentor_log_error(
-                        $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
-                        [
-                                'provider' => $provider_key,
-				'model'    => $model,
-				'user_id'  => get_current_user_id(),
-			]
-		);
-		aimentor_update_provider_test_status( $provider_key, 'error', $error_message );
-		$status = aimentor_get_provider_test_statuses();
-		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-		$view['provider'] = $provider_key;
-		$view['message']  = $error_message;
-		wp_send_json_error( $view );
-        }
-
-        if ( ! is_array( $result ) || ! isset( $result['type'] ) ) {
-                aimentor_record_provider_usage(
-                        $provider_key,
-                        'error',
-                        [
-                                'model'  => $model,
-                                'origin' => 'test',
-                        ]
-                );
-
-                $error_message = sprintf( __( '%s returned an unexpected response.', 'aimentor' ), $label );
-                aimentor_log_error(
-                        $error_message . ' | Result: ' . wp_json_encode( $result ),
-                        [
-                                'provider' => $provider_key,
-				'model'    => $model,
-				'user_id'  => get_current_user_id(),
-			]
-		);
-		aimentor_update_provider_test_status( $provider_key, 'error', $error_message );
-		$status = aimentor_get_provider_test_statuses();
-		$view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
-		$view['provider'] = $provider_key;
-		$view['message']  = $error_message;
-		wp_send_json_error( $view );
-        }
-
-        aimentor_record_provider_usage(
+        $result = aimentor_execute_provider_test(
                 $provider_key,
-                'success',
+                $api_key,
                 [
-                        'model'  => $model,
-                        'origin' => 'test',
+                        'update_api_tested' => true,
+                        'user_id'           => get_current_user_id(),
                 ]
         );
 
-        $success_message = sprintf( __( '%s API key verified successfully.', 'aimentor' ), $label );
-        aimentor_update_provider_test_status( $provider_key, 'success', $success_message );
-        update_option( 'aimentor_api_tested', true );
+        if ( is_wp_error( $result ) ) {
+                $status = aimentor_get_provider_test_statuses();
+                $view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] ?? [] );
+                $view['provider'] = $provider_key;
+                $view['message']  = $result->get_error_message();
+
+                wp_send_json_error( $view, 400 );
+        }
 
         $status = aimentor_get_provider_test_statuses();
-        $view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] );
+        $view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] ?? [] );
         $view['provider'] = $provider_key;
 
         wp_send_json_success( $view );
 }
 add_action( 'wp_ajax_aimentor_test_api', 'aimentor_test_api_connection' );
 add_action( 'wp_ajax_jaggrok_test_api', 'aimentor_test_api_connection' );
+
+function aimentor_health_checks_enabled() {
+        $defaults = aimentor_get_default_options();
+        $value    = get_option( 'aimentor_enable_health_checks', $defaults['aimentor_enable_health_checks'] );
+        $value    = aimentor_sanitize_toggle( $value );
+
+        return 'yes' === $value;
+}
+
+function aimentor_get_health_check_failure_threshold() {
+        $threshold = apply_filters( 'aimentor_health_check_failure_threshold', 3 );
+        $threshold = absint( $threshold );
+
+        return $threshold > 0 ? $threshold : 1;
+}
+
+function aimentor_get_health_check_recipients() {
+        $stored     = get_option( 'aimentor_health_check_recipients', '' );
+        $sanitized  = aimentor_sanitize_health_check_recipients( $stored );
+        $recipients = [];
+
+        if ( '' !== $sanitized ) {
+                $parts = array_map( 'trim', explode( ',', $sanitized ) );
+
+                foreach ( $parts as $email ) {
+                        $clean = sanitize_email( $email );
+
+                        if ( $clean && is_email( $clean ) ) {
+                                $recipients[] = $clean;
+                        }
+                }
+        }
+
+        if ( empty( $recipients ) && function_exists( 'get_users' ) ) {
+                $admins = get_users(
+                        [
+                                'role'   => 'administrator',
+                                'fields' => [ 'user_email' ],
+                        ]
+                );
+
+                foreach ( $admins as $admin ) {
+                        if ( ! isset( $admin->user_email ) ) {
+                                continue;
+                        }
+
+                        $clean = sanitize_email( $admin->user_email );
+
+                        if ( $clean && is_email( $clean ) ) {
+                                $recipients[] = $clean;
+                        }
+                }
+        }
+
+        if ( empty( $recipients ) ) {
+                $admin_email = sanitize_email( get_option( 'admin_email' ) );
+
+                if ( $admin_email && is_email( $admin_email ) ) {
+                        $recipients[] = $admin_email;
+                }
+        }
+
+        return array_values( array_unique( $recipients ) );
+}
+
+function aimentor_get_health_failure_state() {
+        $state = get_option( 'aimentor_provider_health_failures', [] );
+
+        if ( ! is_array( $state ) ) {
+                $state = [];
+        }
+
+        foreach ( $state as $provider => $data ) {
+                $state[ $provider ] = [
+                        'count'          => isset( $data['count'] ) ? absint( $data['count'] ) : 0,
+                        'last_notified'  => isset( $data['last_notified'] ) ? absint( $data['last_notified'] ) : 0,
+                        'notified_count' => isset( $data['notified_count'] ) ? absint( $data['notified_count'] ) : 0,
+                        'last_message'   => isset( $data['last_message'] ) ? sanitize_text_field( $data['last_message'] ) : '',
+                ];
+        }
+
+        return $state;
+}
+
+function aimentor_register_provider_health_failure( $state, $provider_key, $message ) {
+        if ( ! is_array( $state ) ) {
+                $state = [];
+        }
+
+        if ( ! isset( $state[ $provider_key ] ) || ! is_array( $state[ $provider_key ] ) ) {
+                $state[ $provider_key ] = [
+                        'count'          => 0,
+                        'last_notified'  => 0,
+                        'notified_count' => 0,
+                        'last_message'   => '',
+                ];
+        }
+
+        $state[ $provider_key ]['count']        = absint( $state[ $provider_key ]['count'] ) + 1;
+        $state[ $provider_key ]['last_message'] = sanitize_text_field( $message );
+
+        return $state;
+}
+
+function aimentor_register_provider_health_recovery( $state, $provider_key ) {
+        if ( isset( $state[ $provider_key ] ) ) {
+                $state[ $provider_key ] = [
+                        'count'          => 0,
+                        'last_notified'  => 0,
+                        'notified_count' => 0,
+                        'last_message'   => '',
+                ];
+        }
+
+        return $state;
+}
+
+function aimentor_maybe_send_health_check_alerts( &$state ) {
+        $threshold = aimentor_get_health_check_failure_threshold();
+
+        if ( $threshold < 1 ) {
+                return;
+        }
+
+        $recipients = aimentor_get_health_check_recipients();
+
+        if ( empty( $recipients ) ) {
+                return;
+        }
+
+        $provider_labels = aimentor_get_provider_labels();
+        $site_name       = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
+
+        foreach ( $state as $provider_key => $data ) {
+                $count = isset( $data['count'] ) ? absint( $data['count'] ) : 0;
+
+                if ( $count < $threshold ) {
+                        continue;
+                }
+
+                $notified_count = isset( $data['notified_count'] ) ? absint( $data['notified_count'] ) : 0;
+
+                if ( $notified_count >= $threshold ) {
+                        continue;
+                }
+
+                $label   = $provider_labels[ $provider_key ] ?? ucfirst( $provider_key );
+                $message = isset( $data['last_message'] ) && '' !== $data['last_message']
+                        ? $data['last_message']
+                        : __( 'No additional error details were provided.', 'aimentor' );
+
+                $subject = sprintf(
+                        __( '[%1$s] %2$s connection failures detected', 'aimentor' ),
+                        $site_name,
+                        $label
+                );
+
+                $body = sprintf(
+                        __( "AiMentor attempted to verify the %1$s API key %2$d times and each attempt failed.\n\nMost recent error: %3$s\n\nPlease review the AiMentor settings in WordPress admin to resolve the connection issue.", 'aimentor' ),
+                        $label,
+                        $count,
+                        $message
+                );
+
+                wp_mail( $recipients, $subject, $body );
+
+                $state[ $provider_key ]['last_notified']  = current_time( 'timestamp' );
+                $state[ $provider_key ]['notified_count'] = max( $count, $threshold );
+        }
+}
+
+function aimentor_run_scheduled_provider_checks() {
+        if ( ! aimentor_health_checks_enabled() ) {
+                return;
+        }
+
+        $provider_labels = aimentor_get_provider_labels();
+
+        if ( empty( $provider_labels ) ) {
+                return;
+        }
+
+        $api_keys = [
+                'grok'   => get_option( 'aimentor_xai_api_key', '' ),
+                'openai' => get_option( 'aimentor_openai_api_key', '' ),
+        ];
+
+        $state        = aimentor_get_health_failure_state();
+        $active_found = false;
+
+        foreach ( $provider_labels as $provider_key => $label ) {
+                $api_key = isset( $api_keys[ $provider_key ] ) ? $api_keys[ $provider_key ] : '';
+
+                if ( '' === trim( (string) $api_key ) ) {
+                        continue;
+                }
+
+                $active_found = true;
+
+                $result = aimentor_execute_provider_test(
+                        $provider_key,
+                        $api_key,
+                        [
+                                'update_api_tested' => false,
+                                'user_id'           => 0,
+                                'persist_api_key'   => false,
+                        ]
+                );
+
+                if ( is_wp_error( $result ) ) {
+                        $state = aimentor_register_provider_health_failure( $state, $provider_key, $result->get_error_message() );
+                } else {
+                        $state = aimentor_register_provider_health_recovery( $state, $provider_key );
+                }
+        }
+
+        if ( ! $active_found ) {
+                return;
+        }
+
+        aimentor_maybe_send_health_check_alerts( $state );
+
+        update_option( 'aimentor_provider_health_failures', $state );
+}
 
 // ERROR LOGGING FUNCTION (v1.3.8)
 function aimentor_log_error( $message, $context = [] ) {

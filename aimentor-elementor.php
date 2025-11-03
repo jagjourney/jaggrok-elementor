@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.0.00
+ * Version: 1.0.03
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.0.00' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.0.03' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -38,6 +38,10 @@ if ( ! defined( 'AIMENTOR_PLUGIN_DIR' ) ) {
 
 if ( ! defined( 'AIMENTOR_PLUGIN_URL' ) ) {
         define( 'AIMENTOR_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+}
+
+if ( ! defined( 'AIMENTOR_PROVIDER_HEALTH_EVENT' ) ) {
+        define( 'AIMENTOR_PROVIDER_HEALTH_EVENT', 'aimentor_daily_provider_health_check' );
 }
 
 if ( ! function_exists( 'aimentor_get_error_log_directory' ) ) {
@@ -523,6 +527,33 @@ if ( class_exists( 'AiMentor_OpenAI_Provider' ) && ! class_exists( 'JagGrok_Open
 require_once AIMENTOR_PLUGIN_DIR . 'includes/settings.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/legacy-shims.php';
 
+function aimentor_schedule_provider_health_check() {
+        if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'aimentor_health_checks_enabled' ) ) {
+                return;
+        }
+
+        if ( ! aimentor_health_checks_enabled() ) {
+                aimentor_clear_provider_health_schedule();
+                return;
+        }
+
+        if ( ! wp_next_scheduled( AIMENTOR_PROVIDER_HEALTH_EVENT ) ) {
+                wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', AIMENTOR_PROVIDER_HEALTH_EVENT );
+        }
+}
+
+function aimentor_clear_provider_health_schedule() {
+        if ( function_exists( 'wp_clear_scheduled_hook' ) ) {
+                wp_clear_scheduled_hook( AIMENTOR_PROVIDER_HEALTH_EVENT );
+        }
+}
+
+add_action( 'init', 'aimentor_schedule_provider_health_check' );
+
+if ( function_exists( 'aimentor_run_scheduled_provider_checks' ) ) {
+        add_action( AIMENTOR_PROVIDER_HEALTH_EVENT, 'aimentor_run_scheduled_provider_checks' );
+}
+
 register_activation_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_activate_plugin' );
 /**
  * Run setup tasks during plugin activation.
@@ -531,6 +562,14 @@ function aimentor_activate_plugin() {
         if ( function_exists( 'aimentor_seed_default_options' ) ) {
                 aimentor_seed_default_options();
         }
+
+        aimentor_schedule_provider_health_check();
+}
+
+register_deactivation_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_deactivate_plugin' );
+
+function aimentor_deactivate_plugin() {
+        aimentor_clear_provider_health_schedule();
 }
 
 if ( function_exists( 'aimentor_seed_default_options' ) ) {
