@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.00
+Stable tag: 1.0.03
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.0.03 =
+* Added an opt-in daily provider health check that re-tests stored API keys with WP-Cron.
+* Captured consecutive connection failures and alerted administrators once the threshold is reached.
+* Introduced settings to toggle automated checks and manage notification recipients.
+
 = 1.0.00 =
 * Reset the public changelog to establish AiMentor Elementor as the new baseline.
 * Rebranded the plugin from JagGrok to AiMentor Elementor with compatibility shims for existing installs.
