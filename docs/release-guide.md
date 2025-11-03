@@ -41,25 +41,32 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
 
 ## Cutting a release
 
-1. **Merge preparation work**
-   - Ensure `main` contains the desired code, documentation, and version bump changes.
-   - Confirm the changelog entry accurately describes the release.
-2. **Create a tag**
-   - Use annotated tags that follow the `vX.Y.Z` convention (for example, `git tag -a v1.5.0 -m "Release v1.5.0"`).
-   - Push the tag to GitHub with `git push origin vX.Y.Z`.
-3. **Draft the GitHub Release**
-   - Navigate to **Releases → Draft a new release**.
-   - Select the new tag, fill in the release notes (consider reusing the changelog entry), and leave the release as a draft if you still need review from stakeholders.
-   - Publishing the release triggers `.github/workflows/release.yml` automatically because it listens for the `release.published` event.
-4. **Monitor the workflow**
-   - The workflow validates PHP syntax, builds `aimentor-elementor-vX.Y.Z.zip`, attaches it to the release, and updates `gh-pages/manifests/aimentor-plugin-info.json` with the new metadata.
-   - Wait for the workflow to finish successfully before sharing the release publicly.
-5. **Verify GitHub assets**
-   - Open the published release and confirm the ZIP asset exists with the expected filename.
-   - Download the asset locally to spot-check the archive contents if necessary.
-6. **Confirm the `gh-pages` manifest**
-   - Visit the `gh-pages` branch and verify that `manifests/aimentor-plugin-info.json` now references the new tag, download URL, and checksum.
-   - If the manifest failed to update, rerun the workflow or manually update the branch following the same JSON format.
+1. **Prepare code & changelog**
+   - Confirm `main` includes the merged version bump, changelog entry, and any supporting documentation updates.
+   - Review `docs/release-guide.md` and related checklists for accuracy, updating them if the release introduces new requirements.
+   - Verify the changelog clearly highlights user-facing changes, upgrade notes, and any known issues.
+2. **Create the tag**
+   - Create an annotated tag that follows the `vX.Y.Z` convention (for example, `git tag -a v1.5.0 -m 'Release v1.5.0'`).
+   - Double-check the tagged commit matches the intended `main` SHA before pushing.
+   - Push the tag to GitHub with `git push origin vX.Y.Z` and note the timestamp for release notes.
+3. **Draft the release**
+   - Navigate to **Releases → Draft a new release**, select the new tag, and populate the release notes (reusing the changelog entry where helpful).
+   - Attach any prebuilt ZIP asset if the automation should reuse a handcrafted package; otherwise note that CI will build it.
+   - Keep the release in draft until stakeholders approve the notes and asset plan, then publish to trigger `.github/workflows/release.yml`.
+4. **Monitor automation**
+   - Watch the release workflow run in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds.
+   - Capture logs or screenshots if you need to document unusual warnings for later follow-up.
+   - If the workflow fails, remediate the issue, retag if necessary, and rerun the workflow before announcing the release.
+5. **Verify assets & manifest**
+   - Open the published release to ensure the ZIP asset exists, is named `aimentor-elementor-vX.Y.Z.zip`, and lists the correct build timestamp.
+   - Download the asset locally to spot-check the archive contents and plugin metadata.
+   - Inspect `gh-pages/manifests/aimentor-plugin-info.json` to confirm it references the new tag, download URL, and checksum.
+6. **Socialize the guide updates**
+   - Share any adjustments you made to this release checklist with collaborators via the agreed documentation or communication channels.
+   - Encourage feedback so future releases stay aligned with tooling and stakeholder expectations.
+7. **Post-release monitoring**
+   - Track support channels for regression reports and document confirmed issues for the next release cycle.
+   - Schedule a brief retrospective to capture automation lessons, manual gaps, or process improvements.
 
 ## Post-release cleanup
 
