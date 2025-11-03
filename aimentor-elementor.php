@@ -237,22 +237,40 @@ function aimentor_register_asset_handles() {
 add_action( 'init', 'aimentor_register_asset_handles' );
 
 /**
+ * Output the Elementor dependency notice.
+ */
+function aimentor_render_missing_elementor_notice() {
+        if ( ! current_user_can( 'activate_plugins' ) ) {
+                return;
+        }
+
+        echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'AiMentor Elementor', 'aimentor' ) . '</strong> ' . esc_html__( 'requires Elementor to be installed and active.', 'aimentor' ) . '</p></div>';
+}
+
+/**
  * Ensure Elementor is active before proceeding.
  *
  * @return bool
  */
 function aimentor_check_dependencies() {
-        if ( ! did_action( 'elementor/loaded' ) ) {
-                add_action( 'admin_notices', function() {
-                        echo '<div class="notice notice-error"><p><strong>AiMentor Elementor</strong> requires Elementor to be installed and active.</p></div>';
-                } );
+        $transient_key = 'aimentor_missing_elementor_notice';
 
-                return false;
+        $elementor_active = did_action( 'elementor/loaded' ) || class_exists( '\Elementor\Plugin' ) || defined( 'ELEMENTOR_VERSION' );
+
+        if ( $elementor_active ) {
+                delete_transient( $transient_key );
+
+                return true;
         }
 
-        return true;
+        if ( false === get_transient( $transient_key ) ) {
+                set_transient( $transient_key, 1 );
+                add_action( 'admin_notices', 'aimentor_render_missing_elementor_notice' );
+        }
+
+        return false;
 }
-add_action( 'plugins_loaded', 'aimentor_check_dependencies' );
+add_action( 'plugins_loaded', 'aimentor_check_dependencies', 20 );
 
 /**
  * Determine if Elementor Pro is active.
