@@ -16,8 +16,8 @@ Before you start, make sure you have:
 
 AiMentor Elementor uses a three-part numeric version where each slot has a defined increment size so releases stay in sync with WordPress auto-update expectations:
 
-- **Small fix release (`+0.01`)** – For hotfixes or copy-only changes, bump the third slot by `0.01` (for example, `v1.0.03 → v1.0.04`).
-- **Medium feature release (`+0.10`)** – For additive features that touch PHP or JavaScript, bump the middle slot by `0.10` and reset the last slot to `00` (for example, `v1.0.04 → v1.1.00`).
+- **Small fix release (`+0.01`)** – For hotfixes or copy-only changes, bump the third slot by `0.01` (for example, `v1.0.05 → v1.0.06`).
+- **Medium feature release (`+0.10`)** – For additive features that touch PHP or JavaScript, bump the middle slot by `0.10` and reset the last slot to `00` (for example, `v1.0.06 → v1.1.00`).
 - **Major milestone release (`+1.00.00`)** – For large breaking changes or rebrands, bump the first slot by `1`, reset the remaining slots to `.0.00`, and ensure the changelog calls out upgrade guidance (for example, `v1.1.00 → v2.0.00`).
 
 Every bump must land in a dedicated pull request so the merged commit and the annotated tag share the exact version string. Keep the following files aligned:
@@ -37,11 +37,11 @@ Every bump must land in a dedicated pull request so the merged commit and the an
 
 ### Increment examples
 
-- **Small fix (`v1.0.03 → v1.0.04`)** – Update only the README copy and changelog, adjust the plugin header and constants, commit, then tag with `git tag -a v1.0.04 -m 'Release v1.0.04'`.
-- **Medium feature (`v1.0.04 → v1.1.00`)** – After merging PHP/JS enhancements, reset the third slot to `00` across the files above, document the feature in `readme.txt`, and create the `v1.1.00` tag.
+- **Small fix (`v1.0.05 → v1.0.06`)** – Update only the README copy and changelog, adjust the plugin header and constants, commit, then tag with `git tag -a v1.0.06 -m 'Release v1.0.06'`.
+- **Medium feature (`v1.0.06 → v1.1.00`)** – After merging PHP/JS enhancements, reset the third slot to `00` across the files above, document the feature in `readme.txt`, and create the `v1.1.00` tag.
 - **Major milestone (`v1.1.00 → v2.0.00`)** – Coordinate breaking changes, migrate documentation, ensure upgrade notes are prominent, and tag `v2.0.00` once all references match.
 
-> **CI guardrail:** Pull requests that touch PHP, `assets/`, or `js/` files must update every version reference above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump.
+> **CI guardrail:** Every pull request that changes anything beyond the version metadata files must update all of the version references above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump, and it also verifies that the new version is strictly greater than the previous release.
 
 Commit the version bump alongside the changelog updates. Tagging should only happen after the pull request is merged into `main`.
 
@@ -66,9 +66,11 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
 3. **Draft the release**
    - [ ] Navigate to **Releases → Draft a new release**, select the new tag, and populate the release notes (reuse the changelog entry where helpful).
    - [ ] Attach any prebuilt ZIP asset if the automation should reuse a handcrafted package; otherwise document that CI will build it.
-   - [ ] Keep the release in draft until stakeholders approve the notes and asset plan, then publish to trigger `.github/workflows/release.yml`.
+   - [ ] Save the release as a **draft** (or mark it as a **pre-release**). This immediately triggers `.github/workflows/release.yml`, which now builds and attaches the canonical ZIP even while the release remains private. The workflow logs explicitly call out that the manifest refresh is deferred until publication.
 4. **Monitor automation**
-   - [ ] Watch the release workflow in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds.
+   - [ ] Watch the release workflow in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds. Draft or pre-release runs will skip the manifest step by design; re-run the workflow after publishing if you make note edits while the release is live.
+
+> **Publish when ready:** Once QA signs off, publish the release (or toggle off the pre-release flag). Publication triggers another workflow run that updates the `gh-pages` manifest so WordPress sites see the new version.
    - [ ] Capture logs or screenshots if you need to document unusual warnings for later follow-up.
    - [ ] If the workflow fails, remediate the issue, retag if necessary, and rerun the workflow before announcing the release.
 5. **Verify assets & manifest**
