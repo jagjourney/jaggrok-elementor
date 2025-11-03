@@ -79,8 +79,205 @@
         var defaultsData = aimentorData.defaults || {};
         var modelLabels = aimentorData.modelLabels || {};
         var isProActive = !!aimentorData.isProActive;
+        var savedPromptsData = aimentorData.savedPrompts || {};
+        var savedPromptsStore = normalizeSavedPrompts(savedPromptsData);
+        var savedPromptSelectNodes = [];
 
         ensureBadgeStyles();
+
+        function normalizeSavedPromptEntry(entry, scope) {
+            if (!entry || typeof entry !== 'object') {
+                return null;
+            }
+
+            var promptValue = typeof entry.prompt === 'string' ? entry.prompt.trim() : '';
+            var idValue = typeof entry.id === 'string' ? entry.id : '';
+            var labelValue = typeof entry.label === 'string' ? entry.label.trim() : '';
+            var entryScope = scope === 'global' ? 'global' : 'user';
+
+            if (!promptValue || !idValue) {
+                return null;
+            }
+
+            if (!labelValue) {
+                labelValue = promptValue.length > 60 ? promptValue.slice(0, 57) + '…' : promptValue;
+            }
+
+            return {
+                id: idValue,
+                label: labelValue,
+                prompt: promptValue,
+                scope: entryScope
+            };
+        }
+
+        function normalizeSavedPrompts(data) {
+            var normalized = { global: [], user: [] };
+
+            if (!data || typeof data !== 'object') {
+                return normalized;
+            }
+
+            if (Array.isArray(data.user)) {
+                normalized.user = data.user.map(function(entry) {
+                    return normalizeSavedPromptEntry(entry, 'user');
+                }).filter(Boolean);
+            }
+
+            if (Array.isArray(data.global)) {
+                normalized.global = data.global.map(function(entry) {
+                    return normalizeSavedPromptEntry(entry, 'global');
+                }).filter(Boolean);
+            }
+
+            return normalized;
+        }
+
+        function cloneSavedPromptEntry(entry) {
+            return {
+                id: entry.id,
+                label: entry.label,
+                prompt: entry.prompt,
+                scope: entry.scope
+            };
+        }
+
+        function cloneSavedPrompts() {
+            return {
+                global: savedPromptsStore.global.map(cloneSavedPromptEntry),
+                user: savedPromptsStore.user.map(cloneSavedPromptEntry)
+            };
+        }
+
+        function getAllSavedPrompts() {
+            return savedPromptsStore.user.concat(savedPromptsStore.global);
+        }
+
+        function findSavedPromptById(id) {
+            if (!id) {
+                return null;
+            }
+
+            var prompts = getAllSavedPrompts();
+            for (var i = 0; i < prompts.length; i++) {
+                if (prompts[i] && prompts[i].id === id) {
+                    return prompts[i];
+                }
+            }
+
+            return null;
+        }
+
+        function populateSavedPromptSelect($select) {
+            if (!$select || !$select.length) {
+                return;
+            }
+
+            var placeholder = strings.savedPromptPlaceholder || 'Select a saved prompt…';
+            var emptyLabel = strings.savedPromptEmpty || 'No saved prompts found.';
+            var userLabel = strings.savedPromptGroupUser || 'My Prompts';
+            var globalLabel = strings.savedPromptGroupGlobal || 'Shared Prompts';
+            var currentValue = $select.val();
+            var allPrompts = getAllSavedPrompts();
+            var html = '<option value="">' + escapeHtml(placeholder) + '</option>';
+
+            if (!allPrompts.length) {
+                html += '<option value="" disabled>' + escapeHtml(emptyLabel) + '</option>';
+                $select.html(html).val('');
+                return;
+            }
+
+            var grouped = { user: [], global: [] };
+            allPrompts.forEach(function(entry) {
+                if (!entry) {
+                    return;
+                }
+                var target = entry.scope === 'global' ? 'global' : 'user';
+                grouped[target].push(entry);
+            });
+
+            if (grouped.user.length) {
+                html += '<optgroup label="' + escapeHtml(userLabel) + '">';
+                grouped.user.forEach(function(entry) {
+                    html += '<option value="' + escapeHtml(entry.id) + '">' + escapeHtml(entry.label) + '</option>';
+                });
+                html += '</optgroup>';
+            }
+
+            if (grouped.global.length) {
+                html += '<optgroup label="' + escapeHtml(globalLabel) + '">';
+                grouped.global.forEach(function(entry) {
+                    html += '<option value="' + escapeHtml(entry.id) + '">' + escapeHtml(entry.label) + '</option>';
+                });
+                html += '</optgroup>';
+            }
+
+            $select.html(html);
+
+            if (currentValue && findSavedPromptById(currentValue)) {
+                $select.val(currentValue);
+            } else {
+                $select.val('');
+            }
+        }
+
+        function refreshRegisteredSavedPromptSelects() {
+            savedPromptSelectNodes = savedPromptSelectNodes.filter(function(node) {
+                return node && node.parentNode;
+            });
+
+            savedPromptSelectNodes.forEach(function(node) {
+                populateSavedPromptSelect($(node));
+            });
+        }
+
+        function registerSavedPromptSelect($select) {
+            if (!$select || !$select.length) {
+                return;
+            }
+
+            $select.each(function() {
+                if (savedPromptSelectNodes.indexOf(this) === -1) {
+                    savedPromptSelectNodes.push(this);
+                }
+            });
+
+            populateSavedPromptSelect($select);
+        }
+
+        function setSavedPrompts(data) {
+            savedPromptsStore = normalizeSavedPrompts(data);
+            refreshRegisteredSavedPromptSelects();
+        }
+
+        function refreshSavedPrompts() {
+            var endpoint = aimentorData.promptsEndpoint;
+
+            if (!endpoint || !aimentorData.restNonce || typeof window.fetch !== 'function') {
+                return Promise.resolve(cloneSavedPrompts());
+            }
+
+            return window.fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-WP-Nonce': aimentorData.restNonce
+                },
+                credentials: 'same-origin'
+            }).then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Request failed');
+                }
+                return response.json();
+            }).then(function(body) {
+                if (body && body.prompts) {
+                    setSavedPrompts(body.prompts);
+                }
+                return cloneSavedPrompts();
+            }).catch(function() {
+                return cloneSavedPrompts();
+            });
+        }
 
         var providerDefaults = buildProviderDefaults();
         var providerMap = buildProviderMap(providerDefaults);
@@ -120,6 +317,10 @@
 
         api.buildSummary = buildSummary;
         api.getProviderMeta = getProviderMeta;
+        api.getSavedPrompts = function() {
+            return cloneSavedPrompts();
+        };
+        api.refreshSavedPrompts = refreshSavedPrompts;
 
         api.initWidget = function(config) {
             if (!config || !config.widgetId) {
@@ -135,6 +336,7 @@
             var $task = config.taskSelector ? $(config.taskSelector) : $();
             var $tier = config.tierSelector ? $(config.tierSelector) : $();
             var $summary = config.summarySelector ? $(config.summarySelector) : $();
+            var $savedPromptSelect = config.savedPromptSelector ? $(config.savedPromptSelector) : $();
             var ui = {
                 icon: config.providerIconSelector ? $(config.providerIconSelector) : $(),
                 label: config.providerLabelSelector ? $(config.providerLabelSelector) : $(),
@@ -149,6 +351,16 @@
 
             if (!ensureAjaxConfig($container, $button)) {
                 return;
+            }
+
+            if ($savedPromptSelect.length) {
+                registerSavedPromptSelect($savedPromptSelect);
+                $savedPromptSelect.off('change.aimentor').on('change.aimentor', function() {
+                    var savedPrompt = findSavedPromptById($(this).val());
+                    if (savedPrompt && $prompt.length) {
+                        $prompt.val(savedPrompt.prompt).trigger('input');
+                    }
+                });
             }
 
             var widgetState = api.state.widgets[config.widgetId] || {};
@@ -284,6 +496,8 @@
                 var qualityLabel = escapeHtml(strings.qualityLabel || 'Quality');
                 var promptLabel = escapeHtml(strings.promptLabel || 'Prompt');
                 var promptPlaceholder = escapeHtml(strings.promptPlaceholder || 'Describe your page (e.g., hero with CTA)');
+                var savedPromptLabel = escapeHtml(strings.savedPromptLabel || 'Saved Prompts');
+                var savedPromptPlaceholder = escapeHtml(strings.savedPromptPlaceholder || 'Select a saved prompt…');
                 var headingMeta = getProviderMeta(defaultProvider);
                 var headingText = escapeHtml(strings.writeWith ? strings.writeWith.replace('%s', headingMeta.label || defaultProvider) : 'Write with ' + (headingMeta.label || defaultProvider));
                 var closeLabel = escapeHtml(strings.closeModal || 'Close modal');
@@ -315,6 +529,10 @@
                     '        <option value="quality">' + qualityLabel + '</option>' +
                     '      </select>' +
                     '      <p id="aimentor-modal-summary" class="aimentor-context-summary" aria-live="polite" style="margin:0;font-weight:600;color:#111827;"></p>' +
+                    '      <label for="aimentor-saved-prompts" class="aimentor-modal__label">' + savedPromptLabel + '</label>' +
+                    '      <select id="aimentor-saved-prompts" class="aimentor-modal__select">' +
+                    '        <option value="">' + savedPromptPlaceholder + '</option>' +
+                    '      </select>' +
                     '      <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
                     '      <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
                     '      <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
@@ -334,6 +552,7 @@
             var $prompt = $('#aimentor-prompt');
             var $generate = $('#aimentor-generate');
             var $result = $('#aimentor-result');
+            var $savedPromptSelect = $('#aimentor-saved-prompts');
             var ui = {
                 icon: $('#aimentor-provider-active-icon'),
                 label: $('#aimentor-provider-active-label'),
@@ -376,6 +595,18 @@
             if (!ensureAjaxConfig($modal, $generate)) {
                 return;
             }
+
+            registerSavedPromptSelect($savedPromptSelect);
+            $savedPromptSelect.val('');
+            refreshSavedPrompts().then(function() {
+                populateSavedPromptSelect($savedPromptSelect);
+            });
+            $savedPromptSelect.off('change.aimentor').on('change.aimentor', function() {
+                var selected = findSavedPromptById($(this).val());
+                if (selected) {
+                    $prompt.val(selected.prompt).trigger('input');
+                }
+            });
 
             $providerRadios.off('change.aimentor').on('change.aimentor', function() {
                 modalState.provider = sanitizeProvider($(this).val());
@@ -472,6 +703,15 @@
                 });
             });
         };
+
+        $(document).on('aimentor:saved-prompts-updated', function(event, payload) {
+            if (payload && payload.prompts) {
+                setSavedPrompts(payload.prompts);
+                return;
+            }
+
+            refreshSavedPrompts();
+        });
 
         window.AiMentorElementorUI = api;
 
