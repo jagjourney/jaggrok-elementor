@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.11
+Stable tag: 1.3.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.12 =
+* Added a multisite-aware lock that lets network administrators enforce provider and model selections for every site.
+* Updated the settings experience to surface the network toggle in Network Admin and render provider/model controls as read-only when locked.
+* Ensured background AJAX flows honor network-enforced options and refreshed release metadata for 1.3.12.
+
 = 1.3.11 =
 * Added a `wp aimentor generate` WP-CLI command that mirrors the AJAX generation flow, records history, and optionally saves output to disk.
 * Documented the WP-CLI workflow with prerequisites and usage examples for both content and canvas exports.

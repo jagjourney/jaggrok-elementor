@@ -50,6 +50,118 @@ function aimentor_get_allowed_provider_models() {
         ];
 }
 
+function aimentor_get_network_managed_options() {
+        return [
+                'aimentor_network_lock_provider_models',
+                'aimentor_provider',
+                'aimentor_xai_api_key',
+                'aimentor_openai_api_key',
+                'aimentor_provider_models',
+                'aimentor_model_presets',
+                'aimentor_document_provider_defaults',
+                'aimentor_model',
+                'aimentor_openai_model',
+                'aimentor_default_generation_type',
+                'aimentor_default_performance',
+                'aimentor_provider_test_statuses',
+                'aimentor_api_tested',
+        ];
+}
+
+function aimentor_is_network_provider_lock_enabled() {
+        if ( ! is_multisite() ) {
+                return false;
+        }
+
+        $raw_value = get_site_option( 'aimentor_network_lock_provider_models', 'no' );
+        $raw_value = aimentor_sanitize_toggle( $raw_value );
+
+        return 'yes' === $raw_value;
+}
+
+function aimentor_provider_controls_locked_for_request() {
+        if ( ! is_multisite() ) {
+                return false;
+        }
+
+        if ( function_exists( 'is_network_admin' ) && is_network_admin() ) {
+                return false;
+        }
+
+        return aimentor_is_network_provider_lock_enabled();
+}
+
+function aimentor_should_option_use_network_storage( $option ) {
+        if ( ! is_multisite() ) {
+                return false;
+        }
+
+        $managed_options = aimentor_get_network_managed_options();
+
+        if ( ! in_array( $option, $managed_options, true ) ) {
+                return false;
+        }
+
+        if ( 'aimentor_network_lock_provider_models' === $option ) {
+                return true;
+        }
+
+        return aimentor_is_network_provider_lock_enabled();
+}
+
+function aimentor_maybe_override_option_with_network( $value ) {
+        $filter = current_filter();
+
+        if ( 0 !== strpos( $filter, 'pre_option_' ) ) {
+                return $value;
+        }
+
+        $option = substr( $filter, strlen( 'pre_option_' ) );
+
+        if ( ! aimentor_should_option_use_network_storage( $option ) ) {
+                return $value;
+        }
+
+        $sentinel     = '__aimentor_network_option_missing__';
+        $network_value = get_site_option( $option, $sentinel );
+
+        if ( $sentinel === $network_value ) {
+                return $value;
+        }
+
+        return $network_value;
+}
+
+function aimentor_maybe_sync_network_option( $value, $old_value ) {
+        $filter = current_filter();
+
+        if ( 0 !== strpos( $filter, 'pre_update_option_' ) ) {
+                return $value;
+        }
+
+        $option = substr( $filter, strlen( 'pre_update_option_' ) );
+
+        if ( ! aimentor_should_option_use_network_storage( $option ) ) {
+                return $value;
+        }
+
+        update_site_option( $option, $value );
+
+        return $value;
+}
+
+function aimentor_register_network_option_overrides() {
+        if ( ! is_multisite() ) {
+                return;
+        }
+
+        foreach ( aimentor_get_network_managed_options() as $option ) {
+                add_filter( "pre_option_{$option}", 'aimentor_maybe_override_option_with_network' );
+                add_filter( "pre_update_option_{$option}", 'aimentor_maybe_sync_network_option', 10, 2 );
+        }
+}
+add_action( 'plugins_loaded', 'aimentor_register_network_option_overrides' );
+
 function aimentor_flatten_allowed_models_for_provider( $provider_key ) {
         $allowed = aimentor_get_allowed_provider_models();
 
@@ -1875,6 +1987,7 @@ function aimentor_get_default_options() {
                 'aimentor_health_check_recipients'    => '',
                 'aimentor_archive_layouts'            => 'no',
                 'aimentor_archive_layouts_show_ui'    => 'no',
+                'aimentor_network_lock_provider_models' => 'no',
         ];
 }
 
@@ -2031,6 +2144,15 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_toggle',
                         'default' => $defaults['aimentor_archive_layouts_show_ui'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_network_lock_provider_models',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_network_lock_provider_models'],
                 ]
         );
 
@@ -2735,6 +2857,11 @@ function aimentor_sync_legacy_model_options( $value, $old_value ) {
         return $sanitized;
 }
 add_filter( 'pre_update_option_aimentor_provider_models', 'aimentor_sync_legacy_model_options', 10, 2 );
+
+function aimentor_sync_legacy_model_options_for_site_option( $value, $old_value, $option ) {
+        return aimentor_sync_legacy_model_options( $value, $old_value );
+}
+add_filter( 'pre_update_site_option_aimentor_provider_models', 'aimentor_sync_legacy_model_options_for_site_option', 10, 3 );
 
 function aimentor_sanitize_provider( $value ) {
         $allowed = [ 'grok', 'openai' ];
