@@ -18,7 +18,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - name: Verify version bump when plugin code changes
-        run: .github/scripts/verify-version-bump.sh
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/verify-version-bump.sh"
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
