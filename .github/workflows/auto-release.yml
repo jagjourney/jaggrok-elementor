@@ -1,0 +1,110 @@
+name: Auto tag and release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'aimentor-elementor.php'
+      - 'readme.txt'
+      - 'docs/landing/README.md'
+      - 'manifests/aimentor-plugin-info.json'
+
+jobs:
+  tag-and-release:
+    name: Tag and draft release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine release version
+        id: version
+        run: |
+          set -euo pipefail
+
+          VERSION=$(php -r 'if(!preg_match("/^\\s*\\*\\s*Version:\\s*(.+)$/m", file_get_contents($argv[1]), $m)){fwrite(STDERR, "Unable to locate plugin header version in {$argv[1]}".PHP_EOL); exit(1);} echo trim($m[1]);' aimentor-elementor.php)
+          TAG="v${VERSION}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          set -euo pipefail
+
+          TAG='${{ steps.version.outputs.tag }}'
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists; nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git author
+        if: ${{ steps.tag_check.outputs.exists == 'false' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create annotated tag
+        if: ${{ steps.tag_check.outputs.exists == 'false' }}
+        run: |
+          set -euo pipefail
+
+          TAG='${{ steps.version.outputs.tag }}'
+          VERSION='${{ steps.version.outputs.version }}'
+
+          git fetch --force origin main --tags
+          MAIN_SHA=$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD)
+          git tag -a "$TAG" "$MAIN_SHA" -m "Release $VERSION"
+
+      - name: Push tag to origin
+        if: ${{ steps.tag_check.outputs.exists == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          TAG='${{ steps.version.outputs.tag }}'
+          git push origin "$TAG"
+
+      - name: Locate release notes
+        if: ${{ steps.tag_check.outputs.exists == 'false' }}
+        id: notes
+        run: |
+          set -euo pipefail
+
+          TAG='${{ steps.version.outputs.tag }}'
+          NOTES_PATH="docs/releases/${TAG}.md"
+
+          if [ -f "$NOTES_PATH" ]; then
+            echo "Found release notes at $NOTES_PATH"
+            echo "path=${NOTES_PATH}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release notes found for $TAG"
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create draft GitHub release
+        if: ${{ steps.tag_check.outputs.exists == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NOTES_PATH: ${{ steps.notes.outputs.path }}
+        run: |
+          set -euo pipefail
+
+          TITLE="AiMentor Elementor ${TAG}"
+
+          if [ -n "$NOTES_PATH" ]; then
+            gh release create "$TAG" --draft --title "$TITLE" --notes-file "$NOTES_PATH"
+          else
+            gh release create "$TAG" --draft --title "$TITLE" --notes "Draft release for ${TAG} generated automatically."
+          fi
