@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.04
+Stable tag: 1.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,9 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.0.10 =
+* Rolled the plugin metadata, changelog references, and distribution manifest back to version 1.0.10 so the published ZIP and WordPress update prompts match the intended release.
+
 = 1.0.04 =
 * Hardened the CI guardrail so every change to the repository requires a synchronized version bump before merging.
 

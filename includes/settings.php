@@ -1195,8 +1195,9 @@ function aimentor_get_default_options() {
                 'aimentor_default_performance'       => 'fast',
                 'aimentor_api_tested'                => false,
                 'aimentor_onboarding_dismissed'      => 'no',
-                'aimentor_enable_health_checks'      => 'yes',
-                'aimentor_health_check_recipients'   => '',
+                'aimentor_enable_health_checks'       => 'yes',
+                'aimentor_enable_health_check_alerts' => 'yes',
+                'aimentor_health_check_recipients'    => '',
         ];
 }
 
@@ -1454,6 +1455,15 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_toggle',
                         'default' => $defaults['aimentor_enable_health_checks'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_enable_health_check_alerts',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_enable_health_check_alerts'],
                 ]
         );
 
@@ -2706,6 +2716,31 @@ function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
         ];
 }
 
+/**
+ * Re-run the provider connection test logic used by aimentor_test_api_connection().
+ *
+ * @param string $provider_key Provider identifier.
+ * @param string $api_key      API key to validate.
+ * @param array  $args         Optional overrides for aimentor_execute_provider_test().
+ *
+ * @return array|WP_Error
+ */
+function aimentor_run_provider_connection_test( $provider_key, $api_key, $args = [] ) {
+        $args = wp_parse_args(
+                $args,
+                [
+                        'origin'            => 'test',
+                        'update_status'     => true,
+                        'record_usage'      => true,
+                        'update_api_tested' => true,
+                        'persist_api_key'   => true,
+                        'user_id'           => get_current_user_id(),
+                ]
+        );
+
+        return aimentor_execute_provider_test( $provider_key, $api_key, $args );
+}
+
 function aimentor_test_api_connection() {
         $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 
@@ -2748,7 +2783,7 @@ function aimentor_test_api_connection() {
 
         $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 
-        $result = aimentor_execute_provider_test(
+        $result = aimentor_run_provider_connection_test(
                 $provider_key,
                 $api_key,
                 [
@@ -2778,6 +2813,14 @@ add_action( 'wp_ajax_jaggrok_test_api', 'aimentor_test_api_connection' );
 function aimentor_health_checks_enabled() {
         $defaults = aimentor_get_default_options();
         $value    = get_option( 'aimentor_enable_health_checks', $defaults['aimentor_enable_health_checks'] );
+        $value    = aimentor_sanitize_toggle( $value );
+
+        return 'yes' === $value;
+}
+
+function aimentor_health_check_alerts_enabled() {
+        $defaults = aimentor_get_default_options();
+        $value    = get_option( 'aimentor_enable_health_check_alerts', $defaults['aimentor_enable_health_check_alerts'] );
         $value    = aimentor_sanitize_toggle( $value );
 
         return 'yes' === $value;
@@ -2892,6 +2935,10 @@ function aimentor_register_provider_health_recovery( $state, $provider_key ) {
 }
 
 function aimentor_maybe_send_health_check_alerts( &$state ) {
+        if ( ! aimentor_health_check_alerts_enabled() ) {
+                return;
+        }
+
         $threshold = aimentor_get_health_check_failure_threshold();
 
         if ( $threshold < 1 ) {
@@ -2973,13 +3020,15 @@ function aimentor_run_scheduled_provider_checks() {
 
                 $active_found = true;
 
-                $result = aimentor_execute_provider_test(
+                $result = aimentor_run_provider_connection_test(
                         $provider_key,
                         $api_key,
                         [
+                                'origin'            => 'health_check',
                                 'update_api_tested' => false,
                                 'user_id'           => 0,
                                 'persist_api_key'   => false,
+                                'record_usage'      => false,
                         ]
                 );
 

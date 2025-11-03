@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.0.04
+ * Version: 1.0.10
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.0.04' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.0.10' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -549,9 +549,25 @@ function aimentor_clear_provider_health_schedule() {
 }
 
 add_action( 'init', 'aimentor_schedule_provider_health_check' );
+add_action( 'update_option_aimentor_enable_health_checks', 'aimentor_refresh_provider_health_schedule', 10, 2 );
 
 if ( function_exists( 'aimentor_run_scheduled_provider_checks' ) ) {
         add_action( AIMENTOR_PROVIDER_HEALTH_EVENT, 'aimentor_run_scheduled_provider_checks' );
+}
+
+function aimentor_refresh_provider_health_schedule( $old_value, $value ) {
+        if ( ! function_exists( 'aimentor_sanitize_toggle' ) ) {
+                return;
+        }
+
+        $normalized = aimentor_sanitize_toggle( $value );
+
+        if ( 'yes' === $normalized ) {
+                aimentor_schedule_provider_health_check();
+                return;
+        }
+
+        aimentor_clear_provider_health_schedule();
 }
 
 register_activation_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_activate_plugin' );
