@@ -2,7 +2,41 @@
 // Minimal WordPress stubs for standalone option sanitization tests.
 
 global $aimentor_test_options;
-$aimentor_test_options = [];
+global $aimentor_test_option_sources;
+$aimentor_test_options        = [];
+$aimentor_test_option_sources = [];
+
+if ( ! function_exists( 'aimentor_test_reset_options' ) ) {
+        function aimentor_test_reset_options( array $seed = [] ) {
+                global $aimentor_test_options;
+                global $aimentor_test_option_sources;
+
+                $aimentor_test_options        = [];
+                $aimentor_test_option_sources = [];
+
+                foreach ( $seed as $option => $value ) {
+                        aimentor_test_preload_option( $option, $value );
+                }
+        }
+}
+
+if ( ! function_exists( 'aimentor_test_preload_option' ) ) {
+        function aimentor_test_preload_option( $name, $value ) {
+                global $aimentor_test_options;
+                global $aimentor_test_option_sources;
+
+                $aimentor_test_options[ $name ]        = $value;
+                $aimentor_test_option_sources[ $name ] = 'preloaded';
+        }
+}
+
+if ( ! function_exists( 'aimentor_test_get_option_source' ) ) {
+        function aimentor_test_get_option_source( $name ) {
+                global $aimentor_test_option_sources;
+
+                return $aimentor_test_option_sources[ $name ] ?? null;
+        }
+}
 
 if ( ! function_exists( '__' ) ) {
         function __( $text, $domain = null ) {
@@ -189,8 +223,11 @@ if ( ! function_exists( 'get_option' ) ) {
 if ( ! function_exists( 'update_option' ) ) {
         function update_option( $name, $value ) {
                 global $aimentor_test_options;
+                global $aimentor_test_option_sources;
 
                 $aimentor_test_options[ $name ] = $value;
+
+                $aimentor_test_option_sources[ $name ] = 'updated';
 
                 return true;
         }
@@ -199,9 +236,11 @@ if ( ! function_exists( 'update_option' ) ) {
 if ( ! function_exists( 'add_option' ) ) {
         function add_option( $name, $value ) {
                 global $aimentor_test_options;
+                global $aimentor_test_option_sources;
 
                 if ( ! array_key_exists( $name, $aimentor_test_options ) ) {
                         $aimentor_test_options[ $name ] = $value;
+                        $aimentor_test_option_sources[ $name ] = 'default';
                 }
 
                 return true;
@@ -211,8 +250,10 @@ if ( ! function_exists( 'add_option' ) ) {
 if ( ! function_exists( 'delete_option' ) ) {
         function delete_option( $name ) {
                 global $aimentor_test_options;
+                global $aimentor_test_option_sources;
 
                 unset( $aimentor_test_options[ $name ] );
+                unset( $aimentor_test_option_sources[ $name ] );
 
                 return true;
         }
