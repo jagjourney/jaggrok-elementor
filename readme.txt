@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.05
+Stable tag: 1.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,8 +87,10 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
-= 1.0.05 =
-* Allow the release automation to process draft and pre-release tags so teams can validate packaged ZIPs before publication while keeping the WordPress manifest untouched until the release goes live.
+= 1.0.10 =
+* Scheduled a daily provider health check that re-tests active API connections and keeps the cron aligned with the settings toggle.
+* Recorded consecutive connection failures, clearing counters on success and surfacing administrator alerts when thresholds are exceeded.
+* Added settings toggles to control automated checks, enable alert emails, and configure notification recipients directly from the dashboard.
 
 = 1.0.04 =
 * Hardened the CI guardrail so every change to the repository requires a synchronized version bump before merging.

@@ -139,9 +139,10 @@
             $provider_status_views[ $provider_key ] = aimentor_format_provider_status_for_display( $provider_key, $current_status );
     }
 
-    $health_checks_enabled   = aimentor_health_checks_enabled();
-    $health_check_recipients = aimentor_sanitize_health_check_recipients( get_option( 'aimentor_health_check_recipients', $defaults['aimentor_health_check_recipients'] ) );
-    $health_check_threshold  = aimentor_get_health_check_failure_threshold();
+    $health_checks_enabled        = aimentor_health_checks_enabled();
+    $health_check_alerts_enabled  = aimentor_health_check_alerts_enabled();
+    $health_check_recipients      = aimentor_sanitize_health_check_recipients( get_option( 'aimentor_health_check_recipients', $defaults['aimentor_health_check_recipients'] ) );
+    $health_check_threshold       = aimentor_get_health_check_failure_threshold();
 
     $has_api_key           = ! empty( $api_keys['grok'] ) || ! empty( $api_keys['openai'] );
     $provider_tested       = (bool) get_option( 'aimentor_api_tested', $defaults['aimentor_api_tested'] );
@@ -324,6 +325,12 @@
                         <label>
                             <input type="checkbox" name="aimentor_enable_health_checks" value="yes" <?php checked( $health_checks_enabled ); ?> />
                             <?php esc_html_e( 'Run daily provider connection checks', 'aimentor' ); ?>
+                        </label>
+                        <br />
+                        <input type="hidden" name="aimentor_enable_health_check_alerts" value="no" />
+                        <label>
+                            <input type="checkbox" name="aimentor_enable_health_check_alerts" value="yes" <?php checked( $health_check_alerts_enabled ); ?> />
+                            <?php esc_html_e( 'Email administrators when repeated failures occur', 'aimentor' ); ?>
                         </label>
                         <p class="description"><?php echo esc_html( sprintf( __( 'AiMentor will re-test stored API keys daily and alert you after %d consecutive failures.', 'aimentor' ), $health_check_threshold ) ); ?></p>
                     </fieldset>
