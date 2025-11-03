@@ -126,6 +126,51 @@ function aimentor_get_provider_labels() {
         ];
 }
 
+function aimentor_get_prompt_preset_catalog() {
+        return [
+                'grok'   => [
+                        'landing_page' => [
+                                'label'       => __( 'Landing Page', 'aimentor' ),
+                                'description' => __( 'Craft conversion-focused hero, benefits, proof, and CTA copy for a marketing landing page.', 'aimentor' ),
+                                'prompt'      => __( 'You are an expert marketing copywriter. Produce detailed landing page copy with a headline, subheadline, value proposition bullets, social proof, and a compelling primary call to action. Highlight the unique benefits and key differentiators provided by the business.', 'aimentor' ),
+                                'task'        => 'content',
+                        ],
+                        'services_overview' => [
+                                'label'       => __( 'Services Overview', 'aimentor' ),
+                                'description' => __( 'Summarize core services with positioning, differentiators, and quick callouts for each offer.', 'aimentor' ),
+                                'prompt'      => __( 'You are a brand strategist. Write persuasive website copy that introduces the business and outlines 3-4 core services. For each service include a short positioning statement, who it helps, and one standout proof point. Conclude with a confident invitation to start a conversation.', 'aimentor' ),
+                                'task'        => 'content',
+                        ],
+                        'blog_brief' => [
+                                'label'       => __( 'Blog Post Brief', 'aimentor' ),
+                                'description' => __( 'Outline audience, search intent, talking points, and structure for a long-form article.', 'aimentor' ),
+                                'prompt'      => __( 'Act as an editorial strategist. Produce a blog brief that includes: target reader, search intent, working title options, a detailed outline with sections and bullet talking points, suggested keywords, and a closing CTA that drives the next step with the brand.', 'aimentor' ),
+                                'task'        => 'content',
+                        ],
+                ],
+                'openai' => [
+                        'landing_page' => [
+                                'label'       => __( 'Landing Page', 'aimentor' ),
+                                'description' => __( 'Generate empathetic, benefits-first copy for a product or service landing page.', 'aimentor' ),
+                                'prompt'      => __( 'You are a conversion copywriter. Deliver landing page copy that opens with an emotional hook, expands on key benefits, addresses objections with reassurance, and ends with a strong CTA. Include short headings for each section.', 'aimentor' ),
+                                'task'        => 'content',
+                        ],
+                        'email_sequence' => [
+                                'label'       => __( 'Email Sequence', 'aimentor' ),
+                                'description' => __( 'Plan a three-part nurture sequence with subject lines, preview text, and CTA ideas.', 'aimentor' ),
+                                'prompt'      => __( 'You are an email strategist. Draft a three-message nurture sequence. For each email include a subject line, preview text, main talking points, and a clear CTA that moves the reader toward a discovery call or purchase.', 'aimentor' ),
+                                'task'        => 'content',
+                        ],
+                        'blog_brief' => [
+                                'label'       => __( 'Blog Post Brief', 'aimentor' ),
+                                'description' => __( 'Provide research-backed talking points and outline guidance for an in-depth blog article.', 'aimentor' ),
+                                'prompt'      => __( 'You are an SEO and content strategist. Create a blog post brief with primary keyword focus, search intent, target reader persona, a comprehensive outline with headings and bullet talking points, and recommended resources or statistics to cite.', 'aimentor' ),
+                                'task'        => 'content',
+                        ],
+                ],
+        ];
+}
+
 function aimentor_get_usage_transient_key() {
         return 'aimentor_provider_usage_snapshot';
 }

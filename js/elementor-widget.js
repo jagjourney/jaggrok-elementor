@@ -82,6 +82,7 @@
         var savedPromptsData = aimentorData.savedPrompts || {};
         var savedPromptsStore = normalizeSavedPrompts(savedPromptsData);
         var savedPromptSelectNodes = [];
+        var promptPresetLookup = buildPromptPresetLookup(aimentorData.promptPresets || {});
 
         ensureBadgeStyles();
 
@@ -337,6 +338,8 @@
             var $tier = config.tierSelector ? $(config.tierSelector) : $();
             var $summary = config.summarySelector ? $(config.summarySelector) : $();
             var $savedPromptSelect = config.savedPromptSelector ? $(config.savedPromptSelector) : $();
+            var $presetSelect = config.presetSelector ? $(config.presetSelector) : $();
+            var $presetDescription = config.presetDescriptionSelector ? $(config.presetDescriptionSelector) : $();
             var ui = {
                 icon: config.providerIconSelector ? $(config.providerIconSelector) : $(),
                 label: config.providerLabelSelector ? $(config.providerLabelSelector) : $(),
@@ -361,6 +364,20 @@
                         $prompt.val(savedPrompt.prompt).trigger('input');
                     }
                 });
+            }
+
+            if ($presetSelect.length) {
+                var initialPresetValue = $presetSelect.val() || '';
+                $presetSelect.data('aimentorLastPreset', initialPresetValue);
+                applyPresetChoice($prompt, initialPresetValue, false, $presetDescription);
+                $presetSelect.off('change.aimentor').on('change.aimentor', function() {
+                    var selectedValue = $(this).val() || '';
+                    var previousValue = $presetSelect.data('aimentorLastPreset') || '';
+                    $presetSelect.data('aimentorLastPreset', selectedValue);
+                    applyPresetChoice($prompt, selectedValue, !!selectedValue && selectedValue !== previousValue, $presetDescription);
+                });
+            } else if ($presetDescription.length) {
+                $presetDescription.hide();
             }
 
             var widgetState = api.state.widgets[config.widgetId] || {};
@@ -716,6 +733,8 @@
         window.AiMentorElementorUI = api;
 
         if (window.elementor && window.elementor.hooks && typeof window.elementor.hooks.addAction === 'function') {
+            var widgetSlugs = ['aimentor-ai-generator', 'jaggrok-ai-generator'];
+
             [
                 'panel/widgets/aimentor-ai-generator/controls/write_with_aimentor/event',
                 'panel/widgets/aimentor-ai-generator/controls/write_with_jaggrok/event',
@@ -723,6 +742,151 @@
                 'panel/widgets/jaggrok-ai-generator/controls/write_with_jaggrok/event'
             ].forEach(function(hookName) {
                 window.elementor.hooks.addAction(hookName, api.openModal);
+            });
+
+            widgetSlugs.forEach(function(slug) {
+                window.elementor.hooks.addAction('panel/open_editor/widget/' + slug, function(panel, model, view) {
+                    if (!view || !view.$el) {
+                        return;
+                    }
+                    setTimeout(function() {
+                        setupPresetControlBindings(view);
+                    }, 0);
+                });
+            });
+        }
+
+        function buildPromptPresetLookup(catalog) {
+            var lookup = {};
+            if (!catalog || typeof catalog !== 'object') {
+                return lookup;
+            }
+            Object.keys(catalog).forEach(function(providerKey) {
+                var providerPresets = catalog[providerKey];
+                if (!providerPresets || typeof providerPresets !== 'object') {
+                    return;
+                }
+                Object.keys(providerPresets).forEach(function(presetKey) {
+                    var meta = providerPresets[presetKey];
+                    if (!meta || typeof meta !== 'object') {
+                        return;
+                    }
+                    var entry = {
+                        id: providerKey + '::' + presetKey,
+                        key: presetKey,
+                        provider: providerKey,
+                        label: typeof meta.label === 'string' ? meta.label : presetKey,
+                        description: typeof meta.description === 'string' ? meta.description : '',
+                        prompt: typeof meta.prompt === 'string' ? meta.prompt : '',
+                        task: typeof meta.task === 'string' ? meta.task : ''
+                    };
+                    lookup[entry.id] = entry;
+                });
+            });
+            return lookup;
+        }
+
+        function getPromptPreset(value) {
+            if (!value) {
+                return null;
+            }
+            return promptPresetLookup[value] || null;
+        }
+
+        function mergePromptText($field, presetPrompt) {
+            if (!$field || !$field.length) {
+                return;
+            }
+            var presetText = (presetPrompt || '').trim();
+            if (!presetText) {
+                return;
+            }
+            var currentValue = String($field.val() || '');
+            var normalizedCurrent = currentValue.trim();
+            if (!normalizedCurrent) {
+                $field.val(presetText);
+                $field.trigger('input');
+                return;
+            }
+            if (normalizedCurrent.indexOf(presetText) !== -1) {
+                return;
+            }
+            var separator = /\n\s*$/.test(currentValue) ? '' : '\n\n';
+            $field.val(currentValue + separator + presetText);
+            $field.trigger('input');
+        }
+
+        function renderPresetDescription($target, preset) {
+            if (!$target || !$target.length) {
+                return;
+            }
+            if (!preset) {
+                $target.text('').hide();
+                return;
+            }
+            var providerName = providerLabels[preset.provider] || preset.provider || '';
+            var pieces = [];
+            if (providerName) {
+                pieces.push(providerName);
+            }
+            if (preset.label) {
+                pieces.push(preset.label);
+            }
+            var headline = pieces.join(' • ');
+            var descriptionText = preset.description || '';
+            var message = headline;
+            if (descriptionText) {
+                message = message ? headline + ' — ' + descriptionText : descriptionText;
+            }
+            if (!message) {
+                message = preset.key || '';
+            }
+            if (message) {
+                $target.text(message).show();
+            } else {
+                $target.text('').hide();
+            }
+        }
+
+        function applyPresetChoice($field, presetValue, shouldMerge, $descriptionEl) {
+            var preset = getPromptPreset(presetValue);
+            if ($descriptionEl && $descriptionEl.length) {
+                renderPresetDescription($descriptionEl, preset);
+            }
+            if (!shouldMerge || !$field || !$field.length) {
+                return;
+            }
+            if (!preset || !preset.prompt) {
+                return;
+            }
+            mergePromptText($field, preset.prompt);
+        }
+
+        function setupPresetControlBindings(view) {
+            var $panel = view && view.$el ? view.$el : null;
+            if (!$panel || !$panel.length) {
+                return;
+            }
+            var $presetSelect = $panel.find('select[data-setting="aimentor_prompt_preset"]');
+            var $promptField = $panel.find('textarea[data-setting="aimentor_prompt_text"]');
+            if (!$presetSelect.length || !$promptField.length) {
+                return;
+            }
+            var $control = $presetSelect.closest('.elementor-control');
+            var $description = $control.find('.aimentor-preset-description');
+            if (!$description.length) {
+                $description = $('<p class="aimentor-preset-description" style="margin-top:8px;font-size:12px;color:#4b5563;display:none;"></p>');
+                $control.find('.elementor-control-input-wrapper').append($description);
+            }
+            var initialValue = $presetSelect.val() || '';
+            $presetSelect.data('aimentorLastPreset', initialValue);
+            applyPresetChoice($promptField, initialValue, false, $description);
+
+            $presetSelect.off('change.aimentorPreset').on('change.aimentorPreset', function() {
+                var value = $(this).val() || '';
+                var previous = $presetSelect.data('aimentorLastPreset') || '';
+                $presetSelect.data('aimentorLastPreset', value);
+                applyPresetChoice($promptField, value, !!value && value !== previous, $description);
             });
         }
 

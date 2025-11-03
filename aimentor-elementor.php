@@ -393,6 +393,7 @@ function aimentor_get_ajax_payload() {
                 ),
                 'modelPresets'      => aimentor_get_model_presets(),
                 'modelLabels'       => aimentor_get_model_labels(),
+                'promptPresets'     => function_exists( 'aimentor_get_prompt_preset_catalog' ) ? aimentor_get_prompt_preset_catalog() : [],
                 'isProActive'       => aimentor_is_pro_active(),
                 'savedPrompts'      => $saved_prompts,
         );
