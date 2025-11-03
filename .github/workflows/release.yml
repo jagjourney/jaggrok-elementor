@@ -92,7 +92,7 @@ jobs:
             VERSION="$TAG"
           fi
 
-          ZIP_NAME="${PLUGIN_SLUG}-v${VERSION}.zip"
+          ZIP_NAME="${PLUGIN_SLUG}.zip"
           BUILD_DIR="build/${PLUGIN_SLUG}"
 
           rm -rf build
@@ -181,6 +181,8 @@ jobs:
           SHA256='${{ steps.package.outputs.sha256 }}'
           PUBLISHED='${{ github.event.release.published_at }}'
 
+          export TAG VERSION ZIP_NAME ZIP_URL SHA256 PUBLISHED
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -198,20 +200,26 @@ jobs:
           pushd "$WORKTREE_PATH" >/dev/null
           mkdir -p manifests
 
-          cat <<JSON > manifests/aimentor-plugin-info.json
-{
-  "name": "AiMentor Elementor",
-  "slug": "aimentor-elementor",
-  "version": "${VERSION}",
-  "download_url": "${ZIP_URL}",
-  "released_at": "${PUBLISHED}",
-  "checksum": {
-    "algorithm": "sha256",
-    "hash": "${SHA256}"
-  },
-  "source": "https://github.com/${{ github.repository }}"
-}
-JSON
+          php -r '$data = [
+            "name" => "AiMentor Elementor",
+            "slug" => "aimentor-elementor",
+            "version" => getenv("VERSION"),
+            "download_url" => getenv("ZIP_URL"),
+            "released_at" => getenv("PUBLISHED"),
+            "checksum" => [
+              "algorithm" => "sha256",
+              "hash" => getenv("SHA256")
+            ],
+            "source" => "https://github.com/" . getenv("GITHUB_REPOSITORY")
+          ];
+
+          $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+          if ($json === false) {
+            fwrite(STDERR, "Failed to encode manifest JSON" . PHP_EOL);
+            exit(1);
+          }
+
+          file_put_contents("manifests/aimentor-plugin-info.json", $json . PHP_EOL);'
 
           if git diff --quiet -- manifests/aimentor-plugin-info.json; then
             echo "Manifest already up to date"
