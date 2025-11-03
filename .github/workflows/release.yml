@@ -34,6 +34,51 @@ jobs:
             -path './build' -prune -o \
             -name '*.php' -print0 | xargs -0 -n1 php -l
 
+      - name: Validate release metadata
+        # Ensure the release tag matches plugin headers and manifests before creating artifacts.
+        run: |
+          set -euo pipefail
+
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$TAG"
+          fi
+
+          PHP_FILE='aimentor-elementor.php'
+
+          HEADER_VERSION=$(php -r 'if(!preg_match("/^\\s*\\*\\s*Version:\\s*(.+)$/m", file_get_contents($argv[1]), $m)){fwrite(STDERR, "Unable to locate plugin header version in {$argv[1]}".PHP_EOL); exit(1);} echo trim($m[1]);' "$PHP_FILE")
+          CONSTANT_VERSION=$(php -r 'if(!preg_match("/define\\(\\s*[\"\']AIMENTOR_PLUGIN_VERSION[\"\']\\s*,\\s*[\"\']([^\"\']+)[\"\']\\s*\\)/", file_get_contents($argv[1]), $m)){fwrite(STDERR, "Unable to locate AIMENTOR_PLUGIN_VERSION constant in {$argv[1]}".PHP_EOL); exit(1);} echo $m[1];' "$PHP_FILE")
+          README_VERSION=$(php -r 'if(!preg_match("/^Stable tag:\\s*(.+)$/m", file_get_contents($argv[1]), $m)){fwrite(STDERR, "Unable to locate Stable tag in {$argv[1]}".PHP_EOL); exit(1);} echo trim($m[1]);' readme.txt)
+          MANIFEST_VERSION=$(php -r '$path=$argv[1]; $json=json_decode(file_get_contents($path), true); if(!is_array($json) || !isset($json["version"]) || $json["version"] === ""){fwrite(STDERR, "Unable to parse version from {$path}".PHP_EOL); exit(1);} echo $json["version"];' manifests/aimentor-plugin-info.json)
+
+          MISMATCH=0
+
+          if [ "$VERSION" != "$HEADER_VERSION" ]; then
+            echo "::error ::Release tag version $VERSION does not match plugin header version $HEADER_VERSION" >&2
+            MISMATCH=1
+          fi
+
+          if [ "$VERSION" != "$CONSTANT_VERSION" ]; then
+            echo "::error ::Release tag version $VERSION does not match AIMENTOR_PLUGIN_VERSION constant $CONSTANT_VERSION" >&2
+            MISMATCH=1
+          fi
+
+          if [ "$VERSION" != "$README_VERSION" ]; then
+            echo "::error ::Release tag version $VERSION does not match readme.txt stable tag $README_VERSION" >&2
+            MISMATCH=1
+          fi
+
+          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error ::Release tag version $VERSION does not match manifests/aimentor-plugin-info.json version $MANIFEST_VERSION" >&2
+            MISMATCH=1
+          fi
+
+          if [ "$MISMATCH" -ne 0 ]; then
+            echo "Version mismatch detected. Update plugin metadata before publishing a release." >&2
+            exit 1
+          fi
+
       - name: Build plugin archive
         id: package
         run: |
