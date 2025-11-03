@@ -1,319 +1,63 @@
-(function(window) {
-    var selectorTransforms = [
-        { pattern: /jaggrok_/g, replacement: 'aimentor_' },
-        { pattern: /jaggrok-/g, replacement: 'aimentor-' }
-    ];
-
-    function mapSelector(selector) {
-        if (typeof selector !== 'string') {
-            return selector;
-        }
-
-        var mapped = selector;
-        selectorTransforms.forEach(function(entry) {
-            mapped = mapped.replace(entry.pattern, entry.replacement);
-        });
-        return mapped;
-    }
-
-    if (window.document) {
-        var doc = window.document;
-        var originalGetElementById = doc.getElementById.bind(doc);
-        doc.getElementById = function(id) {
-            return originalGetElementById(mapSelector(id));
-        };
-
-        var originalQuerySelector = doc.querySelector.bind(doc);
-        doc.querySelector = function(selector) {
-            return originalQuerySelector(mapSelector(selector));
-        };
-
-        var originalQuerySelectorAll = doc.querySelectorAll.bind(doc);
-        doc.querySelectorAll = function(selector) {
-            return originalQuerySelectorAll(mapSelector(selector));
-        };
-    }
-})(window);
-
-jQuery(document).on('elementor/init', function() {
-    var aimentorData = (typeof aimentorAjax !== 'undefined') ? aimentorAjax : {};
-    var strings = aimentorData.strings || {};
-    var providerLabels = aimentorData.providerLabels || {};
-    var providerSummaries = aimentorData.providerSummaries || {};
-    var providersMeta = aimentorData.providersMeta || {};
+(function($, window) {
+    'use strict';
 
     function ensureBadgeStyles() {
-        if (!document.getElementById('aimentor-provider-badge-style')) {
-            var style = document.createElement('style');
-            style.id = 'aimentor-provider-badge-style';
-            style.textContent = '.aimentor-provider-badge, .jaggrok-provider-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:0.05em;}';
-            document.head.appendChild(style);
+        if (document.getElementById('aimentor-provider-badge-style')) {
+            return;
         }
+        var style = document.createElement('style');
+        style.id = 'aimentor-provider-badge-style';
+        style.textContent = '.aimentor-provider-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:0.05em;}';
+        document.head.appendChild(style);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatString(template, value) {
+        if (!template) {
+            return value;
+        }
+        return template.replace('%s', value);
+    }
+
+    $(document).on('elementor/init', function() {
+        var aimentorData = window.aimentorAjax || {};
+        var strings = aimentorData.strings || {};
+        var providerLabels = aimentorData.providerLabels || {};
+        var providerSummaries = aimentorData.providerSummaries || {};
+        var providersMeta = aimentorData.providersMeta || {};
+        var defaultsData = aimentorData.defaults || {};
+        var modelLabels = aimentorData.modelLabels || {};
+        var isProActive = !!aimentorData.isProActive;
+
         ensureBadgeStyles();
 
-        function formatString(template, value) {
-            if (!template) {
-                return value;
-            }
-            return template.replace('%s', value);
+        var providerDefaults = buildProviderDefaults();
+        var providerMap = buildProviderMap(providerDefaults);
+        var existingProviders = (typeof window.AiMentorProviders === 'object' && window.AiMentorProviders) ? window.AiMentorProviders : {};
+
+        if (!Object.keys(existingProviders).length && typeof window.JagGrokProviders === 'object' && window.JagGrokProviders) {
+            existingProviders = Object.assign({}, window.JagGrokProviders);
         }
 
-        function escapeHtml(value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+        window.AiMentorProviders = Object.assign({}, providerDefaults, providerMap, existingProviders);
+
+        if (typeof window.JagGrokProviders !== 'undefined') {
+            window.JagGrokProviders = window.AiMentorProviders;
         }
 
-        var providerDefaults = {};
-        if (providersMeta && Object.keys(providersMeta).length) {
-            Object.keys(providersMeta).forEach(function(key) {
-                var meta = providersMeta[key] || {};
-                var label = meta.label || providerLabels[key] || key;
-                providerDefaults[key] = Object.assign({
-                    label: label,
-                    icon: meta.icon || '🤖',
-                    summary: meta.summary || providerSummaries[key] || formatString(strings.contentGenerated, label || key),
-                    badgeText: meta.badgeText || label,
-                    badgeColor: meta.badgeColor || '#444444'
-                }, meta);
-            });
-        }
-
-        if (!Object.keys(providerDefaults).length) {
-            providerDefaults = {
-                grok: {
-                    label: providerLabels.grok || 'xAI Grok',
-                    icon: '🚀',
-                    summary: providerSummaries.grok || formatString(strings.contentGenerated, providerLabels.grok || 'xAI Grok'),
-                    badgeText: 'xAI',
-                    badgeColor: '#1E1E1E'
-                },
-                openai: {
-                    label: providerLabels.openai || 'OpenAI',
-                    icon: '🔷',
-                    summary: providerSummaries.openai || formatString(strings.contentGenerated, providerLabels.openai || 'OpenAI'),
-                    badgeText: 'OpenAI',
-                    badgeColor: '#2B8CFF'
-                }
-            };
-        }
-
-        var providerMap = Object.assign({}, providerDefaults);
-        if (providerLabels && Object.keys(providerLabels).length) {
-            Object.keys(providerLabels).forEach(function(key) {
-                var label = providerLabels[key];
-                var meta = providerMap[key] || {};
-                meta.label = label;
-                meta.summary = providerSummaries[key] || meta.summary || formatString(strings.contentGenerated, label);
-                providerMap[key] = meta;
-            });
-        }
-        window.AiMentorProviders = Object.assign({}, providerMap, window.AiMentorProviders || {});
-
-        function getProviderMeta(key) {
-            var meta = (window.AiMentorProviders || {})[key];
-            if (!meta) {
-                return {
-                    label: key,
-                    icon: '🤖',
-                    summary: formatString(strings.contentGenerated, key),
-                    badgeText: key,
-                    badgeColor: '#444444'
-                };
-            }
-            meta.key = key;
-            return meta;
-        }
-
-    var providerMap = Object.assign({}, providerDefaults);
-    if (providerLabels && Object.keys(providerLabels).length) {
-        Object.keys(providerLabels).forEach(function(key) {
-            var label = providerLabels[key];
-            var meta = providerMap[key] || {};
-            meta.label = label;
-            meta.summary = providerSummaries[key] || meta.summary || formatString(strings.contentGenerated, label);
-            providerMap[key] = meta;
-        });
-    }
-    window.AiMentorProviders = Object.assign({}, providerMap, window.AiMentorProviders || {});
-    window.JagGrokProviders = window.JagGrokProviders || window.AiMentorProviders;
-
-    function getProviderMeta(key) {
-        var meta = (window.AiMentorProviders || window.JagGrokProviders || {})[key];
-        if (!meta) {
-            return {
-                label: key,
-                icon: '🤖',
-                summary: formatString(strings.contentGenerated, key),
-                badgeText: key,
-                badgeColor: '#444444'
-            };
-        }
-
-    function buildProviderOptions(defaultProvider) {
-        var optionsHtml = '';
-        var providers = window.AiMentorProviders || window.JagGrokProviders || {};
-        var keys = Object.keys(providers);
-        if (!keys.length) {
-            keys = Object.keys(providerDefaults);
-            providers = providerDefaults;
-        }
-        keys.forEach(function(key, index) {
-            var meta = providers[key] || {};
-            var icon = meta.icon ? '<span class=\"aimentor-provider-icon\" aria-hidden=\"true\">' + meta.icon + '</span>' : '';
-            var label = escapeHtml(meta.label || key);
-            var valueAttr = escapeHtml(key);
-            var isChecked = (key === defaultProvider) || (!defaultProvider && index === 0);
-            var checkedAttr = isChecked ? ' checked' : '';
-            var iconHtml = icon || '';
-            var badge = meta.badgeText ? `<span class=\"aimentor-provider-badge\" style=\"background-color:${escapeHtml(meta.badgeColor || '#444444')}\">${escapeHtml(meta.badgeText)}<\/span>` : '';
-            optionsHtml += `
-                                <label class=\"aimentor-provider-option\">
-                                    <input type=\"radio\" name=\"aimentor-modal-provider\" value=\"${valueAttr}\"${checkedAttr}>
-                                    ${iconHtml}
-                                    <span class=\"aimentor-provider-name\">${label}</span>
-                                    ${badge}
-                                </label>`;
-        });
-        return optionsHtml;
-    }
-
-    function updateModalProviderSummary(provider) {
-        var meta = getProviderMeta(provider);
-        $('#aimentor-provider-active-icon').text(meta.icon || '🤖');
-        $('#aimentor-provider-active-label').text(meta.label || provider);
-        $('#aimentor-provider-summary').text(meta.summary || '');
-        var badgeEl = $('#aimentor-provider-active-badge');
-        if (badgeEl.length) {
-            badgeEl.text(meta.badgeText || provider);
-            if (meta.badgeColor) {
-                badgeEl.css('background-color', meta.badgeColor);
-            }
-            var map = modelLabels[provider] || {};
-            return map[key] || key;
-        }
-        if (strings.generateWith) {
-            $('#aimentor-generate').text(formatString(strings.generateWith, meta.label || provider));
-        } else {
-            $('#aimentor-generate').text('Generate with ' + (meta.label || provider));
-        }
-        var headingText = strings.writeWith ? formatString(strings.writeWith, meta.label || provider) : 'Write with ' + (meta.label || provider);
-        var headingEl = $('#aimentor-modal-heading-text');
-        if (headingEl.length) {
-            headingEl.text(headingText);
-        } else {
-            $('#aimentor-modal-heading').text(headingText);
-        }
-
-        function buildSummary(providerKey, task, tier) {
-            var taskLabel = getTaskLabel(task);
-            var tierLabel = getTierLabel(tier);
-            var separator = typeof strings.summarySeparator === 'string' ? strings.summarySeparator : ' • ';
-            var summary = taskLabel + separator + tierLabel;
-            var modelLabel = getModelLabel(providerKey, task, tier);
-            if (modelLabel) {
-                var powered = strings.summaryPoweredBy ? strings.summaryPoweredBy.replace('%s', modelLabel) : '– powered by ' + modelLabel;
-                summary += ' ' + powered;
-            }
-            return summary;
-        }
-
-    function getDefaultProvider() {
-        if (typeof aimentorData.provider !== 'undefined' && aimentorData.provider) {
-            return aimentorData.provider;
-        }
-        var providers = window.AiMentorProviders || window.JagGrokProviders || {};
-        var keys = Object.keys(providers);
-        return keys.length ? keys[0] : 'grok';
-    }
-
-    function openAimentorModal() {
-        if (!$('#aimentor-modal').length) {
-            var defaultProvider = getDefaultProvider();
-            var providerOptions = buildProviderOptions(defaultProvider);
-            $('body').append(`
-                <div id="aimentor-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;">
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:500px;background:white;border-radius:5px;box-shadow:0 5px 15px rgba(0,0,0,0.3);">
-                        <div style="padding:20px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;">
-                            <h3 id="aimentor-modal-heading" style="margin:0;"><i class="eicon-brain" aria-hidden="true"></i> <span id="aimentor-modal-heading-text"></span></h3>
-                            <button id="aimentor-modal-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;" aria-label="${escapeHtml(strings.closeModal || 'Close modal')}">&times;</button>
-                        </div>
-                        <div style="padding:20px;">
-                            <div class="aimentor-modal-provider" style="margin-bottom:12px;">
-                                <span id="aimentor-modal-provider-label" style="display:block;font-weight:600;margin-bottom:6px;">${escapeHtml(strings.chooseProvider || 'Choose provider')}</span>
-                                <div class="aimentor-provider-toggle" role="radiogroup">
-                                    ${providerOptions}
-                                </div>
-                                <div class="aimentor-provider-active" style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-                                    <span id="aimentor-provider-active-icon" aria-hidden="true"></span>
-                                    <strong id="aimentor-provider-active-label"></strong>
-                                    <span id="aimentor-provider-active-badge" class="aimentor-provider-badge"></span>
-                                </div>
-                                <p id="aimentor-provider-summary" style="margin:6px 0 0; font-size:13px;"></p>
-                            </div>
-                            <textarea id="aimentor-prompt" placeholder="Describe your page (e.g. Create a hero section with blue button)" rows="4" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:3px;font-family:inherit;"></textarea>
-                            <br>
-                            <button id="aimentor-generate" class="button button-primary" style="width:100%;margin:10px 0;padding:10px;"></button>
-                            <div id="aimentor-result" style="margin-top:15px;padding:10px;background:#f1f3f5;border-radius:3px;"></div>
-                        </div>
-                    </div>
-                </div>
-            `);
-        }
-
-        $('#aimentor-modal').show();
-        $('#aimentor-modal-close').off('click').on('click', function() {
-            $('#aimentor-modal').hide();
-        });
-        $('#aimentor-prompt').focus();
-        var defaultProvider = getDefaultProvider();
-        var $providerRadios = $('input[name="aimentor-modal-provider"]');
-        if ($providerRadios.length && !$providerRadios.filter(':checked').length) {
-            $providerRadios.filter('[value="' + defaultProvider + '"]').prop('checked', true);
-        }
-
-        function getGeneratingMessage(meta) {
-            if (strings.generatingWith) {
-                return strings.generatingWith.replace('%s', meta.label || meta.key || '');
-            }
-            return 'Generating with ' + (meta.label || 'AiMentor') + '…';
-        }
-
-        $('#aimentor-generate').off('click').on('click', function() {
-            var prompt = $('#aimentor-prompt').val().trim();
-            var $btn = $(this);
-            var $result = $('#aimentor-result');
-            var provider = $('input[name="aimentor-modal-provider"]:checked').val() || getDefaultProvider();
-            var providerMeta = getProviderMeta(provider);
-
-        function buildProviderOptions(defaultProvider) {
-            var optionsHtml = '';
-            var providers = window.AiMentorProviders || {};
-            var keys = Object.keys(providers);
-            if (!keys.length) {
-                keys = Object.keys(providerDefaults);
-                providers = providerDefaults;
-            }
-            keys.forEach(function(key, index) {
-                var meta = providers[key] || {};
-                var icon = meta.icon ? '<span class="aimentor-provider-icon" aria-hidden="true">' + escapeHtml(meta.icon) + '</span>' : '';
-                var label = escapeHtml(meta.label || key);
-                var valueAttr = escapeHtml(key);
-                var isChecked = (key === defaultProvider) || (!defaultProvider && index === 0);
-                var checkedAttr = isChecked ? ' checked' : '';
-                var badge = meta.badgeText ? '<span class="aimentor-provider-badge" style="background-color:' + escapeHtml(meta.badgeColor || '#444444') + '">' + escapeHtml(meta.badgeText) + '</span>' : '';
-                optionsHtml += '<label class="aimentor-provider-option"><input type="radio" name="aimentor-modal-provider" value="' + valueAttr + '"' + checkedAttr + '>' + icon + '<span class="aimentor-provider-name">' + label + '</span>' + badge + '</label>';
-            });
-            return optionsHtml;
-        }
+        var existingState = (window.AiMentorElementorUI && window.AiMentorElementorUI.state) ? window.AiMentorElementorUI.state : {};
+        var defaultTask = sanitizeTask((defaultsData && defaultsData.task) || (existingState.defaults && existingState.defaults.task) || 'content', isProActive);
+        var defaultTier = sanitizeTier((defaultsData && defaultsData.tier) || (existingState.defaults && existingState.defaults.tier) || 'fast');
 
         var api = window.AiMentorElementorUI || {};
-        var existingState = api.state || {};
-        var defaultTask = sanitizeTask(defaultsData.task || (existingState.defaults && existingState.defaults.task) || 'content', isProActive);
-        var defaultTier = sanitizeTier(defaultsData.tier || (existingState.defaults && existingState.defaults.tier) || 'fast');
         api.state = {
             defaults: {
                 task: defaultTask,
@@ -323,11 +67,11 @@ jQuery(document).on('elementor/init', function() {
             modal: existingState.modal ? {
                 task: sanitizeTask(existingState.modal.task, isProActive),
                 tier: sanitizeTier(existingState.modal.tier),
-                provider: existingState.modal.provider || getDefaultProvider()
+                provider: sanitizeProvider(existingState.modal.provider || getDefaultProvider())
             } : {
                 task: defaultTask,
                 tier: defaultTier,
-                provider: getDefaultProvider()
+                provider: sanitizeProvider(getDefaultProvider())
             }
         };
 
@@ -338,6 +82,7 @@ jQuery(document).on('elementor/init', function() {
             if (!config || !config.widgetId) {
                 return;
             }
+
             var allowCanvas = !!config.allowCanvas && isProActive;
             var $container = config.container ? $(config.container) : $();
             var $provider = config.providerSelector ? $(config.providerSelector) : $();
@@ -359,38 +104,133 @@ jQuery(document).on('elementor/init', function() {
                 return;
             }
 
-            $.post(aimentorData.ajaxurl, {
-                action: 'aimentor_generate_page',
-                prompt: prompt,
-                provider: provider,
-                nonce: aimentorData.nonce
-            }, function(response) {
-                $btn.prop('disabled', false).text(strings.generateAgain || 'Generate Again');
-                if (response.success) {
-                    var summary = extractResponseSummary(response, provider);
-                    if (response.data.canvas_json) {
-                        elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
-                        var successPrefix = strings.successPrefix || '✅';
-                        $result.html('<p style="color:green">' + escapeHtml(successPrefix) + ' ' + escapeHtml(summary) + '</p>');
-                        $('.aimentor-output').html('<p class="aimentor-provider-message">' + summary + '</p>');
-                    } else {
-                        var snippet = '';
-                        if (response.data.html) {
-                            snippet = response.data.html.substring(0, 100) + '...';
-                        }
-                        var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet) + '</small>' : '';
-                        var successPrefix = strings.successPrefix || '✅';
-                        $result.html('<p style="color:green">' + escapeHtml(successPrefix) + ' ' + escapeHtml(summary) + snippetHtml + '</p>');
-                        $('.aimentor-output').html('<p class="aimentor-provider-message">' + summary + '</p>' + (response.data.html || ''));
-                    }
+            if (!ensureAjaxConfig($container, $button)) {
+                return;
+            }
+
+            var widgetState = api.state.widgets[config.widgetId] || {};
+            widgetState.provider = sanitizeProvider(widgetState.provider || $provider.val() || getDefaultProvider());
+            widgetState.task = sanitizeTask(widgetState.task || ($task.length ? $task.val() : api.state.defaults.task), allowCanvas);
+            widgetState.tier = sanitizeTier(widgetState.tier || ($tier.length ? $tier.val() : api.state.defaults.tier));
+            api.state.widgets[config.widgetId] = widgetState;
+
+            $provider.val(widgetState.provider);
+            if ($task.length) {
+                $task.val(widgetState.task);
+                if (!allowCanvas) {
+                    $task.prop('disabled', true);
+                }
+            }
+            if ($tier.length) {
+                $tier.val(widgetState.tier);
+            }
+
+            applyProviderMeta(widgetState.provider, ui);
+            updateSummaryText($summary, widgetState.provider, widgetState);
+
+            $provider.off('change.aimentor').on('change.aimentor', function() {
+                var providerKey = sanitizeProvider($(this).val());
+                widgetState.provider = providerKey;
+                applyProviderMeta(providerKey, ui);
+                updateSummaryText($summary, providerKey, widgetState);
+            });
+
+            if ($task.length) {
+                $task.off('change.aimentor').on('change.aimentor', function() {
+                    widgetState.task = sanitizeTask($(this).val(), allowCanvas);
+                    $(this).val(widgetState.task);
+                    updateSummaryText($summary, widgetState.provider, widgetState);
                 });
+            }
+
+            if ($tier.length) {
+                $tier.off('change.aimentor').on('change.aimentor', function() {
+                    widgetState.tier = sanitizeTier($(this).val());
+                    $(this).val(widgetState.tier);
+                    updateSummaryText($summary, widgetState.provider, widgetState);
+                });
+            }
+
+            $button.off('click.aimentor').on('click.aimentor', function() {
+                var promptValue = ($prompt.val() || '').trim();
+                if (!promptValue) {
+                    var promptMessage = strings.promptRequired || 'Please enter a prompt!';
+                    if ($output.length) {
+                        $output.html('<p style="color:red">' + escapeHtml(promptMessage) + '</p>');
+                    }
+                    return;
+                }
+
+                var providerKey = sanitizeProvider($provider.val() || widgetState.provider);
+                widgetState.provider = providerKey;
+                var providerMeta = applyProviderMeta(providerKey, ui);
+                updateSummaryText($summary, providerKey, widgetState);
+
+                var generatingMessage = getGeneratingMessage(providerMeta);
+                if ($output.length) {
+                    $output.html('<p>' + escapeHtml(generatingMessage) + '</p>');
+                }
+
+                $button.prop('disabled', true).text(generatingMessage);
+
+                var requestPayload = {
+                    action: 'aimentor_generate_page',
+                    prompt: promptValue,
+                    provider: providerKey,
+                    nonce: aimentorData.nonce,
+                    task: widgetState.task,
+                    tier: widgetState.tier
+                };
+
+                $.post(aimentorData.ajaxurl, requestPayload)
+                    .done(function(response) {
+                        $button.prop('disabled', false);
+                        applyProviderMeta(providerKey, ui);
+
+                        var responseProvider = response && response.data && response.data.provider ? sanitizeProvider(response.data.provider) : providerKey;
+                        if (responseProvider !== widgetState.provider) {
+                            widgetState.provider = responseProvider;
+                            $provider.val(responseProvider);
+                            applyProviderMeta(responseProvider, ui);
+                        }
+
+                        updateSummaryText($summary, widgetState.provider, widgetState);
+
+                        if (response && response.success) {
+                            var summaryText = extractResponseSummary(response, widgetState.provider, widgetState);
+                            if (response.data && response.data.canvas_json && window.elementorFrontend && elementorFrontend.elementsHandler) {
+                                elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
+                            }
+                            if ($output.length) {
+                                $output.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
+                            }
+                        } else {
+                            var message = response && response.data ? response.data : 'Unknown error';
+                            if (typeof message === 'object' && message !== null) {
+                                message = message.message || message.error || 'Unknown error';
+                            }
+                            var errorPrefix = strings.errorPrefix || 'Error:';
+                            if ($output.length) {
+                                $output.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(String(message)) + '</p>');
+                            }
+                        }
+                    })
+                    .fail(function() {
+                        $button.prop('disabled', false);
+                        applyProviderMeta(widgetState.provider, ui);
+                        var errorPrefix = strings.errorPrefix || 'Error:';
+                        var errorMessage = strings.unknownError || 'Request failed.';
+                        if ($output.length) {
+                            $output.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(errorMessage) + '</p>');
+                        }
+                    });
             });
         };
 
         api.openModal = function() {
             var allowCanvas = isProActive;
             if (!$('#aimentor-modal').length) {
-                var defaultProvider = getDefaultProvider();
+                var defaultProvider = sanitizeProvider(getDefaultProvider());
                 var providerOptions = buildProviderOptions(defaultProvider);
                 var generationLabel = escapeHtml(strings.generationType || 'Generation Type');
                 var performanceLabel = escapeHtml(strings.performanceLabel || 'Performance');
@@ -398,14 +238,19 @@ jQuery(document).on('elementor/init', function() {
                 var pageLayoutLabel = escapeHtml(strings.pageLayout || 'Page Layout');
                 var fastLabel = escapeHtml(strings.fastLabel || 'Fast');
                 var qualityLabel = escapeHtml(strings.qualityLabel || 'Quality');
+                var promptLabel = escapeHtml(strings.promptLabel || 'Prompt');
                 var promptPlaceholder = escapeHtml(strings.promptPlaceholder || 'Describe your page (e.g., hero with CTA)');
-                var headingText = escapeHtml(strings.writeWith ? strings.writeWith.replace('%s', getProviderMeta(defaultProvider).label || defaultProvider) : 'Write with ' + (getProviderMeta(defaultProvider).label || defaultProvider));
+                var headingMeta = getProviderMeta(defaultProvider);
+                var headingText = escapeHtml(strings.writeWith ? strings.writeWith.replace('%s', headingMeta.label || defaultProvider) : 'Write with ' + (headingMeta.label || defaultProvider));
+                var closeLabel = escapeHtml(strings.closeModal || 'Close modal');
+                var askLabel = escapeHtml(strings.askAiMentor || 'Ask AiMentor');
+
                 var modalHtml = '' +
                     '<div id="aimentor-modal" class="aimentor-modal" role="dialog" aria-modal="true" aria-labelledby="aimentor-modal-heading-text" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;">' +
                     '  <div class="aimentor-modal__content" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:520px;background:white;border-radius:8px;box-shadow:0 5px 18px rgba(0,0,0,0.25);overflow:hidden;">' +
                     '    <div class="aimentor-modal__header" style="padding:20px;border-bottom:1px solid #e2e4e7;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
                     '      <h3 id="aimentor-modal-heading-text" class="aimentor-modal__title" style="margin:0;display:flex;align-items:center;gap:8px;"><span class="dashicons dashicons-art" aria-hidden="true"></span><span>' + headingText + '</span></h3>' +
-                    '      <button type="button" id="aimentor-modal-close" class="aimentor-modal__close" aria-label="' + escapeHtml(strings.closeModal || 'Close modal') + '" style="background:none;border:none;font-size:24px;line-height:1;color:#6b7280;cursor:pointer;">&times;</button>' +
+                    '      <button type="button" id="aimentor-modal-close" class="aimentor-modal__close" aria-label="' + closeLabel + '" style="background:none;border:none;font-size:24px;line-height:1;color:#6b7280;cursor:pointer;">&times;</button>' +
                     '    </div>' +
                     '    <div class="aimentor-modal__body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">' +
                     '      <div class="aimentor-modal__providers" role="radiogroup" aria-label="' + escapeHtml(strings.chooseProvider || 'Choose provider') + '">' + providerOptions + '</div>' +
@@ -416,7 +261,7 @@ jQuery(document).on('elementor/init', function() {
                     '      </div>' +
                     '      <p id="aimentor-provider-summary" class="aimentor-provider-description" style="margin:0;font-size:13px;color:#4b5563;"></p>' +
                     '      <label for="aimentor-modal-task" class="aimentor-modal__label">' + generationLabel + '</label>' +
-                    '      <select id="aimentor-modal-task" class="aimentor-modal__select" ' + (allowCanvas ? '' : 'disabled') + '>' +
+                    '      <select id="aimentor-modal-task" class="aimentor-modal__select"' + (allowCanvas ? '' : ' disabled') + '>' +
                     '        <option value="content">' + pageCopyLabel + '</option>' +
                     '        <option value="canvas"' + (allowCanvas ? '' : ' disabled') + '>' + pageLayoutLabel + '</option>' +
                     '      </select>' +
@@ -426,9 +271,9 @@ jQuery(document).on('elementor/init', function() {
                     '        <option value="quality">' + qualityLabel + '</option>' +
                     '      </select>' +
                     '      <p id="aimentor-modal-summary" class="aimentor-context-summary" aria-live="polite" style="margin:0;font-weight:600;color:#111827;"></p>' +
-                    '      <label for="aimentor-prompt" class="aimentor-modal__label">' + escapeHtml(strings.promptLabel || 'Prompt') + '</label>' +
+                    '      <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
                     '      <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
-                    '      <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + escapeHtml(strings.askAiMentor || 'Ask AiMentor') + '</button>' +
+                    '      <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
                     '      <div id="aimentor-result" style="min-height:38px;padding:12px;background:#f3f4f6;border-radius:6px;color:#111827;"></div>' +
                     '    </div>' +
                     '  </div>' +
@@ -451,73 +296,65 @@ jQuery(document).on('elementor/init', function() {
                 summary: $('#aimentor-provider-summary'),
                 badge: $('#aimentor-provider-active-badge'),
                 button: $generate,
-                heading: $('#aimentor-modal-heading-text')
+                heading: $('#aimentor-modal-heading-text span').last()
             };
 
             $modal.show();
-            $close.off('click').on('click', function() {
+            $close.off('click.aimentor').on('click.aimentor', function() {
                 $modal.hide();
             });
 
-            api.state.modal.provider = api.state.modal.provider || getDefaultProvider();
-            if ($providerRadios.length && !$providerRadios.filter(':checked').length) {
-                $providerRadios.filter('[value="' + api.state.modal.provider + '"]').prop('checked', true);
+            var modalState = api.state.modal;
+            modalState.provider = sanitizeProvider(modalState.provider || getDefaultProvider());
+            modalState.task = sanitizeTask(modalState.task, allowCanvas);
+            modalState.tier = sanitizeTier(modalState.tier);
+
+            $providerRadios.prop('checked', false);
+            $providerRadios.filter('[value="' + modalState.provider + '"]').prop('checked', true);
+            if (!$providerRadios.filter(':checked').length && $providerRadios.length) {
+                modalState.provider = sanitizeProvider($providerRadios.first().val());
+                $providerRadios.first().prop('checked', true);
             }
 
             if ($task.length) {
-                $task.val(sanitizeTask(api.state.modal.task, allowCanvas));
+                $task.val(modalState.task);
                 if (!allowCanvas) {
                     $task.prop('disabled', true);
                 }
             }
             if ($tier.length) {
-                $tier.val(sanitizeTier(api.state.modal.tier));
+                $tier.val(modalState.tier);
             }
 
-            var activeProvider = $providerRadios.filter(':checked').val() || getDefaultProvider();
-            api.state.modal.provider = activeProvider;
-            applyProviderMeta(activeProvider, ui);
-            updateSummaryText($summary, activeProvider, {
-                task: sanitizeTask(api.state.modal.task, allowCanvas),
-                tier: sanitizeTier(api.state.modal.tier)
-            });
-
-            $providerRadios.off('change').on('change', function() {
-                var value = $(this).val();
-                api.state.modal.provider = value;
-                applyProviderMeta(value, ui);
-                updateSummaryText($summary, value, {
-                    task: sanitizeTask($task.val(), allowCanvas),
-                    tier: sanitizeTier($tier.val())
-                });
-            });
-
-            $task.off('change').on('change', function() {
-                api.state.modal.task = sanitizeTask($(this).val(), allowCanvas);
-                $(this).val(api.state.modal.task);
-                updateSummaryText($summary, api.state.modal.provider, {
-                    task: api.state.modal.task,
-                    tier: sanitizeTier($tier.val())
-                });
-            });
-
-            $tier.off('change').on('change', function() {
-                api.state.modal.tier = sanitizeTier($(this).val());
-                $(this).val(api.state.modal.tier);
-                updateSummaryText($summary, api.state.modal.provider, {
-                    task: sanitizeTask($task.val(), allowCanvas),
-                    tier: api.state.modal.tier
-                });
-            });
-
-            $prompt.val('').focus();
-            $result.empty();
+            applyProviderMeta(modalState.provider, ui);
+            updateSummaryText($summary, modalState.provider, modalState);
 
             if (!ensureAjaxConfig($modal, $generate)) {
                 return;
             }
 
-            $generate.off('click').on('click', function() {
+            $providerRadios.off('change.aimentor').on('change.aimentor', function() {
+                modalState.provider = sanitizeProvider($(this).val());
+                applyProviderMeta(modalState.provider, ui);
+                updateSummaryText($summary, modalState.provider, modalState);
+            });
+
+            $task.off('change.aimentor').on('change.aimentor', function() {
+                modalState.task = sanitizeTask($(this).val(), allowCanvas);
+                $(this).val(modalState.task);
+                updateSummaryText($summary, modalState.provider, modalState);
+            });
+
+            $tier.off('change.aimentor').on('change.aimentor', function() {
+                modalState.tier = sanitizeTier($(this).val());
+                $(this).val(modalState.tier);
+                updateSummaryText($summary, modalState.provider, modalState);
+            });
+
+            $prompt.val('').focus();
+            $result.empty();
+
+            $generate.off('click.aimentor').on('click.aimentor', function() {
                 var promptValue = ($prompt.val() || '').trim();
                 if (!promptValue) {
                     var promptMessage = strings.promptRequired || 'Please enter a prompt!';
@@ -525,19 +362,19 @@ jQuery(document).on('elementor/init', function() {
                     return;
                 }
 
-                var providerValue = api.state.modal.provider || getDefaultProvider();
                 var selection = {
                     task: sanitizeTask($task.val(), allowCanvas),
                     tier: sanitizeTier($tier.val())
                 };
-                api.state.modal.task = selection.task;
-                api.state.modal.tier = selection.tier;
+                modalState.task = selection.task;
+                modalState.tier = selection.tier;
 
+                var providerValue = modalState.provider;
                 var providerMeta = applyProviderMeta(providerValue, ui);
                 updateSummaryText($summary, providerValue, selection);
 
                 var generatingMessage = getGeneratingMessage(providerMeta);
-                $generate.prop('disabled', true).text(strings.generatingWith ? strings.generatingWith.replace('%s', providerMeta.label || providerMeta.key || '') : (strings.askAiMentor || 'Ask AiMentor'));
+                $generate.prop('disabled', true).text(generatingMessage);
                 $result.html('<p>' + escapeHtml(generatingMessage) + '</p><p>' + escapeHtml(buildSummary(providerValue, selection.task, selection.tier)) + '</p>');
 
                 $.post(aimentorData.ajaxurl, {
@@ -547,52 +384,313 @@ jQuery(document).on('elementor/init', function() {
                     task: selection.task,
                     tier: selection.tier,
                     nonce: aimentorData.nonce
-                }, function(response) {
+                }).done(function(response) {
                     $generate.prop('disabled', false);
                     applyProviderMeta(providerValue, ui);
+
                     if (response && response.data && response.data.provider) {
-                        providerValue = response.data.provider;
-                        api.state.modal.provider = providerValue;
+                        providerValue = sanitizeProvider(response.data.provider);
+                        modalState.provider = providerValue;
+                        $providerRadios.prop('checked', false);
+                        $providerRadios.filter('[value="' + providerValue + '"]').prop('checked', true);
                         applyProviderMeta(providerValue, ui);
                     }
+
                     updateSummaryText($summary, providerValue, selection);
 
                     if (response && response.success) {
-                        var summaryText = buildSummary(providerValue, selection.task, selection.tier);
-                        if (response.data && response.data.canvas_json) {
-                            if (window.elementorFrontend && elementorFrontend.elementsHandler) {
-                                elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
-                            }
-                            $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
-                        } else {
-                            var snippet = '';
-                            if (response.data && response.data.html) {
-                                snippet = response.data.html.substring(0, 120) + '…';
-                            }
-                            var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet) + '</small>' : '';
+                        var summaryText = extractResponseSummary(response, providerValue, selection);
+                        if (response.data && response.data.canvas_json && window.elementorFrontend && elementorFrontend.elementsHandler) {
+                            elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
+                        }
+                        if (response.data && response.data.html) {
+                            var snippet = response.data.html.substring(0, 160);
+                            var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet + (response.data.html.length > 160 ? '…' : '')) + '</small>' : '';
                             $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + snippetHtml + '</p>');
+                        } else {
+                            $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
                         }
                     } else {
                         var message = response && response.data ? response.data : 'Unknown error';
                         if (typeof message === 'object' && message !== null) {
-                            message = message.message || 'Unknown error';
+                            message = message.message || message.error || 'Unknown error';
                         }
                         var errorPrefix = strings.errorPrefix || 'Error:';
-                        $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(message) + '</p>');
+                        $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(String(message)) + '</p>');
                     }
+                }).fail(function() {
+                    $generate.prop('disabled', false);
+                    applyProviderMeta(modalState.provider, ui);
+                    var errorPrefix = strings.errorPrefix || 'Error:';
+                    var errorMessage = strings.unknownError || 'Request failed.';
+                    $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(errorMessage) + '</p>');
                 });
             });
         };
 
         window.AiMentorElementorUI = api;
 
-        if (window.elementor && window.elementor.hooks) {
-            window.elementor.hooks.addAction('panel/widgets/aimentor-ai-generator/controls/write_with_aimentor/event', api.openModal);
+        if (window.elementor && window.elementor.hooks && typeof window.elementor.hooks.addAction === 'function') {
+            [
+                'panel/widgets/aimentor-ai-generator/controls/write_with_aimentor/event',
+                'panel/widgets/aimentor-ai-generator/controls/write_with_jaggrok/event',
+                'panel/widgets/jaggrok-ai-generator/controls/write_with_aimentor/event',
+                'panel/widgets/jaggrok-ai-generator/controls/write_with_jaggrok/event'
+            ].forEach(function(hookName) {
+                window.elementor.hooks.addAction(hookName, api.openModal);
+            });
         }
-    }
 
-    elementor.hooks.addAction( 'panel/widgets/aimentor-ai-generator/controls/write_with_jaggrok/event', openAimentorModal );
-    elementor.hooks.addAction( 'panel/widgets/aimentor-ai-generator/controls/write_with_aimentor/event', openAimentorModal );
-    elementor.hooks.addAction( 'panel/widgets/jaggrok-ai-generator/controls/write_with_jaggrok/event', openAimentorModal );
-    elementor.hooks.addAction( 'panel/widgets/jaggrok-ai-generator/controls/write_with_aimentor/event', openAimentorModal );
+        function buildProviderDefaults() {
+            var defaults = {};
+            Object.keys(providersMeta || {}).forEach(function(key) {
+                var meta = providersMeta[key] || {};
+                var label = meta.label || providerLabels[key] || key;
+                defaults[key] = Object.assign({
+                    label: label,
+                    icon: meta.icon || '🤖',
+                    summary: meta.summary || providerSummaries[key] || formatString(strings.contentGenerated, label || key),
+                    badgeText: meta.badgeText || label,
+                    badgeColor: meta.badgeColor || '#444444'
+                }, meta);
+            });
+            if (!Object.keys(defaults).length) {
+                defaults = {
+                    grok: {
+                        label: providerLabels.grok || 'xAI Grok',
+                        icon: '🚀',
+                        summary: providerSummaries.grok || formatString(strings.contentGenerated, providerLabels.grok || 'xAI Grok'),
+                        badgeText: 'xAI',
+                        badgeColor: '#1E1E1E'
+                    },
+                    openai: {
+                        label: providerLabels.openai || 'OpenAI',
+                        icon: '🔷',
+                        summary: providerSummaries.openai || formatString(strings.contentGenerated, providerLabels.openai || 'OpenAI'),
+                        badgeText: 'OpenAI',
+                        badgeColor: '#2B8CFF'
+                    }
+                };
+            }
+            return defaults;
+        }
+
+        function buildProviderMap(defaults) {
+            var map = Object.assign({}, defaults);
+            Object.keys(providerLabels || {}).forEach(function(key) {
+                var label = providerLabels[key];
+                var meta = map[key] || {};
+                meta.label = label;
+                meta.summary = providerSummaries[key] || meta.summary || formatString(strings.contentGenerated, label);
+                map[key] = meta;
+            });
+            return map;
+        }
+
+        function sanitizeProvider(value) {
+            var providers = window.AiMentorProviders || {};
+            if (value && providers[value]) {
+                return value;
+            }
+            var keys = Object.keys(providers);
+            return keys.length ? keys[0] : (value || 'grok');
+        }
+
+        function getProviderMeta(key) {
+            var providers = window.AiMentorProviders || {};
+            var meta = providers[key];
+            if (!meta) {
+                var fallbackLabel = key || 'AiMentor';
+                return {
+                    key: key,
+                    label: fallbackLabel,
+                    icon: '🤖',
+                    summary: formatString(strings.contentGenerated, fallbackLabel),
+                    badgeText: fallbackLabel,
+                    badgeColor: '#444444'
+                };
+            }
+            var result = Object.assign({}, meta);
+            result.key = key;
+            if (!result.summary) {
+                result.summary = formatString(strings.contentGenerated, result.label || key);
+            }
+            if (!result.badgeText) {
+                result.badgeText = result.label || key;
+            }
+            if (!result.badgeColor) {
+                result.badgeColor = '#444444';
+            }
+            if (!result.icon) {
+                result.icon = '🤖';
+            }
+            return result;
+        }
+
+        function getTaskLabel(task) {
+            if (task === 'canvas') {
+                return strings.layoutLabel || strings.pageLayout || 'Page Layout';
+            }
+            return strings.copyLabel || strings.pageCopy || 'Page Copy';
+        }
+
+        function getTierLabel(tier) {
+            if (tier === 'quality') {
+                return strings.qualityLabel || 'Quality';
+            }
+            return strings.fastLabel || 'Fast';
+        }
+
+        function getModelLabel(providerKey, task, tier) {
+            var providerEntry = (modelLabels || {})[providerKey];
+            if (!providerEntry) {
+                return '';
+            }
+            if (typeof providerEntry === 'string') {
+                return providerEntry;
+            }
+            if (providerEntry && typeof providerEntry === 'object') {
+                var taskEntry = providerEntry[task];
+                if (typeof taskEntry === 'string') {
+                    return taskEntry;
+                }
+                if (taskEntry && typeof taskEntry === 'object' && taskEntry[tier] && typeof taskEntry[tier] === 'string') {
+                    return taskEntry[tier];
+                }
+                if (providerEntry[tier] && typeof providerEntry[tier] === 'string') {
+                    return providerEntry[tier];
+                }
+            }
+            return '';
+        }
+
+        function buildSummary(providerKey, task, tier) {
+            var taskLabel = getTaskLabel(task || 'content');
+            var tierLabel = getTierLabel(tier || 'fast');
+            var separator = typeof strings.summarySeparator === 'string' ? strings.summarySeparator : ' • ';
+            var summary = taskLabel + separator + tierLabel;
+            var modelLabel = getModelLabel(providerKey, task, tier);
+            if (modelLabel) {
+                var powered = strings.summaryPoweredBy ? strings.summaryPoweredBy.replace('%s', modelLabel) : '– powered by ' + modelLabel;
+                summary += ' ' + powered;
+            }
+            return summary;
+        }
+
+        function sanitizeTask(value, allowCanvas) {
+            var valid = ['content'];
+            if (allowCanvas) {
+                valid.push('canvas');
+            }
+            return valid.indexOf(value) !== -1 ? value : valid[0];
+        }
+
+        function sanitizeTier(value) {
+            var valid = ['fast', 'quality'];
+            return valid.indexOf(value) !== -1 ? value : valid[0];
+        }
+
+        function buildProviderOptions(defaultProvider) {
+            var providers = window.AiMentorProviders || {};
+            var keys = Object.keys(providers);
+            if (!keys.length) {
+                providers = providerDefaults;
+                keys = Object.keys(providers);
+            }
+            var optionsHtml = '';
+            keys.forEach(function(key, index) {
+                var meta = providers[key] || {};
+                var icon = meta.icon ? '<span class="aimentor-provider-icon" aria-hidden="true">' + escapeHtml(meta.icon) + '</span>' : '';
+                var label = escapeHtml(meta.label || key);
+                var valueAttr = escapeHtml(key);
+                var isChecked = (key === defaultProvider) || (!defaultProvider && index === 0);
+                var checkedAttr = isChecked ? ' checked' : '';
+                var badge = meta.badgeText ? '<span class="aimentor-provider-badge" style="background-color:' + escapeHtml(meta.badgeColor || '#444444') + '">' + escapeHtml(meta.badgeText) + '</span>' : '';
+                optionsHtml += '<label class="aimentor-provider-option"><input type="radio" name="aimentor-modal-provider" value="' + valueAttr + '"' + checkedAttr + '>' + icon + '<span class="aimentor-provider-name">' + label + '</span>' + badge + '</label>';
+            });
+            return optionsHtml;
+        }
+
+        function getGeneratingMessage(meta) {
+            if (strings.generatingWith) {
+                return strings.generatingWith.replace('%s', meta.label || meta.key || '');
+            }
+            return 'Generating with ' + (meta.label || 'AiMentor') + '…';
+        }
+
+        function ensureAjaxConfig($container, $button) {
+            if (aimentorData.ajaxurl && aimentorData.nonce) {
+                return true;
+            }
+            var message = strings.missingConfig || 'AiMentor AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.';
+            var $notice = $('<div class="notice notice-error aimentor-missing-config"><p></p></div>');
+            $notice.find('p').text(message);
+            var $target = $container && $container.length ? $container : $('body');
+            $target.prepend($notice);
+            if ($button && $button.length) {
+                $button.prop('disabled', true);
+            }
+            console.error('AiMentor AJAX configuration missing: expected window.aimentorAjax.');
+            return false;
+        }
+
+        function extractResponseSummary(response, providerKey, selection) {
+            if (response && response.data) {
+                if (typeof response.data.summary === 'string' && response.data.summary.trim()) {
+                    return response.data.summary.trim();
+                }
+                if (typeof response.data.message === 'string' && response.data.message.trim()) {
+                    return response.data.message.trim();
+                }
+            }
+            if (selection && selection.task && selection.tier) {
+                return buildSummary(providerKey, selection.task, selection.tier);
+            }
+            var meta = getProviderMeta(providerKey);
+            return formatString(strings.contentGenerated, meta.label || providerKey);
+        }
+
+        function updateSummaryText($summary, providerKey, selection) {
+            if (!$summary || !$summary.length) {
+                return;
+            }
+            var summary = buildSummary(providerKey, selection.task, selection.tier);
+            $summary.text(summary);
+        }
+
+        function applyProviderMeta(providerKey, ui) {
+            var meta = getProviderMeta(providerKey);
+            if (ui.icon && ui.icon.length) {
+                ui.icon.text(meta.icon || '🤖');
+            }
+            if (ui.label && ui.label.length) {
+                ui.label.text(meta.label || providerKey);
+            }
+            if (ui.summary && ui.summary.length) {
+                ui.summary.text(meta.summary || '');
+            }
+            if (ui.badge && ui.badge.length) {
+                ui.badge.text(meta.badgeText || providerKey);
+                ui.badge.css('background-color', meta.badgeColor || '#444444');
+            }
+            if (ui.button && ui.button.length) {
+                var buttonText = strings.askAiMentorWith ? strings.askAiMentorWith.replace('%s', meta.label || providerKey) : (strings.generateWith ? strings.generateWith.replace('%s', meta.label || providerKey) : 'Generate with ' + (meta.label || providerKey));
+                ui.button.text(buttonText);
+            }
+            if (ui.heading && ui.heading.length) {
+                var headingText = strings.writeWith ? strings.writeWith.replace('%s', meta.label || providerKey) : 'Write with ' + (meta.label || providerKey);
+                ui.heading.text(headingText);
+            }
+            return meta;
+        }
+
+        function getDefaultProvider() {
+            if (typeof aimentorData.provider === 'string' && aimentorData.provider) {
+                return sanitizeProvider(aimentorData.provider);
+            }
+            var providers = window.AiMentorProviders || {};
+            var keys = Object.keys(providers);
+            return keys.length ? keys[0] : 'grok';
+        }
+    });
 })(jQuery, window);
