@@ -68,6 +68,8 @@
 
     <?php
     $defaults       = aimentor_get_default_options();
+    $usage_metrics  = isset( $aimentor_usage_metrics ) && is_array( $aimentor_usage_metrics ) ? $aimentor_usage_metrics : aimentor_get_provider_usage_summary();
+    $usage_providers = isset( $usage_metrics['providers'] ) && is_array( $usage_metrics['providers'] ) ? $usage_metrics['providers'] : [];
     $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
     $api_keys       = [
             'grok'   => get_option( 'aimentor_xai_api_key' ),
@@ -139,6 +141,55 @@
         </ul>
     </div>
     <?php endif; ?>
+
+    <section id="aimentor-usage-metrics" class="aimentor-usage-card jaggrok-usage-card" data-generated-at="<?php echo esc_attr( $usage_metrics['generated_at'] ?? '' ); ?>" aria-live="polite">
+        <header class="aimentor-usage-card__header jaggrok-usage-card__header">
+            <h2 class="aimentor-usage-card__title jaggrok-usage-card__title"><?php esc_html_e( 'Usage snapshot', 'aimentor' ); ?></h2>
+            <?php if ( ! empty( $usage_metrics['generated_at_human'] ) ) : ?>
+            <span class="aimentor-usage-card__timestamp jaggrok-usage-card__timestamp" data-metric="generated_at">
+                <?php echo esc_html( sprintf( __( 'Updated %s', 'aimentor' ), $usage_metrics['generated_at_human'] ) ); ?>
+            </span>
+            <?php endif; ?>
+        </header>
+        <p class="description aimentor-usage-card__description jaggrok-usage-card__description"><?php esc_html_e( 'Counts reset automatically after the transient expires (roughly every 24 hours). Data never leaves your site.', 'aimentor' ); ?></p>
+        <div class="aimentor-usage-grid jaggrok-usage-grid">
+            <?php foreach ( $usage_providers as $usage_provider => $usage_data ) :
+                $usage_label       = isset( $usage_data['label'] ) ? $usage_data['label'] : ucfirst( $usage_provider );
+                $total_requests    = isset( $usage_data['total_requests'] ) ? absint( $usage_data['total_requests'] ) : 0;
+                $success_total     = isset( $usage_data['success_total'] ) ? absint( $usage_data['success_total'] ) : 0;
+                $error_total       = isset( $usage_data['error_total'] ) ? absint( $usage_data['error_total'] ) : 0;
+                $last_event_label  = isset( $usage_data['last_event_human'] ) ? $usage_data['last_event_human'] : '';
+                $origin_label      = isset( $usage_data['origin_label'] ) ? $usage_data['origin_label'] : '';
+                $context_summary   = isset( $usage_data['context_summary'] ) ? $usage_data['context_summary'] : '';
+                $event_display     = $last_event_label ? $last_event_label : __( 'No activity yet', 'aimentor' );
+                if ( $origin_label ) {
+                        $event_display .= ' — ' . $origin_label;
+                }
+            ?>
+            <div class="aimentor-usage-provider jaggrok-usage-provider" data-provider="<?php echo esc_attr( $usage_provider ); ?>">
+                <h3 class="aimentor-usage-provider__title jaggrok-usage-provider__title"><?php echo esc_html( $usage_label ); ?></h3>
+                <div class="aimentor-usage-provider__stats jaggrok-usage-provider__stats">
+                    <div class="aimentor-usage-stat jaggrok-usage-stat">
+                        <span class="aimentor-usage-stat__label jaggrok-usage-stat__label"><?php esc_html_e( 'Requests', 'aimentor' ); ?></span>
+                        <span class="aimentor-usage-stat__value jaggrok-usage-stat__value" data-metric="total_requests"><?php echo esc_html( number_format_i18n( $total_requests ) ); ?></span>
+                    </div>
+                    <div class="aimentor-usage-stat jaggrok-usage-stat">
+                        <span class="aimentor-usage-stat__label jaggrok-usage-stat__label"><?php esc_html_e( 'Completed', 'aimentor' ); ?></span>
+                        <span class="aimentor-usage-stat__value jaggrok-usage-stat__value" data-metric="success_total"><?php echo esc_html( number_format_i18n( $success_total ) ); ?></span>
+                    </div>
+                    <div class="aimentor-usage-stat jaggrok-usage-stat">
+                        <span class="aimentor-usage-stat__label jaggrok-usage-stat__label"><?php esc_html_e( 'Errors', 'aimentor' ); ?></span>
+                        <span class="aimentor-usage-stat__value jaggrok-usage-stat__value" data-metric="error_total"><?php echo esc_html( number_format_i18n( $error_total ) ); ?></span>
+                    </div>
+                </div>
+                <p class="aimentor-usage-provider__meta jaggrok-usage-provider__meta" data-metric="last_event_summary"><?php echo esc_html( $event_display ); ?></p>
+                <p class="aimentor-usage-provider__context jaggrok-usage-provider__context" data-metric="context_summary">
+                    <?php echo '' !== $context_summary ? esc_html( $context_summary ) : esc_html__( 'Most recent context unavailable.', 'aimentor' ); ?>
+                </p>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
     <form method="post" action="options.php">
         <?php settings_fields( 'aimentor_settings' ); ?>
@@ -365,6 +416,20 @@
 .aimentor-status-badge--idle, .jaggrok-status-badge--idle { background-color: #e7ecf3; color: #2c3e50; }
 .aimentor-status-badge--pending, .jaggrok-status-badge--pending { background-color: #fef3c7; color: #8a6110; }
 .aimentor-status-description, .jaggrok-status-description { display: inline-block; font-size: 13px; line-height: 1.5; }
+.aimentor-usage-card, .jaggrok-usage-card { margin: 32px 0; padding: 20px; border: 1px solid #dcdcdc; border-radius: 8px; background: #fff; }
+.aimentor-usage-card__header, .jaggrok-usage-card__header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.aimentor-usage-card__title, .jaggrok-usage-card__title { margin: 0; font-size: 20px; font-weight: 600; }
+.aimentor-usage-card__timestamp, .jaggrok-usage-card__timestamp { font-size: 12px; color: #6b7280; font-style: italic; }
+.aimentor-usage-card__description, .jaggrok-usage-card__description { margin-top: 8px; max-width: 640px; }
+.aimentor-usage-grid, .jaggrok-usage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+.aimentor-usage-provider, .jaggrok-usage-provider { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #f9fafb; display: flex; flex-direction: column; gap: 10px; }
+.aimentor-usage-provider__title, .jaggrok-usage-provider__title { margin: 0; font-size: 16px; font-weight: 600; color: #1f2937; }
+.aimentor-usage-provider__stats, .jaggrok-usage-provider__stats { display: flex; gap: 12px; }
+.aimentor-usage-stat, .jaggrok-usage-stat { flex: 1 1 auto; background: #fff; border-radius: 6px; padding: 10px; border: 1px solid #e5e7eb; text-align: center; }
+.aimentor-usage-stat__label, .jaggrok-usage-stat__label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; margin-bottom: 4px; }
+.aimentor-usage-stat__value, .jaggrok-usage-stat__value { font-size: 18px; font-weight: 600; color: #111827; }
+.aimentor-usage-provider__meta, .jaggrok-usage-provider__meta { margin: 0; font-size: 13px; color: #374151; }
+.aimentor-usage-provider__context, .jaggrok-usage-provider__context { margin: 0; font-size: 12px; color: #6b7280; }
 </style>
 
 <script>

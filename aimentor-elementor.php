@@ -318,6 +318,8 @@ function aimentor_get_ajax_payload() {
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
                 'nonce'             => wp_create_nonce( 'aimentor_test' ),
                 'dismissNonce'      => wp_create_nonce( 'aimentor_onboarding' ),
+                'usageNonce'        => wp_create_nonce( 'aimentor_usage_metrics' ),
+                'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
                 'strings'           => array(
                         'testingBadge'       => __( 'Testing', 'aimentor' ),
                         'testingDescription' => __( 'Testing connection…', 'aimentor' ),
@@ -325,6 +327,10 @@ function aimentor_get_ajax_payload() {
                         'errorBadge'         => __( 'Error', 'aimentor' ),
                         'unknownError'       => __( 'Unknown error', 'aimentor' ),
                         'onboardingDismissError' => __( 'Unable to dismiss the onboarding card. Please try again.', 'aimentor' ),
+                        'usageUpdated'        => __( 'Updated %s', 'aimentor' ),
+                        'usageNoActivity'     => __( 'No activity yet', 'aimentor' ),
+                        'usageNoContext'      => __( 'Most recent context unavailable.', 'aimentor' ),
+                        'usageJustNow'        => __( 'Just now', 'aimentor' ),
                         /* translators: %s: Provider label. */
                         'generateWith'       => __( 'Generate with %s', 'aimentor' ),
                         /* translators: %s: Provider label. */
@@ -735,6 +741,19 @@ function jaggrok_generate_page_ajax() {
         if ( is_wp_error( $result ) ) {
                 $error_message = $result->get_error_message();
 
+                if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                        aimentor_record_provider_usage(
+                                $provider_key,
+                                'error',
+                                array(
+                                        'model'  => $model,
+                                        'task'   => $task,
+                                        'tier'   => $tier,
+                                        'origin' => 'generation',
+                                )
+                        );
+                }
+
                 aimentor_log_error(
                         $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
                         array(
@@ -758,8 +777,34 @@ function jaggrok_generate_page_ajax() {
         );
 
         if ( isset( $result['type'] ) && 'canvas' === $result['type'] ) {
+                if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                        aimentor_record_provider_usage(
+                                $provider_key,
+                                'success',
+                                array(
+                                        'model'  => $model,
+                                        'task'   => $task,
+                                        'tier'   => $tier,
+                                        'origin' => 'generation',
+                                )
+                        );
+                }
+
                 $response_payload['canvas_json'] = $result['content'];
                 wp_send_json_success( $response_payload );
+        }
+
+        if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                aimentor_record_provider_usage(
+                        $provider_key,
+                        'success',
+                        array(
+                                'model'  => $model,
+                                'task'   => $task,
+                                'tier'   => $tier,
+                                'origin' => 'generation',
+                        )
+                );
         }
 
         $response_payload['html'] = $result['content'];
