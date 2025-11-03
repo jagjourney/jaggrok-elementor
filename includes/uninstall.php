@@ -35,7 +35,10 @@ foreach ( [
 }
 
 // Delete log file
-$log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
+$log_file = function_exists( 'aimentor_get_error_log_path' )
+        ? aimentor_get_error_log_path()
+        : plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
+
 if ( file_exists( $log_file ) ) {
         unlink( $log_file );
 }

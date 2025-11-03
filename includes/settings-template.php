@@ -203,8 +203,11 @@
         </thead>
         <tbody>
         <?php
-        $log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
-        if ( file_exists( $log_file ) ) {
+        $log_file = function_exists( 'aimentor_get_error_log_path' )
+                ? aimentor_get_error_log_path()
+                : plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
+
+        if ( is_readable( $log_file ) ) {
             $logs = array_reverse( file( $log_file ) );
             $logs = array_slice( $logs, 0, 10 );
             foreach ( $logs as $log ) {
