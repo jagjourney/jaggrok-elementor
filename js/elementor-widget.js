@@ -379,9 +379,10 @@
                         continue;
                     }
 
-                    var baseDefault = typeEntry.default && typeof typeEntry.default === 'object' ? typeEntry.default : {};
-                    var provider = typeof templateEntry.provider === 'string' && templateEntry.provider ? templateEntry.provider : (typeof baseDefault.provider === 'string' && baseDefault.provider ? baseDefault.provider : fallbackProvider);
-                    var model = typeof templateEntry.model === 'string' && templateEntry.model ? templateEntry.model : (typeof baseDefault.model === 'string' && baseDefault.model ? baseDefault.model : fallbackModel);
+                    var baseProvider = typeof typeEntry.provider === 'string' ? typeEntry.provider : fallbackProvider;
+                    var baseModel = typeof typeEntry.model === 'string' ? typeEntry.model : fallbackModel;
+                    var provider = typeof templateEntry.provider === 'string' && templateEntry.provider ? templateEntry.provider : baseProvider;
+                    var model = typeof templateEntry.model === 'string' && templateEntry.model ? templateEntry.model : baseModel;
 
                     return {
                         key: 'template:' + template,
@@ -401,9 +402,10 @@
                     if (!fallbackTemplateEntry || typeof fallbackTemplateEntry !== 'object') {
                         continue;
                     }
-                    var fallbackBase = fallbackEntry.default && typeof fallbackEntry.default === 'object' ? fallbackEntry.default : {};
-                    var fallbackProviderValue = typeof fallbackTemplateEntry.provider === 'string' && fallbackTemplateEntry.provider ? fallbackTemplateEntry.provider : (typeof fallbackBase.provider === 'string' && fallbackBase.provider ? fallbackBase.provider : fallbackProvider);
-                    var fallbackModelValue = typeof fallbackTemplateEntry.model === 'string' && fallbackTemplateEntry.model ? fallbackTemplateEntry.model : (typeof fallbackBase.model === 'string' && fallbackBase.model ? fallbackBase.model : fallbackModel);
+                    var fallbackBaseProvider = typeof fallbackEntry.provider === 'string' ? fallbackEntry.provider : fallbackProvider;
+                    var fallbackBaseModel = typeof fallbackEntry.model === 'string' ? fallbackEntry.model : fallbackModel;
+                    var fallbackProviderValue = typeof fallbackTemplateEntry.provider === 'string' && fallbackTemplateEntry.provider ? fallbackTemplateEntry.provider : fallbackBaseProvider;
+                    var fallbackModelValue = typeof fallbackTemplateEntry.model === 'string' && fallbackTemplateEntry.model ? fallbackTemplateEntry.model : fallbackBaseModel;
                     return {
                         key: 'template:' + template,
                         provider: fallbackProviderValue || '',
@@ -422,9 +424,8 @@
                     if (!postTypeEntry || typeof postTypeEntry !== 'object') {
                         continue;
                     }
-                    var postTypeDefault = postTypeEntry.default && typeof postTypeEntry.default === 'object' ? postTypeEntry.default : {};
-                    var providerValue = typeof postTypeDefault.provider === 'string' && postTypeDefault.provider ? postTypeDefault.provider : fallbackProvider;
-                    var modelValue = typeof postTypeDefault.model === 'string' && postTypeDefault.model ? postTypeDefault.model : fallbackModel;
+                    var providerValue = typeof postTypeEntry.provider === 'string' && postTypeEntry.provider ? postTypeEntry.provider : fallbackProvider;
+                    var modelValue = typeof postTypeEntry.model === 'string' && postTypeEntry.model ? postTypeEntry.model : fallbackModel;
                     if (providerValue || modelValue) {
                         return {
                             key: 'post_type:' + postTypeSlug,

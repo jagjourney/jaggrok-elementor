@@ -263,10 +263,8 @@ function aimentor_get_document_provider_default_map() {
 
         foreach ( $blueprint['page_types'] as $post_type => $meta ) {
                 $defaults['page_types'][ $post_type ] = [
-                        'default'   => [
-                                'provider' => $default_provider,
-                                'model'    => $default_model,
-                        ],
+                        'provider'  => $default_provider,
+                        'model'     => $default_model,
                         'templates' => [],
                 ];
 
@@ -280,6 +278,14 @@ function aimentor_get_document_provider_default_map() {
                                 'model'    => $default_model,
                         ];
                 }
+        }
+
+        if ( ! isset( $defaults['page_types']['__global__'] ) ) {
+                $defaults['page_types']['__global__'] = [
+                        'provider'  => $default_provider,
+                        'model'     => $default_model,
+                        'templates' => [],
+                ];
         }
 
         /**
@@ -1576,7 +1582,57 @@ function aimentor_normalize_document_provider_defaults_structure( $value ) {
         }
 
         if ( isset( $value['page_types'] ) && is_array( $value['page_types'] ) ) {
-                return $value;
+                $normalized = [
+                        'default'    => isset( $value['default'] ) && is_array( $value['default'] ) ? $value['default'] : [],
+                        'page_types' => [],
+                ];
+
+                foreach ( $value['page_types'] as $post_type => $entry ) {
+                        if ( ! is_array( $entry ) ) {
+                                continue;
+                        }
+
+                        $provider = '';
+                        $model    = '';
+
+                        if ( isset( $entry['provider'] ) || isset( $entry['model'] ) ) {
+                                $provider = isset( $entry['provider'] ) ? $entry['provider'] : '';
+                                $model    = isset( $entry['model'] ) ? $entry['model'] : '';
+                        } elseif ( isset( $entry['default'] ) && is_array( $entry['default'] ) ) {
+                                $provider = isset( $entry['default']['provider'] ) ? $entry['default']['provider'] : '';
+                                $model    = isset( $entry['default']['model'] ) ? $entry['default']['model'] : '';
+                        }
+
+                        $templates = [];
+
+                        if ( isset( $entry['templates'] ) && is_array( $entry['templates'] ) ) {
+                                foreach ( $entry['templates'] as $template_file => $template_entry ) {
+                                        if ( ! is_array( $template_entry ) ) {
+                                                continue;
+                                        }
+
+                                        if ( isset( $template_entry['provider'] ) || isset( $template_entry['model'] ) ) {
+                                                $templates[ $template_file ] = [
+                                                        'provider' => isset( $template_entry['provider'] ) ? $template_entry['provider'] : '',
+                                                        'model'    => isset( $template_entry['model'] ) ? $template_entry['model'] : '',
+                                                ];
+                                        } elseif ( isset( $template_entry['default'] ) && is_array( $template_entry['default'] ) ) {
+                                                $templates[ $template_file ] = [
+                                                        'provider' => isset( $template_entry['default']['provider'] ) ? $template_entry['default']['provider'] : '',
+                                                        'model'    => isset( $template_entry['default']['model'] ) ? $template_entry['default']['model'] : '',
+                                                ];
+                                        }
+                                }
+                        }
+
+                        $normalized['page_types'][ $post_type ] = [
+                                'provider'  => $provider,
+                                'model'     => $model,
+                                'templates' => $templates,
+                        ];
+                }
+
+                return $normalized;
         }
 
         $uses_legacy_keys = false;
@@ -1679,7 +1735,7 @@ function aimentor_normalize_document_provider_defaults_structure( $value ) {
                 }
         }
 
-        return $normalized;
+        return aimentor_normalize_document_provider_defaults_structure( $normalized );
 }
 
 function aimentor_sanitize_document_provider_defaults( $value ) {
@@ -1695,6 +1751,13 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                 'default'    => [],
                 'page_types' => [],
         ];
+
+        $get_pair = static function( $entry ) {
+                return [
+                        'provider' => ( is_array( $entry ) && isset( $entry['provider'] ) ) ? $entry['provider'] : '',
+                        'model'    => ( is_array( $entry ) && isset( $entry['model'] ) ) ? $entry['model'] : '',
+                ];
+        };
 
         $sanitize_pair = static function( $incoming, $fallback ) use ( $allowed_provider ) {
                 $incoming = is_array( $incoming ) ? $incoming : [];
@@ -1720,8 +1783,9 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                 ];
         };
 
-        $incoming_default = isset( $value['default'] ) ? $value['default'] : [];
-        $sanitized['default'] = $sanitize_pair( $incoming_default, $defaults['default'] ?? [] );
+        $incoming_default   = isset( $value['default'] ) ? $value['default'] : [];
+        $fallback_default   = $defaults['default'] ?? [];
+        $sanitized['default'] = $sanitize_pair( $incoming_default, $fallback_default );
 
         $incoming_page_types = isset( $value['page_types'] ) && is_array( $value['page_types'] ) ? $value['page_types'] : [];
         $default_page_types  = isset( $defaults['page_types'] ) && is_array( $defaults['page_types'] ) ? $defaults['page_types'] : [];
@@ -1735,13 +1799,20 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         ? $default_page_types[ $post_type ]
                         : [];
 
+                $fallback_pair = $get_pair( $fallback_entry );
+
+                if ( '' === $fallback_pair['provider'] && '' === $fallback_pair['model'] ) {
+                        $fallback_pair = $sanitized['default'];
+                }
+
                 $type_default = $sanitize_pair(
-                        $incoming_entry['default'] ?? $incoming_entry,
-                        $fallback_entry['default'] ?? $sanitized['default']
+                        $get_pair( $incoming_entry ),
+                        $fallback_pair
                 );
 
                 $sanitized['page_types'][ $post_type ] = [
-                        'default'   => $type_default,
+                        'provider'  => $type_default['provider'],
+                        'model'     => $type_default['model'],
                         'templates' => [],
                 ];
 
@@ -1758,7 +1829,7 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                                 $incoming_template = isset( $incoming_templates[ $template_file ] ) ? $incoming_templates[ $template_file ] : [];
                                 $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
 
-                                $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $incoming_template, $fallback_template );
+                                $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $get_pair( $incoming_template ), $fallback_template );
                         }
                 }
 
@@ -1768,7 +1839,7 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         }
 
                         $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
-                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $template_value, $fallback_template );
+                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $get_pair( $template_value ), $fallback_template );
                 }
         }
 
@@ -1785,13 +1856,20 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         ? $default_page_types[ $post_type ]
                         : [];
 
+                $fallback_pair = $get_pair( $fallback_entry );
+
+                if ( '' === $fallback_pair['provider'] && '' === $fallback_pair['model'] ) {
+                        $fallback_pair = $sanitized['default'];
+                }
+
                 $type_default = $sanitize_pair(
-                        $incoming_entry['default'] ?? $incoming_entry,
-                        $fallback_entry['default'] ?? $sanitized['default']
+                        $get_pair( $incoming_entry ),
+                        $fallback_pair
                 );
 
                 $sanitized['page_types'][ $post_type ] = [
-                        'default'   => $type_default,
+                        'provider'  => $type_default['provider'],
+                        'model'     => $type_default['model'],
                         'templates' => [],
                 ];
 
@@ -1805,7 +1883,7 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
 
                 foreach ( $incoming_templates as $template_file => $template_value ) {
                         $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
-                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $template_value, $fallback_template );
+                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $get_pair( $template_value ), $fallback_template );
                 }
         }
 

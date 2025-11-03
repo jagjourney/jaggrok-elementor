@@ -89,6 +89,9 @@
     $combined_page_types = $page_type_blueprint;
 
     foreach ( $page_type_defaults as $post_type => $defaults_entry ) {
+            if ( '__global__' === $post_type ) {
+                    continue;
+            }
             if ( isset( $combined_page_types[ $post_type ] ) ) {
                     continue;
             }
@@ -407,9 +410,8 @@
                         <?php foreach ( $combined_page_types as $post_type => $meta ) :
                             $post_type_label    = isset( $meta['label'] ) && '' !== $meta['label'] ? $meta['label'] : ucfirst( (string) $post_type );
                             $post_type_defaults = isset( $page_type_defaults[ $post_type ] ) && is_array( $page_type_defaults[ $post_type ] ) ? $page_type_defaults[ $post_type ] : [];
-                            $post_type_default  = isset( $post_type_defaults['default'] ) && is_array( $post_type_defaults['default'] ) ? $post_type_defaults['default'] : $global_defaults;
-                            $post_type_provider = isset( $post_type_default['provider'] ) ? $post_type_default['provider'] : $global_provider;
-                            $post_type_model    = isset( $post_type_default['model'] ) ? $post_type_default['model'] : $global_model;
+                            $post_type_provider = isset( $post_type_defaults['provider'] ) ? $post_type_defaults['provider'] : $global_provider;
+                            $post_type_model    = isset( $post_type_defaults['model'] ) ? $post_type_defaults['model'] : $global_model;
                             $template_blueprint = isset( $meta['templates'] ) && is_array( $meta['templates'] ) ? $meta['templates'] : [];
                             $template_default_map = isset( $post_type_defaults['templates'] ) && is_array( $post_type_defaults['templates'] ) ? $post_type_defaults['templates'] : [];
                         ?>
@@ -434,7 +436,7 @@
                                         <td>
                                             <?php $provider_id = 'aimentor-context-provider-' . md5( 'post_type:' . $post_type ); ?>
                                             <label class="screen-reader-text" for="<?php echo esc_attr( $provider_id ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
-                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][default][provider]" id="<?php echo esc_attr( $provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][provider]" id="<?php echo esc_attr( $provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;">
                                                 <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
                                                     <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $post_type_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
                                                 <?php endforeach; ?>
@@ -443,7 +445,7 @@
                                         <td>
                                             <?php $model_id = 'aimentor-context-model-' . md5( 'post_type:' . $post_type ); ?>
                                             <label class="screen-reader-text" for="<?php echo esc_attr( $model_id ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
-                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][default][model]" id="<?php echo esc_attr( $model_id ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][model]" id="<?php echo esc_attr( $model_id ); ?>" class="aimentor-context-model" style="min-width:200px;">
                                                 <?php foreach ( $allowed_models as $provider_key => $model_group ) :
                                                     $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
                                                 ?>
@@ -459,7 +461,7 @@
                                     <?php if ( ! empty( $template_blueprint ) ) : ?>
                                         <?php foreach ( $template_blueprint as $template_file => $template_meta ) :
                                             $template_label = is_array( $template_meta ) && isset( $template_meta['label'] ) ? $template_meta['label'] : ( is_string( $template_meta ) ? $template_meta : $template_file );
-                                            $template_entry    = isset( $template_default_map[ $template_file ] ) && is_array( $template_default_map[ $template_file ] ) ? $template_default_map[ $template_file ] : $post_type_default;
+                                            $template_entry    = isset( $template_default_map[ $template_file ] ) && is_array( $template_default_map[ $template_file ] ) ? $template_default_map[ $template_file ] : [];
                                             $template_provider = isset( $template_entry['provider'] ) ? $template_entry['provider'] : $post_type_provider;
                                             $template_model    = isset( $template_entry['model'] ) ? $template_entry['model'] : $post_type_model;
                                             $template_provider_id = 'aimentor-context-provider-' . md5( $post_type . '|' . $template_file );
