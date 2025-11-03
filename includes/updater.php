@@ -368,9 +368,5 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
 	}
 }
 
-// Initialize updater
-add_action( 'plugins_loaded', function() {
-	if ( class_exists( 'AiMentor_Updater' ) ) {
-		new AiMentor_Updater( 'aimentor/aimentor-elementor', 'aimentor-elementor' );
-	}
-} );
+// Updater initialization is handled by the main plugin loader to avoid
+// instantiating the updater multiple times.
