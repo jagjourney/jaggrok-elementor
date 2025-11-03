@@ -104,10 +104,10 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
 				$sections['description'] = $this->format_markdown( (string) $remote->notes );
 			}
 
-			return (object) array(
-				'name'          => $remote->name ?? 'AiMentor Elementor',
-				'slug'          => $response_slug,
-				'author'        => $remote->author ?? 'Jag Journey',
+                        return (object) array(
+                                'name'          => $remote->name ?? 'AiMentor Elementor',
+                                'slug'          => $response_slug,
+                                'author'        => $remote->author ?? 'Jag Journey, LLC',
 				'homepage'      => $remote->source ?? sprintf( 'https://github.com/%s', $this->repo ),
 				'last_updated'  => $remote->released_at ?? '',
 				'version'       => $remote->version ?? '',
