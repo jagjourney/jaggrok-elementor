@@ -1406,6 +1406,21 @@ function aimentor_sanitize_tone_keywords( $value ) {
         return $value;
 }
 
+function aimentor_get_brand_preferences() {
+        $defaults = aimentor_get_default_options();
+
+        $primary_color = get_option( 'aimentor_primary_color', $defaults['aimentor_primary_color'] );
+        $tone_keywords = get_option( 'aimentor_tone_keywords', $defaults['aimentor_tone_keywords'] );
+
+        $primary_color = aimentor_sanitize_primary_color( $primary_color );
+        $tone_keywords = aimentor_sanitize_tone_keywords( $tone_keywords );
+
+        return [
+                'primary_color' => $primary_color,
+                'tone_keywords' => $tone_keywords,
+        ];
+}
+
 function aimentor_sanitize_generation_type( $value ) {
         $value   = sanitize_key( $value );
         $allowed = [ 'content', 'canvas' ];
