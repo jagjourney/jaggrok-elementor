@@ -622,13 +622,7 @@ add_action( 'elementor/widgets/register', function( $widgets_manager ) {
 } );
 
 // Updater.
-if ( aimentor_check_dependencies( false ) ) {
-        require_once AIMENTOR_PLUGIN_DIR . 'includes/updater.php';
-
-        if ( class_exists( 'AiMentor_Updater' ) ) {
-                new AiMentor_Updater();
-        }
-}
+require_once AIMENTOR_PLUGIN_DIR . 'includes/updater.php';
 
 /**
  * Resolve the active provider based on configuration.
