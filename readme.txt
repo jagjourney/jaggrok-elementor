@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.04
+Stable tag: 1.0.05
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,7 +69,7 @@ native GitHub channel.
 Tagged releases automatically produce `aimentor-elementor-v*.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
 Refer to `docs/release-guide.md` for detailed tagging, workflow, and post-release steps.
 
-Need to ship a hotfix outside of that flow? Build the archive locally with the same folder structure, then upload it to a draft GitHub release so the workflow can take over once the release is published.
+Need to stage a build before publication? Save the GitHub release as a draft—the automation now packages and uploads the official ZIP while deferring the manifest update until you publish. Manual ZIP uploads remain optional for bespoke artifacts.
 
 == Frequently Asked Questions ==
 = Does AiMentor support multiple AI providers? =
@@ -87,6 +87,9 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.0.05 =
+* Allow the release automation to process draft and pre-release tags so teams can validate packaged ZIPs before publication while keeping the WordPress manifest untouched until the release goes live.
+
 = 1.0.04 =
 * Hardened the CI guardrail so every change to the repository requires a synchronized version bump before merging.
 
