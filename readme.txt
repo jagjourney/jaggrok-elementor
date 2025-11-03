@@ -88,9 +88,7 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 
 == Changelog ==
 = 1.0.04 =
-* Added context-aware provider defaults so Elementor documents load the correct provider/model pairing for each template or post type.
-* Extended the settings screen to map WordPress templates and custom types to provider/model combinations.
-* Updated the Elementor widget to honor the new mappings when initializing provider badges and defaults.
+* Hardened the CI guardrail so every change to the repository requires a synchronized version bump before merging.
 
 = 1.0.03 =
 * Added an opt-in daily provider health check that re-tests stored API keys with WP-Cron.

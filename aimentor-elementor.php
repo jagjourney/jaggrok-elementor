@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-	define( 'AIMENTOR_PLUGIN_VERSION', '1.0.04' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.0.04' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {

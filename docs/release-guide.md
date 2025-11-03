@@ -41,7 +41,7 @@ Every bump must land in a dedicated pull request so the merged commit and the an
 - **Medium feature (`v1.0.04 → v1.1.00`)** – After merging PHP/JS enhancements, reset the third slot to `00` across the files above, document the feature in `readme.txt`, and create the `v1.1.00` tag.
 - **Major milestone (`v1.1.00 → v2.0.00`)** – Coordinate breaking changes, migrate documentation, ensure upgrade notes are prominent, and tag `v2.0.00` once all references match.
 
-> **CI guardrail:** Pull requests that touch PHP, `assets/`, or `js/` files must update every version reference above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump.
+> **CI guardrail:** Every pull request that changes anything beyond the version metadata files must update all of the version references above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump.
 
 Commit the version bump alongside the changelog updates. Tagging should only happen after the pull request is merged into `main`.
 
