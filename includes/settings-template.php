@@ -142,7 +142,7 @@
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="grok">
                         <label class="screen-reader-text" for="aimentor_provider_models_grok"><?php esc_html_e( 'xAI Grok default model', 'aimentor' ); ?></label>
                         <select name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" class="regular-text">
-                            <?php foreach ( $allowed_models['grok'] as $model_key ) : ?>
+                            <?php foreach ( array_keys( $allowed_models['grok'] ) as $model_key ) : ?>
                                 <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['grok'], $model_key ); ?>><?php echo esc_html( $grok_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
                             <?php endforeach; ?>
                         </select>
@@ -151,7 +151,7 @@
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
                         <label class="screen-reader-text" for="aimentor_provider_models_openai"><?php esc_html_e( 'OpenAI default model', 'aimentor' ); ?></label>
                         <select name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" class="regular-text">
-                            <?php foreach ( $allowed_models['openai'] as $model_key ) : ?>
+                            <?php foreach ( array_keys( $allowed_models['openai'] ) as $model_key ) : ?>
                                 <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['openai'], $model_key ); ?>><?php echo esc_html( $openai_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
                             <?php endforeach; ?>
                         </select>
