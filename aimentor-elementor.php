@@ -286,12 +286,14 @@ add_filter( 'plugin_action_links', 'aimentor_settings_link', 10, 2 );
  * @return array
  */
 function aimentor_get_ajax_payload() {
-        $provider_meta_map  = aimentor_get_provider_meta_map();
-        $provider_labels    = wp_list_pluck( $provider_meta_map, 'label' );
-        $provider_summaries = wp_list_pluck( $provider_meta_map, 'summary' );
-        $defaults           = aimentor_get_default_options();
-        $default_task       = get_option( 'aimentor_default_generation_type', $defaults['aimentor_default_generation_type'] );
-        $default_tier       = get_option( 'aimentor_default_performance', $defaults['aimentor_default_performance'] );
+        $provider_meta_map   = aimentor_get_provider_meta_map();
+        $provider_labels     = wp_list_pluck( $provider_meta_map, 'label' );
+        $provider_summaries  = wp_list_pluck( $provider_meta_map, 'summary' );
+        $defaults            = aimentor_get_default_options();
+        $default_task_fallback = $defaults['aimentor_default_generation_type'] ?? 'content';
+        $default_tier_fallback  = $defaults['aimentor_default_performance'] ?? 'fast';
+        $default_task        = get_option( 'aimentor_default_generation_type', $default_task_fallback );
+        $default_tier        = get_option( 'aimentor_default_performance', $default_tier_fallback );
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
