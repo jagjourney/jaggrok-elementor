@@ -167,15 +167,27 @@ if ( ! function_exists( 'jaggrok_sanitize_auto_insert' ) ) {
 }
 
 if ( ! function_exists( 'jaggrok_sanitize_max_tokens' ) ) {
-	function jaggrok_sanitize_max_tokens( ...$args ) {
-		return aimentor_sanitize_max_tokens( ...$args );
-	}
+        function jaggrok_sanitize_max_tokens( ...$args ) {
+                return aimentor_sanitize_max_tokens( ...$args );
+        }
+}
+
+if ( ! function_exists( 'jaggrok_sanitize_primary_color' ) ) {
+        function jaggrok_sanitize_primary_color( ...$args ) {
+                return aimentor_sanitize_primary_color( ...$args );
+        }
+}
+
+if ( ! function_exists( 'jaggrok_sanitize_tone_keywords' ) ) {
+        function jaggrok_sanitize_tone_keywords( ...$args ) {
+                return aimentor_sanitize_tone_keywords( ...$args );
+        }
 }
 
 if ( ! function_exists( 'jaggrok_sanitize_model' ) ) {
-	function jaggrok_sanitize_model( ...$args ) {
-		return aimentor_sanitize_model( ...$args );
-	}
+        function jaggrok_sanitize_model( ...$args ) {
+                return aimentor_sanitize_model( ...$args );
+        }
 }
 
 if ( ! function_exists( 'jaggrok_sanitize_openai_model' ) ) {

@@ -318,6 +318,22 @@
                 </td>
             </tr>
             <tr>
+                <th scope="row"><label for="aimentor_primary_color"><?php esc_html_e( 'Brand Primary Color', 'aimentor' ); ?></label></th>
+                <td>
+                    <?php $primary_color = get_option( 'aimentor_primary_color', $defaults['aimentor_primary_color'] ); ?>
+                    <input type="color" id="aimentor_primary_color" name="aimentor_primary_color" value="<?php echo esc_attr( $primary_color ); ?>" />
+                    <p class="description"><?php esc_html_e( 'Hints the generator toward your main brand accent color.', 'aimentor' ); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="aimentor_tone_keywords"><?php esc_html_e( 'Tone Keywords', 'aimentor' ); ?></label></th>
+                <td>
+                    <?php $tone_keywords = get_option( 'aimentor_tone_keywords', $defaults['aimentor_tone_keywords'] ); ?>
+                    <textarea id="aimentor_tone_keywords" name="aimentor_tone_keywords" rows="3" class="large-text"><?php echo esc_textarea( $tone_keywords ); ?></textarea>
+                    <p class="description"><?php esc_html_e( 'Provide comma-separated adjectives or short phrases to guide the writing voice.', 'aimentor' ); ?></p>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><?php esc_html_e( 'Max Tokens', 'aimentor' ); ?></th>
                 <td>
                     <input type="number" name="aimentor_max_tokens" value="<?php echo esc_attr( get_option( 'aimentor_max_tokens', 2000 ) ); ?>" min="500" max="8000" class="small-text" /> <?php esc_html_e( 'tokens', 'aimentor' ); ?>
