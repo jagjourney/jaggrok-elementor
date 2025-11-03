@@ -3,7 +3,7 @@
 /**
  * Plugin Name: AiMentor Elementor
  * Plugin URI: https://aimentor.ai/
- * Update URI: https://github.com/jagjourney/aimentor-elementor
+ * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
  * Version: 0.0.001
  * Author: AiMentor

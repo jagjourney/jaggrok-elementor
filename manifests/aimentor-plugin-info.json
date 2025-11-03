@@ -2,12 +2,12 @@
   "name": "AiMentor Elementor",
   "slug": "aimentor-elementor",
   "version": "0.0.001",
-  "download_url": "https://github.com/jagjourney/aimentor-elementor/releases/download/v0.0.001/aimentor-elementor-v0.0.001.zip",
+  "download_url": "https://github.com/aimentor/aimentor-elementor/releases/download/v0.0.001/aimentor-elementor-v0.0.001.zip",
   "released_at": "2024-05-01T00:00:00Z",
   "checksum": {
     "algorithm": "sha256",
     "hash": ""
   },
-  "source": "https://github.com/jagjourney/aimentor-elementor",
+  "source": "https://github.com/aimentor/aimentor-elementor",
   "notes": "This manifest is maintained automatically by the release workflow and mirrors GitHub Releases."
 }
