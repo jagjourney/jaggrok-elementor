@@ -61,6 +61,35 @@ require_tool() {
 
 require_tool jq
 
+version_greater() {
+  local lhs="$1"
+  local rhs="$2"
+
+  IFS='.' read -r -a lhs_parts <<< "$lhs"
+  IFS='.' read -r -a rhs_parts <<< "$rhs"
+
+  local max_len=${#lhs_parts[@]}
+  if (( ${#rhs_parts[@]} > max_len )); then
+    max_len=${#rhs_parts[@]}
+  fi
+
+  for (( i=0; i<max_len; i++ )); do
+    local lhs_val=${lhs_parts[i]:-0}
+    local rhs_val=${rhs_parts[i]:-0}
+
+    # shellcheck disable=SC2004
+    if (( 10#$lhs_val > 10#$rhs_val )); then
+      return 0
+    fi
+    # shellcheck disable=SC2004
+    if (( 10#$lhs_val < 10#$rhs_val )); then
+      return 1
+    fi
+  done
+
+  return 1
+}
+
 extract_php_version() {
   local treeish="$1"
   local label="$2"
@@ -173,6 +202,10 @@ missing_bumps=()
 if (( ${#missing_bumps[@]} > 0 )); then
   echo "Version bump required: update versions in ${missing_bumps[*]} before merging." >&2
   exit 1
+fi
+
+if ! version_greater "$head_php" "$base_php"; then
+  error "New version (${head_php}) must be greater than base version (${base_php})."
 fi
 
 echo "Version strings updated to ${unique_head_versions[0]} across required files."
