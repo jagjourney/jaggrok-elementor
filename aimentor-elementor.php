@@ -286,14 +286,14 @@ add_filter( 'plugin_action_links', 'aimentor_settings_link', 10, 2 );
  * @return array
  */
 function aimentor_get_ajax_payload() {
-        $provider_meta_map   = aimentor_get_provider_meta_map();
-        $provider_labels     = wp_list_pluck( $provider_meta_map, 'label' );
-        $provider_summaries  = wp_list_pluck( $provider_meta_map, 'summary' );
-        $defaults            = aimentor_get_default_options();
-        $default_task_fallback = $defaults['aimentor_default_generation_type'] ?? 'content';
-        $default_tier_fallback  = $defaults['aimentor_default_performance'] ?? 'fast';
-        $default_task        = get_option( 'aimentor_default_generation_type', $default_task_fallback );
-        $default_tier        = get_option( 'aimentor_default_performance', $default_tier_fallback );
+        $provider_meta_map     = aimentor_get_provider_meta_map();
+        $provider_labels       = wp_list_pluck( $provider_meta_map, 'label' );
+        $provider_summaries    = wp_list_pluck( $provider_meta_map, 'summary' );
+        $defaults              = aimentor_get_default_options();
+        $default_task_fallback = aimentor_sanitize_generation_type( $defaults['aimentor_default_generation_type'] ?? 'content' );
+        $default_tier_fallback = aimentor_sanitize_performance_tier( $defaults['aimentor_default_performance'] ?? 'fast' );
+        $default_task          = aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_task_fallback ) );
+        $default_tier          = aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_tier_fallback ) );
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
@@ -341,8 +341,8 @@ function aimentor_get_ajax_payload() {
                 'providerSummaries' => $provider_summaries,
                 'providersMeta'     => $provider_meta_map,
                 'defaults'          => array(
-                        'task' => aimentor_sanitize_generation_type( $default_task ),
-                        'tier' => aimentor_sanitize_performance_tier( $default_tier ),
+                        'task' => $default_task,
+                        'tier' => $default_tier,
                 ),
                 'modelPresets'      => aimentor_get_model_presets(),
                 'modelLabels'       => aimentor_get_model_labels(),

@@ -423,12 +423,16 @@ function aimentor_sanitize_theme_style( $value ) {
 }
 
 function aimentor_sanitize_generation_type( $value ) {
+        $value   = sanitize_key( $value );
         $allowed = [ 'content', 'canvas' ];
+
         return in_array( $value, $allowed, true ) ? $value : 'content';
 }
 
 function aimentor_sanitize_performance_tier( $value ) {
+        $value   = sanitize_key( $value );
         $allowed = [ 'fast', 'quality' ];
+
         return in_array( $value, $allowed, true ) ? $value : 'fast';
 }
 
