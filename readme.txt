@@ -27,6 +27,12 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 * **Connection status badges:** Test each provider and get immediate success, pending, or error badges that confirm when an integration is ready for production.
 * **Built-in error log viewer:** Inspect the most recent API issues without leaving WordPress; the underlying log file lives at `wp-content/uploads/aimentor/aimentor-errors.log` (with automatic fallbacks if that path is unavailable).
 
+== Compatibility ==
+AiMentor requires the free version of Elementor to be active for its widget, settings, and copy workflows to load. When Elementor Pro is detected, advanced experiences—including canvas JSON generation and the in-dashboard **Pro Features** toggle—automatically light up. If Elementor Pro is not available, AiMentor gracefully downgrades canvas requests to copy output while keeping all text generation flows first-class for free users, so teams can still ship content without compromise.
+
+=== Roadmap / Suggestions ===
+We're exploring deeper Pro-aware enhancements such as exporting full template kits, supporting Elementor Theme Builder sections, and broader automation hooks so Pro customers can unlock richer handoff options while the free tier keeps its streamlined experience.
+
 == Elementor Widget Experience ==
 AiMentor's widget mirrors the native Elementor workflow: pick your provider from the branded badge selector, drop a prompt into the focused input field, and trigger generation without losing context. Provider-colored badges keep the active model obvious, while the same connection health indicators used in the settings surface directly in the widget so editors know when it's safe to launch a run.
 
