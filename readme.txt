@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.03
+Stable tag: 1.0.04
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.0.04 =
+* Added context-aware provider defaults so Elementor documents load the correct provider/model pairing for each template or post type.
+* Extended the settings screen to map WordPress templates and custom types to provider/model combinations.
+* Updated the Elementor widget to honor the new mappings when initializing provider badges and defaults.
+
 = 1.0.03 =
 * Added an opt-in daily provider health check that re-tests stored API keys with WP-Cron.
 * Captured consecutive connection failures and alerted administrators once the threshold is reached.
