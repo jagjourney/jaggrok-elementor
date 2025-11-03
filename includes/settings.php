@@ -183,9 +183,9 @@ function aimentor_get_provider_usage_data() {
 }
 
 function aimentor_record_provider_usage( $provider_key, $status, $context = [] ) {
-        $provider_key = sanitize_key( $provider_key );
-        $status       = in_array( $status, [ 'success', 'error' ], true ) ? $status : 'success';
-        $providers    = aimentor_get_provider_labels();
+$provider_key = sanitize_key( $provider_key );
+$status       = in_array( $status, [ 'success', 'error' ], true ) ? $status : 'success';
+$providers    = aimentor_get_provider_labels();
 
         if ( ! array_key_exists( $provider_key, $providers ) ) {
                 return;
@@ -229,8 +229,430 @@ function aimentor_record_provider_usage( $provider_key, $status, $context = [] )
         $data['providers'][ $provider_key ]['last_event'] = $timestamp;
         $data['generated_at']                              = $timestamp;
 
-        set_transient( aimentor_get_usage_transient_key(), $data, DAY_IN_SECONDS );
+set_transient( aimentor_get_usage_transient_key(), $data, DAY_IN_SECONDS );
 }
+
+
+function aimentor_get_saved_prompts_option_name() {
+	return 'aimentor_saved_prompts';
+}
+
+function aimentor_get_saved_prompts_user_meta_key() {
+	return 'aimentor_saved_prompts';
+}
+
+function aimentor_generate_saved_prompt_label( $label, $prompt ) {
+	$label  = sanitize_text_field( (string) $label );
+	$prompt = sanitize_textarea_field( (string) $prompt );
+
+	if ( '' !== $label ) {
+		return $label;
+	}
+
+	$excerpt = trim( wp_html_excerpt( $prompt, 60, '…' ) );
+
+	if ( '' === $excerpt ) {
+		$excerpt = __( 'Untitled prompt', 'aimentor' );
+	}
+
+	return sanitize_text_field( $excerpt );
+}
+
+function aimentor_normalize_saved_prompt_entry( $entry, $scope = 'user' ) {
+	if ( ! is_array( $entry ) ) {
+		return null;
+	}
+
+	$scope  = 'global' === $scope ? 'global' : 'user';
+	$id     = isset( $entry['id'] ) ? sanitize_text_field( wp_unslash( $entry['id'] ) ) : '';
+	$prompt = isset( $entry['prompt'] ) ? sanitize_textarea_field( wp_unslash( $entry['prompt'] ) ) : '';
+	$label  = isset( $entry['label'] ) ? sanitize_text_field( wp_unslash( $entry['label'] ) ) : '';
+
+	$prompt = trim( $prompt );
+
+	if ( '' === $prompt ) {
+		return null;
+	}
+
+	if ( '' === $id ) {
+		return null;
+	}
+
+	$label = aimentor_generate_saved_prompt_label( $label, $prompt );
+
+	return [
+		'id'     => $id,
+		'label'  => $label,
+		'prompt' => $prompt,
+		'scope'  => $scope,
+	];
+}
+
+function aimentor_get_saved_prompts_raw( $scope = 'global', $user_id = 0 ) {
+	$scope = 'global' === $scope ? 'global' : 'user';
+
+	if ( 'global' === $scope ) {
+		$prompts = get_option( aimentor_get_saved_prompts_option_name(), [] );
+	} else {
+		$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+
+		if ( ! $user_id ) {
+			return [];
+		}
+
+		$prompts = get_user_meta( $user_id, aimentor_get_saved_prompts_user_meta_key(), true );
+	}
+
+	return is_array( $prompts ) ? $prompts : [];
+}
+
+function aimentor_store_saved_prompts_raw( $scope, $prompts, $user_id = 0 ) {
+	$scope   = 'global' === $scope ? 'global' : 'user';
+	$prompts = is_array( $prompts ) ? array_values( $prompts ) : [];
+
+	if ( 'global' === $scope ) {
+		update_option( aimentor_get_saved_prompts_option_name(), $prompts, false );
+		return;
+	}
+
+	$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+
+	if ( ! $user_id ) {
+		return;
+	}
+
+	update_user_meta( $user_id, aimentor_get_saved_prompts_user_meta_key(), $prompts );
+}
+
+function aimentor_get_saved_prompts_by_scope( $scope = 'global', $user_id = 0 ) {
+	$scope    = 'global' === $scope ? 'global' : 'user';
+	$prompts  = aimentor_get_saved_prompts_raw( $scope, $user_id );
+	$prepared = [];
+
+	foreach ( $prompts as $entry ) {
+		$normalized = aimentor_normalize_saved_prompt_entry( $entry, $scope );
+
+		if ( ! $normalized ) {
+			continue;
+		}
+
+		$prepared[] = $normalized;
+	}
+
+	return $prepared;
+}
+
+function aimentor_get_saved_prompts_payload( $user_id = 0 ) {
+	return [
+		'global' => aimentor_get_saved_prompts_by_scope( 'global' ),
+		'user'   => aimentor_get_saved_prompts_by_scope( 'user', $user_id ),
+	];
+}
+
+function aimentor_add_saved_prompt( $label, $prompt, $scope = 'user', $user_id = 0 ) {
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_forbidden',
+		__( 'Sorry, you are not allowed to manage saved prompts.', 'aimentor' ),
+		[ 'status' => 403 ]
+		);
+	}
+
+	$scope  = 'global' === $scope ? 'global' : 'user';
+	$prompt = sanitize_textarea_field( (string) $prompt );
+
+	if ( '' === trim( $prompt ) ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_empty',
+		__( 'Prompt content cannot be empty.', 'aimentor' ),
+		[ 'status' => 400 ]
+		);
+	}
+
+	if ( 'global' === $scope && ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_global_forbidden',
+		__( 'Sorry, you are not allowed to manage global prompts.', 'aimentor' ),
+		[ 'status' => 403 ]
+		);
+	}
+
+	$label = aimentor_generate_saved_prompt_label( $label, $prompt );
+
+	$entry = [
+		'id'     => wp_generate_uuid4(),
+		'label'  => $label,
+		'prompt' => $prompt,
+	];
+
+	if ( 'global' === $scope ) {
+		$prompts   = aimentor_get_saved_prompts_raw( 'global' );
+		$prompts[] = $entry;
+		aimentor_store_saved_prompts_raw( 'global', $prompts );
+	} else {
+		$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+
+		if ( ! $user_id ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_invalid_user',
+		__( 'Unable to determine the current user.', 'aimentor' ),
+		[ 'status' => 400 ]
+		);
+		}
+
+		$prompts   = aimentor_get_saved_prompts_raw( 'user', $user_id );
+		$prompts[] = $entry;
+		aimentor_store_saved_prompts_raw( 'user', $prompts, $user_id );
+	}
+
+	$entry['scope'] = $scope;
+
+	return $entry;
+}
+
+function aimentor_delete_saved_prompt( $id, $scope = 'user', $user_id = 0 ) {
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_forbidden',
+		__( 'Sorry, you are not allowed to manage saved prompts.', 'aimentor' ),
+		[ 'status' => 403 ]
+		);
+	}
+
+	$scope = 'global' === $scope ? 'global' : 'user';
+	$id    = sanitize_text_field( (string) $id );
+
+	if ( '' === $id ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_invalid_id',
+		__( 'Prompt ID is required.', 'aimentor' ),
+		[ 'status' => 400 ]
+		);
+	}
+
+	if ( 'global' === $scope && ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_global_forbidden',
+		__( 'Sorry, you are not allowed to manage global prompts.', 'aimentor' ),
+		[ 'status' => 403 ]
+		);
+	}
+
+	$prompts   = aimentor_get_saved_prompts_raw( $scope, $user_id );
+	$remaining = [];
+	$removed   = null;
+
+	foreach ( $prompts as $entry ) {
+		$normalized = aimentor_normalize_saved_prompt_entry( $entry, $scope );
+
+		if ( ! $normalized ) {
+			continue;
+		}
+
+		if ( $normalized['id'] === $id ) {
+		$removed = $normalized;
+		continue;
+		}
+
+		$remaining[] = [
+		'id'     => $normalized['id'],
+		'label'  => $normalized['label'],
+		'prompt' => $normalized['prompt'],
+		];
+	}
+
+	if ( ! $removed ) {
+		return new WP_Error(
+		'aimentor_saved_prompts_not_found',
+		__( 'Saved prompt not found.', 'aimentor' ),
+		[ 'status' => 404 ]
+		);
+	}
+
+	aimentor_store_saved_prompts_raw( $scope, $remaining, $user_id );
+
+	return $removed;
+}
+
+function aimentor_saved_prompts_permissions_check( WP_REST_Request $request ) {
+	return current_user_can( 'edit_posts' );
+}
+
+function aimentor_rest_get_saved_prompts( WP_REST_Request $request ) {
+	$prompts = aimentor_get_saved_prompts_payload();
+
+        return new WP_REST_Response(
+                [
+                        'success' => true,
+                        'prompts' => $prompts,
+                ],
+                200
+        );
+}
+
+function aimentor_rest_create_saved_prompt( WP_REST_Request $request ) {
+	$label  = $request->get_param( 'label' );
+	$scope  = $request->get_param( 'scope' );
+	$prompt = $request->get_param( 'prompt' );
+
+	$result = aimentor_add_saved_prompt( $label, $prompt, $scope );
+
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+        return new WP_REST_Response(
+                [
+                        'success' => true,
+                        'prompt'  => $result,
+                        'prompts' => aimentor_get_saved_prompts_payload(),
+                ],
+                201
+        );
+}
+
+function aimentor_rest_delete_saved_prompt( WP_REST_Request $request ) {
+	$id    = $request->get_param( 'id' );
+	$scope = $request->get_param( 'scope' );
+
+	$result = aimentor_delete_saved_prompt( $id, $scope );
+
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+        return new WP_REST_Response(
+                [
+                        'success' => true,
+                        'prompt'  => $result,
+                        'prompts' => aimentor_get_saved_prompts_payload(),
+                ],
+                200
+        );
+}
+
+
+function aimentor_register_saved_prompts_routes() {
+	register_rest_route(
+		'aimentor/v1',
+		'/prompts',
+		[
+			[
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => 'aimentor_rest_get_saved_prompts',
+				'permission_callback' => 'aimentor_saved_prompts_permissions_check',
+			],
+			[
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => 'aimentor_rest_create_saved_prompt',
+				'permission_callback' => 'aimentor_saved_prompts_permissions_check',
+				'args'                => [
+					'label'  => [
+						'type'              => 'string',
+						'required'          => false,
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'prompt' => [
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_textarea_field',
+					],
+					'scope'  => [
+						'type'              => 'string',
+						'required'          => false,
+						'sanitize_callback' => 'sanitize_key',
+					],
+				],
+			],
+		]
+	);
+
+	register_rest_route(
+		'aimentor/v1',
+		'/prompts/(?P<id>[A-Za-z0-9\-]+)',
+		[
+			[
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => 'aimentor_rest_delete_saved_prompt',
+				'permission_callback' => 'aimentor_saved_prompts_permissions_check',
+				'args'                => [
+					'id'    => [
+						'type'     => 'string',
+						'required' => true,
+					],
+					'scope' => [
+						'type'              => 'string',
+						'required'          => false,
+						'sanitize_callback' => 'sanitize_key',
+					],
+				],
+			],
+		]
+	);
+}
+add_action( 'rest_api_init', 'aimentor_register_saved_prompts_routes' );
+
+function aimentor_ajax_add_saved_prompt() {
+	check_ajax_referer( 'aimentor_saved_prompts', 'nonce' );
+
+	$label  = isset( $_POST['label'] ) ? wp_unslash( $_POST['label'] ) : '';
+	$scope  = isset( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : 'user';
+	$prompt = isset( $_POST['prompt'] ) ? wp_unslash( $_POST['prompt'] ) : '';
+
+	$result = aimentor_add_saved_prompt( $label, $prompt, $scope );
+
+	if ( is_wp_error( $result ) ) {
+		$error_data = $result->get_error_data();
+		$status     = isset( $error_data['status'] ) ? absint( $error_data['status'] ) : 400;
+
+                wp_send_json_error(
+                        [
+                                'code'    => $result->get_error_code(),
+                                'message' => $result->get_error_message(),
+                        ],
+                        $status
+                );
+	}
+
+        wp_send_json_success(
+                [
+                        'prompt'  => $result,
+                        'prompts' => aimentor_get_saved_prompts_payload(),
+                ]
+        );
+}
+add_action( 'wp_ajax_aimentor_add_saved_prompt', 'aimentor_ajax_add_saved_prompt' );
+
+function aimentor_ajax_delete_saved_prompt() {
+	check_ajax_referer( 'aimentor_saved_prompts', 'nonce' );
+
+	$scope = isset( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : 'user';
+	$id    = isset( $_POST['id'] ) ? wp_unslash( $_POST['id'] ) : '';
+
+	$result = aimentor_delete_saved_prompt( $id, $scope );
+
+	if ( is_wp_error( $result ) ) {
+		$error_data = $result->get_error_data();
+		$status     = isset( $error_data['status'] ) ? absint( $error_data['status'] ) : 400;
+
+                wp_send_json_error(
+                        [
+                                'code'    => $result->get_error_code(),
+                                'message' => $result->get_error_message(),
+                        ],
+                        $status
+                );
+	}
+
+        wp_send_json_success(
+                [
+                        'prompt'  => $result,
+                        'prompts' => aimentor_get_saved_prompts_payload(),
+                ]
+        );
+}
+add_action( 'wp_ajax_aimentor_delete_saved_prompt', 'aimentor_ajax_delete_saved_prompt' );
+
 
 function aimentor_get_generation_history_option_name() {
         return 'aimentor_generation_history';

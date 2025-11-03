@@ -313,15 +313,21 @@ function aimentor_get_ajax_payload() {
         $default_tier_fallback = aimentor_sanitize_performance_tier( $defaults['aimentor_default_performance'] ?? 'fast' );
         $default_task          = aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_task_fallback ) );
         $default_tier          = aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_tier_fallback ) );
+        $saved_prompts         = function_exists( 'aimentor_get_saved_prompts_payload' ) ? aimentor_get_saved_prompts_payload() : [
+                'global' => [],
+                'user'   => [],
+        ];
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
                 'nonce'             => wp_create_nonce( 'aimentor_test' ),
+                'savedPromptNonce'  => wp_create_nonce( 'aimentor_saved_prompts' ),
                 'dismissNonce'      => wp_create_nonce( 'aimentor_onboarding' ),
                 'usageNonce'        => wp_create_nonce( 'aimentor_usage_metrics' ),
                 'logNonce'          => wp_create_nonce( 'aimentor_error_log' ),
                 'restNonce'         => wp_create_nonce( 'wp_rest' ),
                 'historyEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/history' ) ),
+                'promptsEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/prompts' ) ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
                 'strings'           => array(
                         'testingBadge'       => __( 'Testing', 'aimentor' ),
@@ -371,6 +377,11 @@ function aimentor_get_ajax_payload() {
                         'promptLabel'        => __( 'Prompt', 'aimentor' ),
                         'promptPlaceholder'  => __( 'Describe your page (e.g., hero with CTA)', 'aimentor' ),
                         'missingConfig'      => __( 'AiMentor AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.', 'aimentor' ),
+                        'savedPromptLabel'        => __( 'Saved Prompts', 'aimentor' ),
+                        'savedPromptPlaceholder'  => __( 'Select a saved prompt…', 'aimentor' ),
+                        'savedPromptEmpty'        => __( 'No saved prompts found.', 'aimentor' ),
+                        'savedPromptGroupUser'    => __( 'My Prompts', 'aimentor' ),
+                        'savedPromptGroupGlobal'  => __( 'Shared Prompts', 'aimentor' ),
                 ),
                 'provider'          => get_option( 'aimentor_provider', 'grok' ),
                 'providerLabels'    => $provider_labels,
@@ -383,6 +394,7 @@ function aimentor_get_ajax_payload() {
                 'modelPresets'      => aimentor_get_model_presets(),
                 'modelLabels'       => aimentor_get_model_labels(),
                 'isProActive'       => aimentor_is_pro_active(),
+                'savedPrompts'      => $saved_prompts,
         );
 }
 
