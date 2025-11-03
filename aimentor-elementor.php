@@ -319,6 +319,7 @@ function aimentor_get_ajax_payload() {
                 'nonce'             => wp_create_nonce( 'aimentor_test' ),
                 'dismissNonce'      => wp_create_nonce( 'aimentor_onboarding' ),
                 'usageNonce'        => wp_create_nonce( 'aimentor_usage_metrics' ),
+                'logNonce'          => wp_create_nonce( 'aimentor_error_log' ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
                 'strings'           => array(
                         'testingBadge'       => __( 'Testing', 'aimentor' ),
@@ -331,6 +332,7 @@ function aimentor_get_ajax_payload() {
                         'usageNoActivity'     => __( 'No activity yet', 'aimentor' ),
                         'usageNoContext'      => __( 'Most recent context unavailable.', 'aimentor' ),
                         'usageJustNow'        => __( 'Just now', 'aimentor' ),
+                        'logFetchError'       => __( 'Unable to load error logs. Please try again.', 'aimentor' ),
                         /* translators: %s: Provider label. */
                         'generateWith'       => __( 'Generate with %s', 'aimentor' ),
                         /* translators: %s: Provider label. */
