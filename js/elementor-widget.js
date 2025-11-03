@@ -27,6 +27,49 @@
         return template.replace('%s', value);
     }
 
+    function recordHistoryEntry(prompt, providerKey) {
+        if (!prompt || !providerKey) {
+            return;
+        }
+        var aimentorData = window.aimentorAjax || {};
+        if (!aimentorData.historyEndpoint || !aimentorData.restNonce) {
+            return;
+        }
+
+        var payload = {
+            prompt: String(prompt),
+            provider: String(providerKey)
+        };
+
+        if (window.fetch) {
+            window.fetch(aimentorData.historyEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': aimentorData.restNonce
+                },
+                body: JSON.stringify(payload),
+                credentials: 'same-origin'
+            }).catch(function() {
+                // Silently ignore logging failures.
+            });
+            return;
+        }
+
+        if (window.jQuery && jQuery.ajax) {
+            jQuery.ajax({
+                url: aimentorData.historyEndpoint,
+                method: 'POST',
+                data: JSON.stringify(payload),
+                contentType: 'application/json',
+                processData: false,
+                headers: {
+                    'X-WP-Nonce': aimentorData.restNonce
+                }
+            });
+        }
+    }
+
     $(document).on('elementor/init', function() {
         var aimentorData = window.aimentorAjax || {};
         var strings = aimentorData.strings || {};
@@ -204,6 +247,7 @@
                             if ($output.length) {
                                 $output.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
                             }
+                            recordHistoryEntry(promptValue, widgetState.provider);
                         } else {
                             var message = response && response.data ? response.data : 'Unknown error';
                             if (typeof message === 'object' && message !== null) {
@@ -410,6 +454,7 @@
                         } else {
                             $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
                         }
+                        recordHistoryEntry(promptValue, providerValue);
                     } else {
                         var message = response && response.data ? response.data : 'Unknown error';
                         if (typeof message === 'object' && message !== null) {
