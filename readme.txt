@@ -74,7 +74,7 @@ native GitHub channel.
 * Release checklist and versioning guide: `docs/release-guide.md`.
 
 == Deployment ==
-Tagged releases automatically produce `aimentor-elementor-v*.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
+Tagged releases automatically produce `aimentor-elementor.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
 Refer to `docs/release-guide.md` for detailed tagging, workflow, and post-release steps.
 
 Need to stage a build before publication? Save the GitHub release as a draft—the automation now packages and uploads the official ZIP while deferring the manifest update until you publish. Manual ZIP uploads remain optional for bespoke artifacts.

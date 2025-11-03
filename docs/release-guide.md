@@ -35,7 +35,7 @@ Every bump must land in a dedicated pull request so the merged commit and the an
 4. **`manifests/aimentor-plugin-info.json`** (for local testing)
    - Update `version`, `download_url`, and any hash placeholder if you are simulating a release. The GitHub Action overwrites this file on `gh-pages` during a real release, but keeping the default branch copy current prevents confusion.
 5. **ZIP artifacts in `/downloads`** (only if you are attaching a handcrafted ZIP to a draft release)
-   - Ensure the filename matches the `aimentor-elementor-vX.Y.Z.zip` pattern so the workflow can reuse it.
+   - Ensure the filename is `aimentor-elementor.zip` so the workflow can reuse it.
 
 ### Increment examples
 
@@ -76,7 +76,7 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
    - [ ] Capture logs or screenshots if you need to document unusual warnings for later follow-up.
    - [ ] If the workflow fails, remediate the issue, retag if necessary, and rerun the workflow before announcing the release.
 5. **Verify assets & manifest**
-   - [ ] Open the published release to ensure the ZIP asset exists, is named `aimentor-elementor-vX.Y.Z.zip`, and lists the correct build timestamp.
+   - [ ] Open the published release to ensure the ZIP asset exists, is named `aimentor-elementor.zip`, and lists the correct build timestamp.
    - [ ] Download the asset locally to spot-check the archive contents and plugin metadata.
    - [ ] Inspect `gh-pages/manifests/aimentor-plugin-info.json` to confirm it references the new tag, download URL, and checksum.
 
