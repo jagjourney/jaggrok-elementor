@@ -126,6 +126,101 @@ function aimentor_get_provider_labels() {
         ];
 }
 
+function aimentor_get_document_context_choices() {
+        $choices = [
+                'default' => [
+                        'label' => __( 'Default (all Elementor documents)', 'aimentor' ),
+                        'type'  => 'default',
+                ],
+        ];
+
+        if ( function_exists( 'get_post_types' ) ) {
+                $post_types = get_post_types( [ 'show_ui' => true ], 'objects' );
+
+                foreach ( $post_types as $post_type => $object ) {
+                        if ( 'attachment' === $post_type ) {
+                                continue;
+                        }
+
+                        $label = '';
+
+                        if ( isset( $object->labels->singular_name ) && '' !== $object->labels->singular_name ) {
+                                $label = (string) $object->labels->singular_name;
+                        } elseif ( isset( $object->label ) && '' !== $object->label ) {
+                                $label = (string) $object->label;
+                        } else {
+                                $label = ucfirst( (string) $post_type );
+                        }
+
+                        $choices[ 'post_type:' . $post_type ] = [
+                                /* translators: %s: Post type label. */
+                                'label'     => sprintf( __( 'Post Type: %s', 'aimentor' ), $label ),
+                                'type'      => 'post_type',
+                                'post_type' => $post_type,
+                        ];
+                }
+        }
+
+        if ( function_exists( 'wp_get_theme' ) ) {
+                $templates = wp_get_theme()->get_page_templates( null, 'page' );
+
+                if ( is_array( $templates ) ) {
+                        foreach ( $templates as $template_file => $template_name ) {
+                                if ( '' === $template_file ) {
+                                        continue;
+                                }
+
+                                $label = '' !== $template_name ? $template_name : $template_file;
+
+                                $choices[ 'template:' . $template_file ] = [
+                                        /* translators: %s: Page template label. */
+                                        'label'    => sprintf( __( 'Template: %s', 'aimentor' ), $label ),
+                                        'type'     => 'template',
+                                        'template' => $template_file,
+                                ];
+                        }
+                }
+        }
+
+        /**
+         * Filter the list of document contexts available for provider defaults.
+         *
+         * @param array $choices Associative array of context keys and metadata.
+         */
+        return apply_filters( 'aimentor_document_context_choices', $choices );
+}
+
+function aimentor_get_document_provider_default_map() {
+        $legacy_defaults = aimentor_map_presets_to_legacy_defaults( aimentor_get_provider_model_defaults() );
+        $default_provider = 'grok';
+        $default_model    = $legacy_defaults['grok'] ?? '';
+
+        $defaults = [
+                'default' => [
+                        'provider' => $default_provider,
+                        'model'    => $default_model,
+                ],
+        ];
+
+        foreach ( aimentor_get_document_context_choices() as $context_key => $context_meta ) {
+                if ( isset( $defaults[ $context_key ] ) ) {
+                        continue;
+                }
+
+                $defaults[ $context_key ] = [
+                        'provider' => $default_provider,
+                        'model'    => $default_model,
+                ];
+        }
+
+        /**
+         * Filter the default provider/model map for document contexts.
+         *
+         * @param array $defaults Default mapping of contexts to provider/model pairs.
+         */
+        return apply_filters( 'aimentor_document_provider_default_map', $defaults );
+}
+
 function aimentor_get_prompt_preset_catalog() {
         return [
                 'grok'   => [
@@ -975,6 +1070,7 @@ function aimentor_get_default_options() {
                 'aimentor_max_tokens'                => 2000,
                 'aimentor_provider_models'           => $legacy_defaults,
                 'aimentor_model_presets'             => $provider_defaults,
+                'aimentor_document_provider_defaults' => aimentor_get_document_provider_default_map(),
                 'aimentor_model'                     => $legacy_defaults['grok'] ?? '',
                 'aimentor_openai_model'              => $legacy_defaults['openai'] ?? '',
                 'aimentor_default_generation_type'   => 'content',
@@ -1170,6 +1266,16 @@ function aimentor_register_settings() {
 
         register_setting(
                 'aimentor_settings',
+                'aimentor_document_provider_defaults',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_document_provider_defaults',
+                        'default' => $defaults['aimentor_document_provider_defaults'],
+                        'type' => 'array',
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
                 'aimentor_model',
                 [
                         'sanitize_callback' => 'aimentor_sanitize_model',
@@ -1283,6 +1389,60 @@ function aimentor_sanitize_max_tokens( $value ) {
         return $value > 0 ? $value : 2000;
 }
 
+function aimentor_sanitize_document_provider_defaults( $value ) {
+        if ( ! is_array( $value ) ) {
+                $value = [];
+        }
+
+        $defaults         = aimentor_get_document_provider_default_map();
+        $context_choices  = aimentor_get_document_context_choices();
+        $allowed_provider = array_keys( aimentor_get_provider_labels() );
+        $sanitized        = [];
+
+        $context_keys = array_unique(
+                array_merge(
+                        array_keys( $defaults ),
+                        array_keys( $context_choices ),
+                        array_keys( $value )
+                )
+        );
+
+        foreach ( $context_keys as $context_key ) {
+                if ( ! is_string( $context_key ) || '' === $context_key ) {
+                        continue;
+                }
+
+                $incoming = isset( $value[ $context_key ] ) && is_array( $value[ $context_key ] )
+                        ? $value[ $context_key ]
+                        : [];
+
+                $fallback = isset( $defaults[ $context_key ] ) && is_array( $defaults[ $context_key ] )
+                        ? $defaults[ $context_key ]
+                        : ( $defaults['default'] ?? [] );
+
+                $provider = isset( $incoming['provider'] ) ? sanitize_key( $incoming['provider'] ) : '';
+
+                if ( ! in_array( $provider, $allowed_provider, true ) ) {
+                        $provider = isset( $fallback['provider'] ) ? sanitize_key( $fallback['provider'] ) : ( $allowed_provider[0] ?? 'grok' );
+                }
+
+                $allowed_models = aimentor_flatten_allowed_models_for_provider( $provider );
+                $model          = isset( $incoming['model'] ) ? sanitize_text_field( $incoming['model'] ) : '';
+
+                if ( ! in_array( $model, $allowed_models, true ) ) {
+                        $fallback_model = isset( $fallback['model'] ) ? sanitize_text_field( $fallback['model'] ) : '';
+                        $model          = in_array( $fallback_model, $allowed_models, true ) ? $fallback_model : ( $allowed_models[0] ?? '' );
+                }
+
+                $sanitized[ $context_key ] = [
+                        'provider' => $provider,
+                        'model'    => $model,
+                ];
+        }
+
+        return $sanitized;
+}
+
 function aimentor_sanitize_model_presets( $value ) {
         $defaults = aimentor_get_provider_model_defaults();
 
@@ -1345,6 +1505,18 @@ function aimentor_get_model_presets() {
         $presets = array_replace_recursive( aimentor_get_provider_model_defaults(), $stored );
 
         return aimentor_sanitize_model_presets( $presets );
+}
+
+function aimentor_get_document_provider_defaults() {
+        $stored = get_option( 'aimentor_document_provider_defaults', [] );
+
+        if ( ! is_array( $stored ) ) {
+                $stored = [];
+        }
+
+        $merged = array_replace_recursive( aimentor_get_document_provider_default_map(), $stored );
+
+        return aimentor_sanitize_document_provider_defaults( $merged );
 }
 
 function aimentor_get_provider_models() {

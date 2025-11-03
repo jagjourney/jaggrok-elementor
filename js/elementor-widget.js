@@ -78,6 +78,7 @@
         var providersMeta = aimentorData.providersMeta || {};
         var defaultsData = aimentorData.defaults || {};
         var modelLabels = aimentorData.modelLabels || {};
+        var modelPresets = aimentorData.modelPresets || {};
         var isProActive = !!aimentorData.isProActive;
         var savedPromptsData = aimentorData.savedPrompts || {};
         var savedPromptsStore = normalizeSavedPrompts(savedPromptsData);
@@ -163,6 +164,230 @@
             for (var i = 0; i < prompts.length; i++) {
                 if (prompts[i] && prompts[i].id === id) {
                     return prompts[i];
+                }
+            }
+
+            return null;
+        }
+
+        function getActiveDocumentConfig() {
+            var doc = null;
+            if (window.elementor && elementor.documents && typeof elementor.documents.getCurrent === 'function') {
+                try {
+                    var current = elementor.documents.getCurrent();
+                    if (current) {
+                        if (current.config) {
+                            doc = current.config;
+                        } else if (current.document && current.document.config) {
+                            doc = current.document.config;
+                        } else {
+                            doc = current;
+                        }
+                    }
+                } catch (err) {
+                    doc = null;
+                }
+            }
+
+            if (!doc && window.elementor && elementor.config && elementor.config.document) {
+                doc = elementor.config.document;
+            }
+
+            if (!doc && window.elementorCommon && elementorCommon.config && elementorCommon.config.document) {
+                doc = elementorCommon.config.document;
+            }
+
+            if (!doc) {
+                return {};
+            }
+
+            var base;
+            try {
+                base = JSON.parse(JSON.stringify(doc));
+            } catch (err) {
+                base = Object.assign({}, doc);
+            }
+
+            if (!base.page_settings) {
+                if (doc.page_settings && typeof doc.page_settings === 'object') {
+                    base.page_settings = doc.page_settings;
+                } else if (doc.settings && typeof doc.settings === 'object') {
+                    base.page_settings = doc.settings;
+                } else if (doc.config && doc.config.page_settings && typeof doc.config.page_settings === 'object') {
+                    base.page_settings = doc.config.page_settings;
+                }
+            }
+
+            return base;
+        }
+
+        function extractTemplateFromConfig(docConfig) {
+            if (!docConfig || typeof docConfig !== 'object') {
+                return '';
+            }
+
+            var sources = [];
+            if (docConfig.page_settings && typeof docConfig.page_settings === 'object') {
+                sources.push(docConfig.page_settings);
+            }
+            if (docConfig.settings && typeof docConfig.settings === 'object') {
+                sources.push(docConfig.settings);
+            }
+            if (docConfig.config && docConfig.config.page_settings && typeof docConfig.config.page_settings === 'object') {
+                sources.push(docConfig.config.page_settings);
+            }
+
+            for (var i = 0; i < sources.length; i++) {
+                var candidate = sources[i];
+                if (!candidate) {
+                    continue;
+                }
+                var templateValue = '';
+                if (typeof candidate.template === 'string') {
+                    templateValue = candidate.template;
+                } else if (typeof candidate.post_template === 'string') {
+                    templateValue = candidate.post_template;
+                }
+                if (templateValue && templateValue !== 'default') {
+                    return templateValue;
+                }
+            }
+
+            return '';
+        }
+
+        function extractPostTypesFromConfig(docConfig) {
+            if (!docConfig || typeof docConfig !== 'object') {
+                return [];
+            }
+
+            var values = [];
+            var candidates = [docConfig];
+
+            if (docConfig.config && typeof docConfig.config === 'object') {
+                candidates.push(docConfig.config);
+            }
+            if (docConfig.panel && typeof docConfig.panel === 'object') {
+                candidates.push(docConfig.panel);
+            }
+            if (docConfig.page_settings && typeof docConfig.page_settings === 'object') {
+                candidates.push(docConfig.page_settings);
+            }
+
+            var fields = ['post_type', 'type', 'postType', 'post_type_slug', 'postTypeSlug', 'main_post_type', 'source', 'sub_type', 'subType'];
+
+            candidates.forEach(function(candidate) {
+                if (!candidate || typeof candidate !== 'object') {
+                    return;
+                }
+                fields.forEach(function(field) {
+                    var value = candidate[field];
+                    if (typeof value === 'string' && value) {
+                        values.push(value.toLowerCase());
+                    }
+                });
+            });
+
+            return values;
+        }
+
+        function buildDocumentContextCandidates() {
+            var docConfig = getActiveDocumentConfig();
+            var keys = [];
+            var template = extractTemplateFromConfig(docConfig);
+            if (template) {
+                keys.push('template:' + template);
+            }
+
+            var postTypes = extractPostTypesFromConfig(docConfig);
+            postTypes.forEach(function(postType) {
+                if (postType) {
+                    keys.push('post_type:' + postType);
+                }
+            });
+
+            keys.push('default');
+
+            var seen = {};
+            return keys.filter(function(key) {
+                if (!key) {
+                    return false;
+                }
+                if (seen[key]) {
+                    return false;
+                }
+                seen[key] = true;
+                return true;
+            });
+        }
+
+        function resolveDocumentDefaults(defaultsConfig) {
+            var map = defaultsConfig && typeof defaultsConfig.contexts === 'object' ? defaultsConfig.contexts : {};
+            var candidates = buildDocumentContextCandidates();
+
+            for (var i = 0; i < candidates.length; i++) {
+                var key = candidates[i];
+                if (map && map[key]) {
+                    var entry = map[key] || {};
+                    return Object.assign({ key: key }, entry);
+                }
+            }
+
+            if (map && map.default) {
+                return Object.assign({ key: 'default' }, map.default);
+            }
+
+            return { key: 'default', provider: '', model: '' };
+        }
+
+        function deriveModelPreset(providerKey, modelKey) {
+            if (!providerKey || !modelKey) {
+                return null;
+            }
+
+            var providerEntry = modelPresets[providerKey];
+            if (!providerEntry || typeof providerEntry !== 'object') {
+                return null;
+            }
+
+            var preferredTasks = ['content', 'canvas'];
+            var preferredTiers = ['fast', 'quality'];
+
+            for (var i = 0; i < preferredTasks.length; i++) {
+                var task = preferredTasks[i];
+                var taskEntry = providerEntry[task];
+                if (!taskEntry || typeof taskEntry !== 'object') {
+                    continue;
+                }
+                for (var j = 0; j < preferredTiers.length; j++) {
+                    var tier = preferredTiers[j];
+                    if (taskEntry[tier] === modelKey) {
+                        return { task: task, tier: tier };
+                    }
+                }
+
+                var tierKeys = Object.keys(taskEntry);
+                for (var k = 0; k < tierKeys.length; k++) {
+                    var tierKey = tierKeys[k];
+                    if (taskEntry[tierKey] === modelKey) {
+                        return { task: task, tier: tierKey };
+                    }
+                }
+            }
+
+            var fallbackTasks = Object.keys(providerEntry);
+            for (var index = 0; index < fallbackTasks.length; index++) {
+                var fallbackTask = fallbackTasks[index];
+                var fallbackEntry = providerEntry[fallbackTask];
+                if (!fallbackEntry || typeof fallbackEntry !== 'object') {
+                    continue;
+                }
+                var fallbackTiers = Object.keys(fallbackEntry);
+                for (var t = 0; t < fallbackTiers.length; t++) {
+                    var fallbackTier = fallbackTiers[t];
+                    if (fallbackEntry[fallbackTier] === modelKey) {
+                        return { task: fallbackTask, tier: fallbackTier };
+                    }
                 }
             }
 
@@ -295,24 +520,35 @@
         }
 
         var existingState = (window.AiMentorElementorUI && window.AiMentorElementorUI.state) ? window.AiMentorElementorUI.state : {};
-        var defaultTask = sanitizeTask((defaultsData && defaultsData.task) || (existingState.defaults && existingState.defaults.task) || 'content', isProActive);
-        var defaultTier = sanitizeTier((defaultsData && defaultsData.tier) || (existingState.defaults && existingState.defaults.tier) || 'fast');
+        var documentDefaults = resolveDocumentDefaults(defaultsData);
+        var contextPreset = deriveModelPreset(documentDefaults.provider, documentDefaults.model);
+        var defaultProviderCandidate = (existingState.defaults && existingState.defaults.provider) || documentDefaults.provider || defaultsData.provider || aimentorData.provider;
+        var defaultProvider = sanitizeProvider(defaultProviderCandidate);
+        var defaultTaskCandidate = (existingState.defaults && existingState.defaults.task) || (contextPreset && contextPreset.task) || (defaultsData && defaultsData.task) || 'content';
+        var defaultTierCandidate = (existingState.defaults && existingState.defaults.tier) || (contextPreset && contextPreset.tier) || (defaultsData && defaultsData.tier) || 'fast';
+        var defaultTask = sanitizeTask(defaultTaskCandidate, isProActive);
+        var defaultTier = sanitizeTier(defaultTierCandidate);
 
         var api = window.AiMentorElementorUI || {};
         api.state = {
             defaults: {
                 task: defaultTask,
-                tier: defaultTier
+                tier: defaultTier,
+                provider: defaultProvider,
+                model: documentDefaults.model || '',
+                contextKey: documentDefaults.key || 'default'
             },
+            contextMap: (defaultsData && defaultsData.contexts && typeof defaultsData.contexts === 'object') ? defaultsData.contexts : {},
+            documentDefaults: documentDefaults,
             widgets: existingState.widgets || {},
             modal: existingState.modal ? {
                 task: sanitizeTask(existingState.modal.task, isProActive),
                 tier: sanitizeTier(existingState.modal.tier),
-                provider: sanitizeProvider(existingState.modal.provider || getDefaultProvider())
+                provider: sanitizeProvider(existingState.modal.provider || defaultProvider)
             } : {
                 task: defaultTask,
                 tier: defaultTier,
-                provider: sanitizeProvider(getDefaultProvider())
+                provider: defaultProvider
             }
         };
 
@@ -1134,6 +1370,12 @@
         }
 
         function getDefaultProvider() {
+            if (api && api.state && api.state.defaults && api.state.defaults.provider) {
+                return sanitizeProvider(api.state.defaults.provider);
+            }
+            if (defaultsData && typeof defaultsData.provider === 'string' && defaultsData.provider) {
+                return sanitizeProvider(defaultsData.provider);
+            }
             if (typeof aimentorData.provider === 'string' && aimentorData.provider) {
                 return sanitizeProvider(aimentorData.provider);
             }
