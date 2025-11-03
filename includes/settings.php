@@ -970,6 +970,8 @@ function aimentor_get_default_options() {
                 'aimentor_openai_api_key'            => '',
                 'aimentor_auto_insert'               => 'yes',
                 'aimentor_theme_style'               => 'modern',
+                'aimentor_primary_color'             => '#3B82F6',
+                'aimentor_tone_keywords'             => 'friendly, confident, helpful',
                 'aimentor_max_tokens'                => 2000,
                 'aimentor_provider_models'           => $legacy_defaults,
                 'aimentor_model_presets'             => $provider_defaults,
@@ -1131,6 +1133,24 @@ function aimentor_register_settings() {
 
         register_setting(
                 'aimentor_settings',
+                'aimentor_primary_color',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_primary_color',
+                        'default' => $defaults['aimentor_primary_color'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_tone_keywords',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_tone_keywords',
+                        'default' => $defaults['aimentor_tone_keywords'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
                 'aimentor_max_tokens',
                 [
                         'sanitize_callback' => 'aimentor_sanitize_max_tokens',
@@ -1218,6 +1238,24 @@ function aimentor_sanitize_auto_insert( $value ) {
 function aimentor_sanitize_theme_style( $value ) {
         $allowed = [ 'modern', 'bold', 'minimal' ];
         return in_array( $value, $allowed, true ) ? $value : 'modern';
+}
+
+function aimentor_sanitize_primary_color( $value ) {
+        $default   = '#3B82F6';
+        $sanitized = sanitize_hex_color( $value );
+
+        if ( empty( $sanitized ) ) {
+                return $default;
+        }
+
+        return strtoupper( $sanitized );
+}
+
+function aimentor_sanitize_tone_keywords( $value ) {
+        $value = sanitize_textarea_field( $value );
+        $value = trim( preg_replace( '/\s+/', ' ', $value ) );
+
+        return $value;
 }
 
 function aimentor_sanitize_generation_type( $value ) {

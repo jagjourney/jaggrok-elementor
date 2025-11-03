@@ -197,11 +197,11 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
     }
 
     protected function get_prompt_suffix( $context ) {
-        if ( 'canvas' === $context['task'] ) {
-            return ' Respond using Elementor JSON schema with widgets, containers, and layout metadata.';
-        }
+        $suffix = 'canvas' === $context['task']
+            ? ' Respond using Elementor JSON schema with widgets, containers, and layout metadata.'
+            : ' Respond with concise Elementor HTML blocks optimized for fast editing.';
 
-        return ' Respond with concise Elementor HTML blocks optimized for fast editing.';
+        return $suffix . $this->get_brand_prompt_guidance();
     }
 
     protected function get_temperature( $context ) {
@@ -218,5 +218,27 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
         }
 
         return 'quality' === $context['tier'] ? 50 : 35;
+    }
+
+    protected function get_brand_prompt_guidance() {
+        $color = sanitize_hex_color( get_option( 'aimentor_primary_color', '#3B82F6' ) );
+        $tone  = sanitize_textarea_field( get_option( 'aimentor_tone_keywords', '' ) );
+        $tone  = trim( preg_replace( '/\s+/', ' ', $tone ) );
+
+        $parts = [];
+
+        if ( ! empty( $color ) ) {
+            $parts[] = sprintf( 'Anchor styling around the brand primary color %s.', strtoupper( $color ) );
+        }
+
+        if ( '' !== $tone ) {
+            $parts[] = sprintf( 'Keep the writing voice aligned with these tone keywords: %s.', $tone );
+        }
+
+        if ( empty( $parts ) ) {
+            return '';
+        }
+
+        return ' ' . implode( ' ', $parts );
     }
 }

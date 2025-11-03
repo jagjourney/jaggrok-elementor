@@ -52,6 +52,12 @@ if ( ! function_exists( 'esc_attr' ) ) {
         }
 }
 
+if ( ! function_exists( 'esc_textarea' ) ) {
+        function esc_textarea( $text ) {
+                return $text;
+        }
+}
+
 if ( ! function_exists( 'esc_url' ) ) {
         function esc_url( $url ) {
                 return $url;
@@ -69,6 +75,40 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
                 $filtered = preg_replace( '/[\r\n\t\0\x0B]+/', ' ', $filtered );
 
                 return trim( $filtered );
+        }
+}
+
+if ( ! function_exists( 'sanitize_textarea_field' ) ) {
+        function sanitize_textarea_field( $str ) {
+                if ( is_array( $str ) ) {
+                        return '';
+                }
+
+                $filtered = (string) $str;
+                $filtered = strip_tags( $filtered );
+                $filtered = preg_replace( '/[\r\t\0\x0B]+/', ' ', $filtered );
+
+                return trim( $filtered );
+        }
+}
+
+if ( ! function_exists( 'sanitize_hex_color' ) ) {
+        function sanitize_hex_color( $color ) {
+                $color = trim( (string) $color );
+
+                if ( '' === $color ) {
+                        return '';
+                }
+
+                if ( '#' !== substr( $color, 0, 1 ) ) {
+                        $color = '#' . $color;
+                }
+
+                if ( preg_match( '/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color ) ) {
+                        return '#' . strtolower( ltrim( $color, '#' ) );
+                }
+
+                return '';
         }
 }
 
