@@ -775,6 +775,210 @@ function aimentor_sanitize_provider( $value ) {
         return in_array( $value, $allowed, true ) ? $value : 'grok';
 }
 
+function aimentor_parse_error_log_entry( $log_line ) {
+        $log_line = trim( (string) $log_line );
+
+        if ( '' === $log_line ) {
+                return null;
+        }
+
+        $parts     = explode( ' - ', $log_line, 2 );
+        $timestamp = isset( $parts[0] ) ? trim( (string) $parts[0] ) : __( 'Unknown', 'aimentor' );
+        $raw_entry = isset( $parts[1] ) ? trim( (string) $parts[1] ) : '';
+        $provider  = '';
+        $message   = '' !== $raw_entry ? $raw_entry : $log_line;
+
+        if ( '' !== $raw_entry ) {
+                $decoded = json_decode( $raw_entry, true );
+
+                if ( is_array( $decoded ) && isset( $decoded['message'] ) ) {
+                        $message = (string) $decoded['message'];
+
+                        if ( isset( $decoded['context']['provider'] ) ) {
+                                $provider = (string) $decoded['context']['provider'];
+                        }
+                }
+        }
+
+        return [
+                'timestamp' => '' !== $timestamp ? $timestamp : __( 'Unknown', 'aimentor' ),
+                'provider'  => $provider,
+                'message'   => $message,
+        ];
+}
+
+function aimentor_get_error_log_entries( $args = [] ) {
+        $defaults = [
+                'provider' => '',
+                'keyword'  => '',
+                'limit'    => 10,
+        ];
+
+        $args = wp_parse_args( $args, $defaults );
+
+        $provider_filter = sanitize_key( $args['provider'] );
+        $keyword_filter  = sanitize_text_field( $args['keyword'] );
+        $limit           = intval( $args['limit'] );
+
+        if ( function_exists( 'aimentor_get_error_log_path' ) ) {
+                $log_file = aimentor_get_error_log_path();
+        } else {
+                $log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
+        }
+
+        $is_readable = is_readable( $log_file );
+
+        if ( ! $is_readable ) {
+                return [
+                        'entries'       => [],
+                        'total_entries' => 0,
+                        'log_file'      => $log_file,
+                        'readable'      => false,
+                ];
+        }
+
+        $lines = file( $log_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+
+        if ( ! is_array( $lines ) || empty( $lines ) ) {
+                return [
+                        'entries'       => [],
+                        'total_entries' => 0,
+                        'log_file'      => $log_file,
+                        'readable'      => true,
+                ];
+        }
+
+        $entries       = [];
+        $total_entries = 0;
+        $keyword_match = function_exists( 'mb_stripos' ) ? 'mb_stripos' : 'stripos';
+
+        foreach ( array_reverse( $lines ) as $line ) {
+                $entry = aimentor_parse_error_log_entry( $line );
+
+                if ( ! $entry ) {
+                        continue;
+                }
+
+                ++$total_entries;
+
+                if ( '' !== $provider_filter ) {
+                        $entry_provider = sanitize_key( $entry['provider'] );
+
+                        if ( '' === $entry_provider || $provider_filter !== $entry_provider ) {
+                                continue;
+                        }
+                }
+
+                if ( '' !== $keyword_filter ) {
+                        $haystack = implode( ' ', array_filter( [ $entry['timestamp'], $entry['provider'], $entry['message'] ] ) );
+
+                        if ( false === $keyword_match( $haystack, $keyword_filter ) ) {
+                                continue;
+                        }
+                }
+
+                $entries[] = $entry;
+
+                if ( $limit > 0 && count( $entries ) >= $limit ) {
+                        break;
+                }
+        }
+
+        return [
+                'entries'       => $entries,
+                'total_entries' => $total_entries,
+                'log_file'      => $log_file,
+                'readable'      => true,
+        ];
+}
+
+function aimentor_build_error_log_rows_html( $entries, $context = [] ) {
+        $context = wp_parse_args(
+                $context,
+                [
+                        'readable'      => true,
+                        'had_filters'   => false,
+                        'total_entries' => 0,
+                ]
+        );
+
+        if ( ! $context['readable'] ) {
+                return '<tr><td colspan="3">' . esc_html__( 'No errors logged yet or log file unavailable.', 'aimentor' ) . '</td></tr>';
+        }
+
+        if ( empty( $entries ) ) {
+                if ( $context['had_filters'] && $context['total_entries'] > 0 ) {
+                        return '<tr><td colspan="3">' . esc_html__( 'No log entries match your filters.', 'aimentor' ) . '</td></tr>';
+                }
+
+                return '<tr><td colspan="3">' . esc_html__( 'No errors logged yet or log file unavailable.', 'aimentor' ) . '</td></tr>';
+        }
+
+        $rows = '';
+
+        foreach ( $entries as $entry ) {
+                $rows .= '<tr>';
+                $rows .= '<td>' . esc_html( $entry['timestamp'] ) . '</td>';
+                $rows .= '<td>' . ( '' !== $entry['provider'] ? esc_html( $entry['provider'] ) : '&mdash;' ) . '</td>';
+                $rows .= '<td>' . esc_html( $entry['message'] ) . '</td>';
+                $rows .= '</tr>';
+        }
+
+        return $rows;
+}
+
+function aimentor_get_error_logs_ajax() {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_error_log' ) && ! wp_verify_nonce( $nonce, 'jaggrok_error_log' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_nonce',
+                        ],
+                        403
+                );
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Insufficient permissions to view the error log.', 'aimentor' ),
+                                'code'    => 'aimentor_insufficient_permissions',
+                        ],
+                        403
+                );
+        }
+
+        $provider = isset( $_POST['provider'] ) ? sanitize_key( wp_unslash( $_POST['provider'] ) ) : '';
+        $keyword  = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+
+        $entries = aimentor_get_error_log_entries(
+                [
+                        'provider' => $provider,
+                        'keyword'  => $keyword,
+                ]
+        );
+
+        $rows = aimentor_build_error_log_rows_html(
+                $entries['entries'],
+                [
+                        'readable'      => $entries['readable'],
+                        'had_filters'   => ( '' !== $provider || '' !== $keyword ),
+                        'total_entries' => $entries['total_entries'],
+                ]
+        );
+
+        wp_send_json_success(
+                [
+                        'rows'  => $rows,
+                        'nonce' => wp_create_nonce( 'aimentor_error_log' ),
+                ]
+        );
+}
+add_action( 'wp_ajax_aimentor_get_error_logs', 'aimentor_get_error_logs_ajax' );
+add_action( 'wp_ajax_jaggrok_get_error_logs', 'aimentor_get_error_logs_ajax' );
+
 function aimentor_settings_page_callback() {
         $aimentor_usage_metrics = aimentor_get_provider_usage_summary();
         include plugin_dir_path( __FILE__ ) . 'settings-template.php';

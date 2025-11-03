@@ -331,49 +331,59 @@
     </form>
     <!-- ERROR LOG TABLE -->
     <h2><?php esc_html_e( 'Error Log', 'aimentor' ); ?></h2>
-    <table class="widefat striped">
-        <thead>
-            <tr>
-                <th><?php esc_html_e( 'Timestamp', 'aimentor' ); ?></th>
-                <th><?php esc_html_e( 'Provider', 'aimentor' ); ?></th>
-                <th><?php esc_html_e( 'Error Message', 'aimentor' ); ?></th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php
-        $log_file = function_exists( 'aimentor_get_error_log_path' )
-                ? aimentor_get_error_log_path()
-                : plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
-
-        if ( is_readable( $log_file ) ) {
-            $logs = array_reverse( file( $log_file ) );
-            $logs = array_slice( $logs, 0, 10 );
-            foreach ( $logs as $log ) {
-                // FIXED v1.3.10: Safe array access (NO MORE WARNINGS!)
-                $parts     = explode( ' - ', trim( $log ), 2 );
-                $timestamp = isset( $parts[0] ) ? trim( $parts[0] ) : esc_html__( 'Unknown', 'aimentor' );
-                $raw_entry = isset( $parts[1] ) ? trim( $parts[1] ) : '';
-                $message   = $raw_entry ?: $log;
-                $provider  = '';
-
-                if ( '' !== $raw_entry ) {
-                    $decoded = json_decode( $raw_entry, true );
-
-                    if ( is_array( $decoded ) && isset( $decoded['message'] ) ) {
-                        $message  = $decoded['message'];
-                        $provider = isset( $decoded['context']['provider'] ) ? $decoded['context']['provider'] : '';
-                    }
-                }
-
-                echo '<tr><td>' . esc_html( $timestamp ) . '</td><td>' . ( '' !== $provider ? esc_html( $provider ) : '&mdash;' ) . '</td><td>' . esc_html( $message ) . '</td></tr>';
-            }
-        } else {
-            echo '<tr><td colspan="3">' . esc_html__( 'No errors logged yet or log file unavailable.', 'aimentor' ) . '</td></tr>';
-        }
-        ?>
-        </tbody>
-    </table>
     <?php
+    $log_filter_provider = isset( $_GET['provider'] ) ? sanitize_key( wp_unslash( $_GET['provider'] ) ) : '';
+    $log_filter_keyword  = isset( $_GET['keyword'] ) ? sanitize_text_field( wp_unslash( $_GET['keyword'] ) ) : '';
+
+    if ( 'all' === $log_filter_provider ) {
+        $log_filter_provider = '';
+    }
+
+    $log_entries = aimentor_get_error_log_entries(
+        [
+            'provider' => $log_filter_provider,
+            'keyword'  => $log_filter_keyword,
+        ]
+    );
+
+    $log_rows = aimentor_build_error_log_rows_html(
+        $log_entries['entries'],
+        [
+            'readable'      => $log_entries['readable'],
+            'had_filters'   => ( '' !== $log_filter_provider || '' !== $log_filter_keyword ),
+            'total_entries' => $log_entries['total_entries'],
+        ]
+    );
+    ?>
+    <form id="aimentor-error-log-form" class="aimentor-error-log-form" method="get" action="" data-nonce="<?php echo esc_attr( wp_create_nonce( 'aimentor_error_log' ) ); ?>">
+        <div class="aimentor-error-log-filters">
+            <label for="aimentor-error-log-provider"><?php esc_html_e( 'Provider', 'aimentor' ); ?></label>
+            <select name="provider" id="aimentor-error-log-provider">
+                <option value="" <?php selected( '', $log_filter_provider ); ?>><?php esc_html_e( 'All Providers', 'aimentor' ); ?></option>
+                <?php foreach ( aimentor_get_provider_labels() as $provider_key => $provider_label ) : ?>
+                <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $log_filter_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label for="aimentor-error-log-keyword"><?php esc_html_e( 'Keyword', 'aimentor' ); ?></label>
+            <input type="search" name="keyword" id="aimentor-error-log-keyword" value="<?php echo esc_attr( $log_filter_keyword ); ?>" placeholder="<?php esc_attr_e( 'Search messages…', 'aimentor' ); ?>" />
+            <button type="submit" class="button"><?php esc_html_e( 'Apply Filters', 'aimentor' ); ?></button>
+        </div>
+        <table class="widefat striped">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Timestamp', 'aimentor' ); ?></th>
+                    <th><?php esc_html_e( 'Provider', 'aimentor' ); ?></th>
+                    <th><?php esc_html_e( 'Error Message', 'aimentor' ); ?></th>
+                </tr>
+            </thead>
+            <tbody id="aimentor-error-log-rows">
+                <?php echo $log_rows; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+            </tbody>
+        </table>
+    </form>
+    <?php
+    $log_file = $log_entries['log_file'];
+
     if ( ! empty( $log_file ) ) {
         $display_path = wp_normalize_path( $log_file );
 
@@ -396,6 +406,11 @@
 .aimentor-settings-heading { font-size: 26px; font-weight: 600; color: #1f2937; }
 .aimentor-settings-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); color: #ffffff; }
 .aimentor-provider-badge { display: inline-flex; align-items: center; padding: 2px 8px; margin-left: 6px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; }
+.aimentor-error-log-form { margin-top: 12px; }
+.aimentor-error-log-form.is-loading { opacity: 0.7; pointer-events: none; }
+.aimentor-error-log-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.aimentor-error-log-filters label { font-weight: 600; }
+.aimentor-error-log-filters input[type="search"] { min-width: 220px; }
 .required { color: #d63638; }
 .aimentor-provider-fieldset, .jaggrok-provider-fieldset { border: 1px solid #ccd0d4; padding: 12px; max-width: 640px; background: #fff; border-radius: 6px; }
 .aimentor-provider-option, .jaggrok-provider-option { display: block; margin-bottom: 12px; }

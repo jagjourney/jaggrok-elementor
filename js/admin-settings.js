@@ -50,10 +50,15 @@
 
 jQuery(document).ready(function($) {
     var strings = (typeof aimentorAjax !== 'undefined' && aimentorAjax.strings) ? aimentorAjax.strings : {};
+    var adminAjaxUrl = (typeof aimentorAjax !== 'undefined' && aimentorAjax.ajaxurl) ? aimentorAjax.ajaxurl : (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
     var statusStates = ['success', 'error', 'idle', 'pending'];
     var usageNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.usageNonce) ? aimentorAjax.usageNonce : '';
+    var logNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.logNonce) ? aimentorAjax.logNonce : '';
     var usageRefreshInterval = (typeof aimentorAjax !== 'undefined' && aimentorAjax.usageRefreshInterval) ? parseInt(aimentorAjax.usageRefreshInterval, 10) : 0;
     var usageTimer = null;
+    var logAction = 'aimentor_get_error_logs';
+    var logErrorMessage = '';
+    var $logForm = null;
 
     function getString(key, fallback) {
         if (strings && Object.prototype.hasOwnProperty.call(strings, key) && strings[key]) {
@@ -61,6 +66,8 @@ jQuery(document).ready(function($) {
         }
         return fallback;
     }
+
+    logErrorMessage = getString('logFetchError', 'Unable to load error logs. Please try again.');
 
     function buildClassList() {
         return statusStates.map(function(state) {
@@ -227,6 +234,42 @@ jQuery(document).ready(function($) {
         usageTimer = window.setInterval(refreshUsageMetrics, usageRefreshInterval);
     }
 
+    function renderLogRows(rows) {
+        var $tbody = $('#aimentor-error-log-rows');
+
+        if (!$tbody.length) {
+            return;
+        }
+
+        $tbody.html(rows);
+    }
+
+    function renderLogError(message) {
+        var $tbody = $('#aimentor-error-log-rows');
+
+        if (!$tbody.length) {
+            return;
+        }
+
+        var fallback = message || logErrorMessage;
+        var safeMessage = $('<div>').text(fallback).html();
+        $tbody.html('<tr><td colspan="3">' + safeMessage + '</td></tr>');
+    }
+
+    function setLogLoading(isLoading) {
+        if (!$logForm || !$logForm.length) {
+            return;
+        }
+
+        var $submit = $logForm.find('button[type="submit"]');
+
+        if ($submit.length) {
+            $submit.prop('disabled', !!isLoading);
+        }
+
+        $logForm.toggleClass('is-loading', !!isLoading);
+    }
+
     function updateProviderStatus(provider, data) {
         var $container = $('.aimentor-provider-status[data-provider="' + provider + '"]');
         var $badge = $('.aimentor-status-badge[data-provider="' + provider + '"]');
@@ -384,6 +427,79 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    $logForm = $('#aimentor-error-log-form');
+
+    if ($logForm.length) {
+        if (!logNonce) {
+            var formNonce = $logForm.data('nonce');
+
+            if (formNonce) {
+                logNonce = String(formNonce);
+            }
+        }
+
+        $logForm.on('submit', function(event) {
+            event.preventDefault();
+
+            if (!logNonce) {
+                renderLogError();
+                return;
+            }
+
+            var provider = $.trim($logForm.find('[name="provider"]').val() || '');
+            var keyword = $.trim($logForm.find('[name="keyword"]').val() || '');
+            var payload = {
+                nonce: logNonce,
+                provider: provider,
+                keyword: keyword
+            };
+            var request;
+
+            setLogLoading(true);
+
+            if (wpAjax) {
+                request = wpAjax.post(logAction, payload);
+            } else if (adminAjaxUrl) {
+                request = $.post(adminAjaxUrl, $.extend({ action: logAction }, payload));
+            } else {
+                setLogLoading(false);
+                renderLogError();
+                return;
+            }
+
+            request.done(function(response) {
+                if (response && response.success && response.data && typeof response.data.rows !== 'undefined') {
+                    renderLogRows(response.data.rows);
+
+                    if (response.data.nonce) {
+                        logNonce = response.data.nonce;
+                        $logForm.attr('data-nonce', logNonce);
+                    }
+
+                    return;
+                }
+
+                var message = '';
+
+                if (response && response.data && response.data.message) {
+                    message = response.data.message;
+                }
+
+                renderLogError(message);
+            }).fail(function(xhr) {
+                var message = '';
+
+                if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                    message = xhr.responseJSON.data.message;
+                }
+
+                renderLogError(message);
+            }).always(function() {
+                setLogLoading(false);
+            });
+        });
+    }
 
     if ($('#aimentor-usage-metrics').length && usageNonce) {
         refreshUsageMetrics();
