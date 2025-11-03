@@ -6,7 +6,7 @@ This guide documents the steps for preparing, publishing, and cleaning up a GitH
 
 Before you start, make sure you have:
 
-- Push access to both the `main` branch and the `gh-pages` branch of `jagjourney/aimentor-elementor`.
+- Push access to both the `main` branch and the `gh-pages` branch of `aimentor/aimentor-elementor`.
 - Permission to create GitHub Releases and tags in the repository.
 - A local Git environment configured with your GitHub account and GPG/SSH keys (if required by your organization).
 - PHP 8.1+ available locally when you need to validate or reproduce build steps outside of CI.
