@@ -89,6 +89,83 @@
         var promptCategoryPresetMap = promptPresetData.categoryPresets;
         var savedPromptCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
 
+        function computeCooldownSeconds(rateLimit) {
+            if (!rateLimit || typeof rateLimit !== 'object') {
+                return 0;
+            }
+
+            var keys = ['cooldown_seconds', 'retry_after_seconds', 'reset_requests_seconds', 'reset_tokens_seconds'];
+            var maxSeconds = 0;
+
+            keys.forEach(function(key) {
+                if (!Object.prototype.hasOwnProperty.call(rateLimit, key)) {
+                    return;
+                }
+
+                var value = rateLimit[key];
+
+                if (typeof value === 'string') {
+                    value = parseFloat(value);
+                }
+
+                if (typeof value === 'number' && isFinite(value) && value > 0) {
+                    maxSeconds = Math.max(maxSeconds, value);
+                }
+            });
+
+            return maxSeconds;
+        }
+
+        function formatCooldownMessage(rateLimit) {
+            if (!rateLimit || typeof rateLimit !== 'object') {
+                return '';
+            }
+
+            if (typeof rateLimit.message === 'string' && rateLimit.message.trim()) {
+                return rateLimit.message.trim();
+            }
+
+            var seconds = computeCooldownSeconds(rateLimit);
+
+            if (!seconds) {
+                return '';
+            }
+
+            var humanReadable = '';
+
+            if (typeof rateLimit.cooldown_human === 'string' && rateLimit.cooldown_human.trim()) {
+                humanReadable = rateLimit.cooldown_human.trim();
+            } else {
+                var rounded = Math.max(1, Math.round(seconds));
+
+                if (rounded === 1 && strings.rateLimitSecondsFallbackSingular) {
+                    humanReadable = strings.rateLimitSecondsFallbackSingular.replace('%d', rounded);
+                } else if (strings.rateLimitSecondsFallback) {
+                    humanReadable = strings.rateLimitSecondsFallback.replace('%d', rounded);
+                } else if (rounded === 1) {
+                    humanReadable = '1 second';
+                } else {
+                    humanReadable = rounded + ' seconds';
+                }
+            }
+
+            return formatString(strings.rateLimitCooldown || 'Please wait %s before trying again.', humanReadable);
+        }
+
+        function updateCooldownNotice($notice, rateLimit) {
+            if (!$notice || !$notice.length) {
+                return;
+            }
+
+            var message = formatCooldownMessage(rateLimit);
+
+            if (message) {
+                $notice.text(message).show();
+            } else {
+                $notice.text('').hide();
+            }
+        }
+
         ensureBadgeStyles();
 
         function normalizeSavedPromptEntry(entry, scope) {
@@ -891,6 +968,7 @@
                     '      <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
                     '      <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
                     '      <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
+                    '      <p id="aimentor-cooldown-notice" class="aimentor-cooldown-notice" aria-live="polite" style="display:none;margin:8px 0 0;font-size:12px;color:#b45309;"></p>' +
                     '      <div id="aimentor-result" style="min-height:38px;padding:12px;background:#f3f4f6;border-radius:6px;color:#111827;"></div>' +
                     '    </div>' +
                     '  </div>' +
@@ -907,6 +985,7 @@
             var $prompt = $('#aimentor-prompt');
             var $generate = $('#aimentor-generate');
             var $result = $('#aimentor-result');
+            var $cooldownNotice = $('#aimentor-cooldown-notice');
             var $savedPromptSelect = $('#aimentor-saved-prompts');
             var ui = {
                 icon: $('#aimentor-provider-active-icon'),
@@ -977,6 +1056,7 @@
 
             $prompt.val('').focus();
             $result.empty();
+            updateCooldownNotice($cooldownNotice, null);
 
             $generate.off('click.aimentor').on('click.aimentor', function() {
                 var promptValue = ($prompt.val() || '').trim();
@@ -1000,6 +1080,7 @@
                 var generatingMessage = getGeneratingMessage(providerMeta);
                 $generate.prop('disabled', true).text(generatingMessage);
                 $result.html('<p>' + escapeHtml(generatingMessage) + '</p><p>' + escapeHtml(buildSummary(providerValue, selection.task, selection.tier)) + '</p>');
+                updateCooldownNotice($cooldownNotice, null);
 
                 $.post(aimentorData.ajaxurl, {
                     action: 'aimentor_generate_page',
@@ -1011,6 +1092,13 @@
                 }).done(function(response) {
                     $generate.prop('disabled', false);
                     applyProviderMeta(providerValue, ui);
+
+                    var rateLimitPayload = null;
+                    if (response && response.data && typeof response.data === 'object' && response.data !== null) {
+                        rateLimitPayload = response.data.rate_limit || null;
+                    }
+
+                    updateCooldownNotice($cooldownNotice, rateLimitPayload);
 
                     if (response && response.data && response.data.provider) {
                         providerValue = sanitizeProvider(response.data.provider);
@@ -1049,6 +1137,7 @@
                     var errorPrefix = strings.errorPrefix || 'Error:';
                     var errorMessage = strings.unknownError || 'Request failed.';
                     $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(errorMessage) + '</p>');
+                    updateCooldownNotice($cooldownNotice, null);
                 });
             });
         };

@@ -82,6 +82,7 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
         $raw_body    = wp_remote_retrieve_body( $response );
         $body        = json_decode( $raw_body, true );
         $json_error  = json_last_error();
+        $rate_limit  = $this->extract_rate_limit_headers( $response );
 
         if ( 200 !== $status_code ) {
             $error_detail = '';
@@ -104,6 +105,7 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
                 [
                     'status_code' => $status_code,
                     'raw_body'    => $raw_body,
+                    'rate_limit'  => $rate_limit,
                 ]
             );
         }
@@ -112,7 +114,10 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             return new WP_Error(
                 'aimentor_invalid_response',
                 __( 'Unexpected response from the API.', 'aimentor' ),
-                [ 'raw_body' => $raw_body ]
+                [
+                    'raw_body'   => $raw_body,
+                    'rate_limit' => $rate_limit,
+                ]
             );
         }
 
@@ -125,7 +130,10 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             return new WP_Error(
                 'aimentor_empty_response',
                 __( 'The API response did not include generated content.', 'aimentor' ),
-                [ 'body' => $body ]
+                [
+                    'body'       => $body,
+                    'rate_limit' => $rate_limit,
+                ]
             );
         }
 
@@ -139,7 +147,10 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
                 return new WP_Error(
                     'aimentor_invalid_canvas',
                     __( 'The response was not valid Elementor JSON.', 'aimentor' ),
-                    [ 'content' => $content ]
+                    [
+                        'content'    => $content,
+                        'rate_limit' => $rate_limit,
+                    ]
                 );
             }
 
@@ -150,7 +161,135 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             'type'    => $type,
             'content' => $payload,
             'raw'     => $body,
+            'rate_limit' => $rate_limit,
         ];
+    }
+
+    protected function extract_rate_limit_headers( $response ) {
+        $headers = wp_remote_retrieve_headers( $response );
+
+        if ( empty( $headers ) ) {
+            return [];
+        }
+
+        if ( is_object( $headers ) && method_exists( $headers, 'getAll' ) ) {
+            $headers = $headers->getAll();
+        }
+
+        if ( ! is_array( $headers ) ) {
+            return [];
+        }
+
+        $headers = array_change_key_case( $headers, CASE_LOWER );
+
+        $rate_limit = [];
+        $numeric_map = [
+            'x-ratelimit-limit-requests'     => 'limit_requests',
+            'x-ratelimit-limit-tokens'       => 'limit_tokens',
+            'x-ratelimit-remaining-requests' => 'remaining_requests',
+            'x-ratelimit-remaining-tokens'   => 'remaining_tokens',
+        ];
+
+        foreach ( $numeric_map as $header => $key ) {
+            if ( isset( $headers[ $header ] ) ) {
+                $value = $this->sanitize_rate_limit_number( $headers[ $header ] );
+
+                if ( null !== $value ) {
+                    $rate_limit[ $key ] = $value;
+                }
+            }
+        }
+
+        $retry_after_seconds      = $this->parse_rate_limit_seconds( $headers['retry-after'] ?? null );
+        $reset_requests_seconds   = $this->parse_rate_limit_seconds( $headers['x-ratelimit-reset-requests'] ?? null );
+        $reset_tokens_seconds     = $this->parse_rate_limit_seconds( $headers['x-ratelimit-reset-tokens'] ?? null );
+
+        if ( null !== $retry_after_seconds ) {
+            $rate_limit['retry_after_seconds'] = $retry_after_seconds;
+        }
+
+        if ( null !== $reset_requests_seconds ) {
+            $rate_limit['reset_requests_seconds'] = $reset_requests_seconds;
+        }
+
+        if ( null !== $reset_tokens_seconds ) {
+            $rate_limit['reset_tokens_seconds'] = $reset_tokens_seconds;
+        }
+
+        $cooldown_candidates = array_filter(
+            [ $retry_after_seconds, $reset_requests_seconds, $reset_tokens_seconds ],
+            function ( $value ) {
+                return is_numeric( $value ) && $value > 0;
+            }
+        );
+
+        if ( $cooldown_candidates ) {
+            $cooldown_seconds = (int) ceil( max( $cooldown_candidates ) );
+            $rate_limit['cooldown_seconds'] = $cooldown_seconds;
+            $rate_limit['cooldown_human']   = $this->format_cooldown_human( $cooldown_seconds );
+        }
+
+        return array_filter(
+            $rate_limit,
+            function ( $value ) {
+                return null !== $value && '' !== $value;
+            }
+        );
+    }
+
+    protected function sanitize_rate_limit_number( $value ) {
+        if ( is_array( $value ) ) {
+            $value = reset( $value );
+        }
+
+        if ( is_numeric( $value ) ) {
+            return 0 + $value;
+        }
+
+        return null;
+    }
+
+    protected function parse_rate_limit_seconds( $value ) {
+        if ( is_array( $value ) ) {
+            $value = reset( $value );
+        }
+
+        if ( null === $value || '' === $value ) {
+            return null;
+        }
+
+        if ( is_numeric( $value ) ) {
+            $seconds = (float) $value;
+
+            return $seconds >= 0 ? $seconds : null;
+        }
+
+        $timestamp = strtotime( (string) $value );
+
+        if ( false === $timestamp ) {
+            return null;
+        }
+
+        $diff = $timestamp - time();
+
+        return $diff > 0 ? $diff : null;
+    }
+
+    protected function format_cooldown_human( $seconds ) {
+        $seconds = absint( $seconds );
+
+        if ( $seconds <= 0 ) {
+            return '';
+        }
+
+        if ( $seconds < MINUTE_IN_SECONDS ) {
+            return sprintf(
+                _n( '%s second', '%s seconds', $seconds, 'aimentor' ),
+                number_format_i18n( $seconds )
+            );
+        }
+
+        return human_time_diff( time(), time() + $seconds );
     }
 
     protected function normalize_context( $context ) {

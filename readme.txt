@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.10
+Stable tag: 1.1.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,15 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.1.11 =
+* Synced plugin metadata, manifests, and landing collateral with the finalized cooldown messaging release.
+* Documented the rate-limit guidance improvements so Elementor users know why the widget may pause between runs.
+
+= 1.1.00 =
+* Parsed rate-limit headers from Grok and OpenAI responses so the widget knows when cooldowns expire.
+* Returned structured cooldown metadata on both success and error paths to keep retry guidance consistent.
+* Added an Elementor widget notice that surfaces localized retry timing when providers throttle requests.
+
 = 1.0.10 =
 * Rolled the plugin metadata, changelog references, and distribution manifest back to version 1.0.10 so the published ZIP and WordPress update prompts match the intended release.
 * Scheduled a daily provider health check that re-tests active API connections and keeps the cron aligned with the settings toggle.

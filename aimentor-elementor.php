@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.0.10
+ * Version: 1.1.11
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.0.10' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.1.11' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -407,6 +407,10 @@ function aimentor_get_ajax_payload() {
                         'savedPromptEmpty'        => __( 'No saved prompts found.', 'aimentor' ),
                         'savedPromptGroupUser'    => __( 'My Prompts', 'aimentor' ),
                         'savedPromptGroupGlobal'  => __( 'Shared Prompts', 'aimentor' ),
+                        /* translators: %s: Human readable duration. */
+                        'rateLimitCooldown'       => __( 'Please wait %s before trying again.', 'aimentor' ),
+                        'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
+                        'rateLimitSecondsFallback' => __( '%d seconds', 'aimentor' ),
                 ),
                 'providerLabels'    => $provider_labels,
                 'providerSummaries' => $provider_summaries,
@@ -866,7 +870,15 @@ function jaggrok_generate_page_ajax() {
                         )
                 );
 
-                wp_send_json_error( $error_message );
+                $error_data = $result->get_error_data();
+
+                if ( ! is_array( $error_data ) ) {
+                        $error_data = array();
+                }
+
+                $error_data['message'] = $error_message;
+
+                wp_send_json_error( $error_data );
         }
 
         $response_payload = array(
@@ -876,6 +888,10 @@ function jaggrok_generate_page_ajax() {
                 'task'           => $task,
                 'tier'           => $tier,
         );
+
+        if ( ! empty( $result['rate_limit'] ) ) {
+                $response_payload['rate_limit'] = $result['rate_limit'];
+        }
 
         if ( isset( $result['type'] ) && 'canvas' === $result['type'] ) {
                 if ( function_exists( 'aimentor_record_provider_usage' ) ) {
