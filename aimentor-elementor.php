@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Plugin Name: AiMentor Elementor
@@ -251,17 +250,34 @@ function aimentor_render_missing_elementor_notice() {
 /**
  * Ensure Elementor is active before proceeding.
  *
+ * @param bool $show_notice Whether to schedule the admin notice when Elementor is missing.
  * @return bool
  */
-function aimentor_check_dependencies() {
+function aimentor_check_dependencies( $show_notice = true ) {
         $transient_key = 'aimentor_missing_elementor_notice';
 
         $elementor_active = did_action( 'elementor/loaded' ) || class_exists( '\Elementor\Plugin' ) || defined( 'ELEMENTOR_VERSION' );
 
+        if ( ! $elementor_active ) {
+                if ( ! function_exists( 'is_plugin_active' ) && file_exists( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+                        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+                }
+
+                if ( function_exists( 'is_plugin_active' ) && is_plugin_active( 'elementor/elementor.php' ) ) {
+                        $elementor_active = true;
+                }
+        }
+
         if ( $elementor_active ) {
-                delete_transient( $transient_key );
+                if ( $show_notice ) {
+                        delete_transient( $transient_key );
+                }
 
                 return true;
+        }
+
+        if ( ! $show_notice ) {
+                return false;
         }
 
         if ( false === get_transient( $transient_key ) ) {
@@ -523,7 +539,7 @@ if ( function_exists( 'aimentor_seed_default_options' ) ) {
 
 // Elementor widget registration.
 add_action( 'elementor/widgets/register', function( $widgets_manager ) {
-        if ( ! aimentor_check_dependencies() ) {
+        if ( ! aimentor_check_dependencies( false ) ) {
                 return;
         }
 
@@ -537,7 +553,7 @@ add_action( 'elementor/widgets/register', function( $widgets_manager ) {
 } );
 
 // Updater.
-if ( aimentor_check_dependencies() ) {
+if ( aimentor_check_dependencies( false ) ) {
         require_once AIMENTOR_PLUGIN_DIR . 'includes/updater.php';
 
         if ( class_exists( 'AiMentor_Updater' ) ) {
