@@ -304,6 +304,7 @@
             }
 
             var values = [];
+            var seen = {};
             var candidates = [docConfig];
 
             if (docConfig.config && typeof docConfig.config === 'object') {
@@ -325,7 +326,11 @@
                 fields.forEach(function(field) {
                     var value = candidate[field];
                     if (typeof value === 'string' && value) {
-                        values.push(value.toLowerCase());
+                        var normalized = value.toLowerCase();
+                        if (!seen[normalized]) {
+                            seen[normalized] = true;
+                            values.push(normalized);
+                        }
                     }
                 });
             });
@@ -335,48 +340,107 @@
 
         function buildDocumentContextCandidates() {
             var docConfig = getActiveDocumentConfig();
-            var keys = [];
-            var template = extractTemplateFromConfig(docConfig);
-            if (template) {
-                keys.push('template:' + template);
-            }
-
-            var postTypes = extractPostTypesFromConfig(docConfig);
-            postTypes.forEach(function(postType) {
-                if (postType) {
-                    keys.push('post_type:' + postType);
-                }
-            });
-
-            keys.push('default');
-
-            var seen = {};
-            return keys.filter(function(key) {
-                if (!key) {
-                    return false;
-                }
-                if (seen[key]) {
-                    return false;
-                }
-                seen[key] = true;
-                return true;
-            });
+            return {
+                template: extractTemplateFromConfig(docConfig),
+                postTypes: extractPostTypesFromConfig(docConfig)
+            };
         }
 
         function resolveDocumentDefaults(defaultsConfig) {
-            var map = defaultsConfig && typeof defaultsConfig.contexts === 'object' ? defaultsConfig.contexts : {};
+            var contexts = defaultsConfig && typeof defaultsConfig.contexts === 'object' ? defaultsConfig.contexts : {};
+            var pageTypes = contexts.page_types && typeof contexts.page_types === 'object' ? contexts.page_types : {};
+            var globalDefault = contexts.default && typeof contexts.default === 'object' ? contexts.default : {};
+            var fallbackProvider = typeof globalDefault.provider === 'string' ? globalDefault.provider : '';
+            var fallbackModel = typeof globalDefault.model === 'string' ? globalDefault.model : '';
             var candidates = buildDocumentContextCandidates();
+            var template = candidates.template;
+            var postTypes = Array.isArray(candidates.postTypes) ? candidates.postTypes : [];
 
-            for (var i = 0; i < candidates.length; i++) {
-                var key = candidates[i];
-                if (map && map[key]) {
-                    var entry = map[key] || {};
-                    return Object.assign({ key: key }, entry);
+            if (template) {
+                var prioritized = postTypes.slice();
+                prioritized.push('__global__');
+                var inspected = {};
+
+                for (var i = 0; i < prioritized.length; i++) {
+                    var slug = prioritized[i];
+                    if (!slug || inspected[slug]) {
+                        continue;
+                    }
+                    inspected[slug] = true;
+
+                    var typeEntry = pageTypes[slug];
+                    if (!typeEntry || typeof typeEntry !== 'object') {
+                        continue;
+                    }
+
+                    var templateMap = typeEntry.templates && typeof typeEntry.templates === 'object' ? typeEntry.templates : {};
+                    var templateEntry = templateMap[template];
+                    if (!templateEntry || typeof templateEntry !== 'object') {
+                        continue;
+                    }
+
+                    var baseDefault = typeEntry.default && typeof typeEntry.default === 'object' ? typeEntry.default : {};
+                    var provider = typeof templateEntry.provider === 'string' && templateEntry.provider ? templateEntry.provider : (typeof baseDefault.provider === 'string' && baseDefault.provider ? baseDefault.provider : fallbackProvider);
+                    var model = typeof templateEntry.model === 'string' && templateEntry.model ? templateEntry.model : (typeof baseDefault.model === 'string' && baseDefault.model ? baseDefault.model : fallbackModel);
+
+                    return {
+                        key: 'template:' + template,
+                        provider: provider || '',
+                        model: model || ''
+                    };
+                }
+
+                var pageTypeKeys = Object.keys(pageTypes);
+                for (var j = 0; j < pageTypeKeys.length; j++) {
+                    var fallbackEntry = pageTypes[pageTypeKeys[j]];
+                    if (!fallbackEntry || typeof fallbackEntry !== 'object') {
+                        continue;
+                    }
+                    var fallbackTemplates = fallbackEntry.templates && typeof fallbackEntry.templates === 'object' ? fallbackEntry.templates : {};
+                    var fallbackTemplateEntry = fallbackTemplates[template];
+                    if (!fallbackTemplateEntry || typeof fallbackTemplateEntry !== 'object') {
+                        continue;
+                    }
+                    var fallbackBase = fallbackEntry.default && typeof fallbackEntry.default === 'object' ? fallbackEntry.default : {};
+                    var fallbackProviderValue = typeof fallbackTemplateEntry.provider === 'string' && fallbackTemplateEntry.provider ? fallbackTemplateEntry.provider : (typeof fallbackBase.provider === 'string' && fallbackBase.provider ? fallbackBase.provider : fallbackProvider);
+                    var fallbackModelValue = typeof fallbackTemplateEntry.model === 'string' && fallbackTemplateEntry.model ? fallbackTemplateEntry.model : (typeof fallbackBase.model === 'string' && fallbackBase.model ? fallbackBase.model : fallbackModel);
+                    return {
+                        key: 'template:' + template,
+                        provider: fallbackProviderValue || '',
+                        model: fallbackModelValue || ''
+                    };
                 }
             }
 
-            if (map && map.default) {
-                return Object.assign({ key: 'default' }, map.default);
+            if (postTypes.length) {
+                for (var k = 0; k < postTypes.length; k++) {
+                    var postTypeSlug = postTypes[k];
+                    if (!postTypeSlug) {
+                        continue;
+                    }
+                    var postTypeEntry = pageTypes[postTypeSlug];
+                    if (!postTypeEntry || typeof postTypeEntry !== 'object') {
+                        continue;
+                    }
+                    var postTypeDefault = postTypeEntry.default && typeof postTypeEntry.default === 'object' ? postTypeEntry.default : {};
+                    var providerValue = typeof postTypeDefault.provider === 'string' && postTypeDefault.provider ? postTypeDefault.provider : fallbackProvider;
+                    var modelValue = typeof postTypeDefault.model === 'string' && postTypeDefault.model ? postTypeDefault.model : fallbackModel;
+                    if (providerValue || modelValue) {
+                        return {
+                            key: 'post_type:' + postTypeSlug,
+                            provider: providerValue || '',
+                            model: modelValue || ''
+                        };
+                    }
+                }
+            }
+
+            if (contexts.default && typeof contexts.default === 'object') {
+                return {
+                    key: 'default',
+                    provider: fallbackProvider || '',
+                    model: fallbackModel || ''
+                };
             }
 
             return { key: 'default', provider: '', model: '' };
