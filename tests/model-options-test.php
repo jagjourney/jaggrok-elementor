@@ -10,8 +10,7 @@ function aimentor_assert_same( $expected, $actual, $message ) {
         }
 }
 
-global $aimentor_test_options;
-$aimentor_test_options = [];
+aimentor_test_reset_options();
 
 $defaults = aimentor_get_default_options();
 foreach ( $defaults as $option => $value ) {
