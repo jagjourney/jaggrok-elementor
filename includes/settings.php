@@ -263,10 +263,8 @@ function aimentor_get_document_provider_default_map() {
 
         foreach ( $blueprint['page_types'] as $post_type => $meta ) {
                 $defaults['page_types'][ $post_type ] = [
-                        'default'   => [
-                                'provider' => $default_provider,
-                                'model'    => $default_model,
-                        ],
+                        'provider'  => $default_provider,
+                        'model'     => $default_model,
                         'templates' => [],
                 ];
 
@@ -280,6 +278,14 @@ function aimentor_get_document_provider_default_map() {
                                 'model'    => $default_model,
                         ];
                 }
+        }
+
+        if ( ! isset( $defaults['page_types']['__global__'] ) ) {
+                $defaults['page_types']['__global__'] = [
+                        'provider'  => $default_provider,
+                        'model'     => $default_model,
+                        'templates' => [],
+                ];
         }
 
         /**
@@ -1189,8 +1195,9 @@ function aimentor_get_default_options() {
                 'aimentor_default_performance'       => 'fast',
                 'aimentor_api_tested'                => false,
                 'aimentor_onboarding_dismissed'      => 'no',
-                'aimentor_enable_health_checks'      => 'yes',
-                'aimentor_health_check_recipients'   => '',
+                'aimentor_enable_health_checks'       => 'yes',
+                'aimentor_enable_health_check_alerts' => 'yes',
+                'aimentor_health_check_recipients'    => '',
         ];
 }
 
@@ -1453,6 +1460,15 @@ function aimentor_register_settings() {
 
         register_setting(
                 'aimentor_settings',
+                'aimentor_enable_health_check_alerts',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_enable_health_check_alerts'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
                 'aimentor_health_check_recipients',
                 [
                         'sanitize_callback' => 'aimentor_sanitize_health_check_recipients',
@@ -1576,7 +1592,57 @@ function aimentor_normalize_document_provider_defaults_structure( $value ) {
         }
 
         if ( isset( $value['page_types'] ) && is_array( $value['page_types'] ) ) {
-                return $value;
+                $normalized = [
+                        'default'    => isset( $value['default'] ) && is_array( $value['default'] ) ? $value['default'] : [],
+                        'page_types' => [],
+                ];
+
+                foreach ( $value['page_types'] as $post_type => $entry ) {
+                        if ( ! is_array( $entry ) ) {
+                                continue;
+                        }
+
+                        $provider = '';
+                        $model    = '';
+
+                        if ( isset( $entry['provider'] ) || isset( $entry['model'] ) ) {
+                                $provider = isset( $entry['provider'] ) ? $entry['provider'] : '';
+                                $model    = isset( $entry['model'] ) ? $entry['model'] : '';
+                        } elseif ( isset( $entry['default'] ) && is_array( $entry['default'] ) ) {
+                                $provider = isset( $entry['default']['provider'] ) ? $entry['default']['provider'] : '';
+                                $model    = isset( $entry['default']['model'] ) ? $entry['default']['model'] : '';
+                        }
+
+                        $templates = [];
+
+                        if ( isset( $entry['templates'] ) && is_array( $entry['templates'] ) ) {
+                                foreach ( $entry['templates'] as $template_file => $template_entry ) {
+                                        if ( ! is_array( $template_entry ) ) {
+                                                continue;
+                                        }
+
+                                        if ( isset( $template_entry['provider'] ) || isset( $template_entry['model'] ) ) {
+                                                $templates[ $template_file ] = [
+                                                        'provider' => isset( $template_entry['provider'] ) ? $template_entry['provider'] : '',
+                                                        'model'    => isset( $template_entry['model'] ) ? $template_entry['model'] : '',
+                                                ];
+                                        } elseif ( isset( $template_entry['default'] ) && is_array( $template_entry['default'] ) ) {
+                                                $templates[ $template_file ] = [
+                                                        'provider' => isset( $template_entry['default']['provider'] ) ? $template_entry['default']['provider'] : '',
+                                                        'model'    => isset( $template_entry['default']['model'] ) ? $template_entry['default']['model'] : '',
+                                                ];
+                                        }
+                                }
+                        }
+
+                        $normalized['page_types'][ $post_type ] = [
+                                'provider'  => $provider,
+                                'model'     => $model,
+                                'templates' => $templates,
+                        ];
+                }
+
+                return $normalized;
         }
 
         $uses_legacy_keys = false;
@@ -1679,7 +1745,7 @@ function aimentor_normalize_document_provider_defaults_structure( $value ) {
                 }
         }
 
-        return $normalized;
+        return aimentor_normalize_document_provider_defaults_structure( $normalized );
 }
 
 function aimentor_sanitize_document_provider_defaults( $value ) {
@@ -1695,6 +1761,13 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                 'default'    => [],
                 'page_types' => [],
         ];
+
+        $get_pair = static function( $entry ) {
+                return [
+                        'provider' => ( is_array( $entry ) && isset( $entry['provider'] ) ) ? $entry['provider'] : '',
+                        'model'    => ( is_array( $entry ) && isset( $entry['model'] ) ) ? $entry['model'] : '',
+                ];
+        };
 
         $sanitize_pair = static function( $incoming, $fallback ) use ( $allowed_provider ) {
                 $incoming = is_array( $incoming ) ? $incoming : [];
@@ -1720,8 +1793,9 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                 ];
         };
 
-        $incoming_default = isset( $value['default'] ) ? $value['default'] : [];
-        $sanitized['default'] = $sanitize_pair( $incoming_default, $defaults['default'] ?? [] );
+        $incoming_default   = isset( $value['default'] ) ? $value['default'] : [];
+        $fallback_default   = $defaults['default'] ?? [];
+        $sanitized['default'] = $sanitize_pair( $incoming_default, $fallback_default );
 
         $incoming_page_types = isset( $value['page_types'] ) && is_array( $value['page_types'] ) ? $value['page_types'] : [];
         $default_page_types  = isset( $defaults['page_types'] ) && is_array( $defaults['page_types'] ) ? $defaults['page_types'] : [];
@@ -1735,13 +1809,20 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         ? $default_page_types[ $post_type ]
                         : [];
 
+                $fallback_pair = $get_pair( $fallback_entry );
+
+                if ( '' === $fallback_pair['provider'] && '' === $fallback_pair['model'] ) {
+                        $fallback_pair = $sanitized['default'];
+                }
+
                 $type_default = $sanitize_pair(
-                        $incoming_entry['default'] ?? $incoming_entry,
-                        $fallback_entry['default'] ?? $sanitized['default']
+                        $get_pair( $incoming_entry ),
+                        $fallback_pair
                 );
 
                 $sanitized['page_types'][ $post_type ] = [
-                        'default'   => $type_default,
+                        'provider'  => $type_default['provider'],
+                        'model'     => $type_default['model'],
                         'templates' => [],
                 ];
 
@@ -1758,7 +1839,7 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                                 $incoming_template = isset( $incoming_templates[ $template_file ] ) ? $incoming_templates[ $template_file ] : [];
                                 $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
 
-                                $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $incoming_template, $fallback_template );
+                                $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $get_pair( $incoming_template ), $fallback_template );
                         }
                 }
 
@@ -1768,7 +1849,7 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         }
 
                         $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
-                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $template_value, $fallback_template );
+                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $get_pair( $template_value ), $fallback_template );
                 }
         }
 
@@ -1785,13 +1866,20 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         ? $default_page_types[ $post_type ]
                         : [];
 
+                $fallback_pair = $get_pair( $fallback_entry );
+
+                if ( '' === $fallback_pair['provider'] && '' === $fallback_pair['model'] ) {
+                        $fallback_pair = $sanitized['default'];
+                }
+
                 $type_default = $sanitize_pair(
-                        $incoming_entry['default'] ?? $incoming_entry,
-                        $fallback_entry['default'] ?? $sanitized['default']
+                        $get_pair( $incoming_entry ),
+                        $fallback_pair
                 );
 
                 $sanitized['page_types'][ $post_type ] = [
-                        'default'   => $type_default,
+                        'provider'  => $type_default['provider'],
+                        'model'     => $type_default['model'],
                         'templates' => [],
                 ];
 
@@ -1805,7 +1893,7 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
 
                 foreach ( $incoming_templates as $template_file => $template_value ) {
                         $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
-                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $template_value, $fallback_template );
+                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $get_pair( $template_value ), $fallback_template );
                 }
         }
 
@@ -2628,6 +2716,31 @@ function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
         ];
 }
 
+/**
+ * Re-run the provider connection test logic used by aimentor_test_api_connection().
+ *
+ * @param string $provider_key Provider identifier.
+ * @param string $api_key      API key to validate.
+ * @param array  $args         Optional overrides for aimentor_execute_provider_test().
+ *
+ * @return array|WP_Error
+ */
+function aimentor_run_provider_connection_test( $provider_key, $api_key, $args = [] ) {
+        $args = wp_parse_args(
+                $args,
+                [
+                        'origin'            => 'test',
+                        'update_status'     => true,
+                        'record_usage'      => true,
+                        'update_api_tested' => true,
+                        'persist_api_key'   => true,
+                        'user_id'           => get_current_user_id(),
+                ]
+        );
+
+        return aimentor_execute_provider_test( $provider_key, $api_key, $args );
+}
+
 function aimentor_test_api_connection() {
         $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 
@@ -2670,7 +2783,7 @@ function aimentor_test_api_connection() {
 
         $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 
-        $result = aimentor_execute_provider_test(
+        $result = aimentor_run_provider_connection_test(
                 $provider_key,
                 $api_key,
                 [
@@ -2700,6 +2813,14 @@ add_action( 'wp_ajax_jaggrok_test_api', 'aimentor_test_api_connection' );
 function aimentor_health_checks_enabled() {
         $defaults = aimentor_get_default_options();
         $value    = get_option( 'aimentor_enable_health_checks', $defaults['aimentor_enable_health_checks'] );
+        $value    = aimentor_sanitize_toggle( $value );
+
+        return 'yes' === $value;
+}
+
+function aimentor_health_check_alerts_enabled() {
+        $defaults = aimentor_get_default_options();
+        $value    = get_option( 'aimentor_enable_health_check_alerts', $defaults['aimentor_enable_health_check_alerts'] );
         $value    = aimentor_sanitize_toggle( $value );
 
         return 'yes' === $value;
@@ -2814,6 +2935,10 @@ function aimentor_register_provider_health_recovery( $state, $provider_key ) {
 }
 
 function aimentor_maybe_send_health_check_alerts( &$state ) {
+        if ( ! aimentor_health_check_alerts_enabled() ) {
+                return;
+        }
+
         $threshold = aimentor_get_health_check_failure_threshold();
 
         if ( $threshold < 1 ) {
@@ -2895,13 +3020,15 @@ function aimentor_run_scheduled_provider_checks() {
 
                 $active_found = true;
 
-                $result = aimentor_execute_provider_test(
+                $result = aimentor_run_provider_connection_test(
                         $provider_key,
                         $api_key,
                         [
+                                'origin'            => 'health_check',
                                 'update_api_tested' => false,
                                 'user_id'           => 0,
                                 'persist_api_key'   => false,
+                                'record_usage'      => false,
                         ]
                 );
 

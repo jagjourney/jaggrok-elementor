@@ -549,9 +549,25 @@ function aimentor_clear_provider_health_schedule() {
 }
 
 add_action( 'init', 'aimentor_schedule_provider_health_check' );
+add_action( 'update_option_aimentor_enable_health_checks', 'aimentor_refresh_provider_health_schedule', 10, 2 );
 
 if ( function_exists( 'aimentor_run_scheduled_provider_checks' ) ) {
         add_action( AIMENTOR_PROVIDER_HEALTH_EVENT, 'aimentor_run_scheduled_provider_checks' );
+}
+
+function aimentor_refresh_provider_health_schedule( $old_value, $value ) {
+        if ( ! function_exists( 'aimentor_sanitize_toggle' ) ) {
+                return;
+        }
+
+        $normalized = aimentor_sanitize_toggle( $value );
+
+        if ( 'yes' === $normalized ) {
+                aimentor_schedule_provider_health_check();
+                return;
+        }
+
+        aimentor_clear_provider_health_schedule();
 }
 
 register_activation_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_activate_plugin' );
