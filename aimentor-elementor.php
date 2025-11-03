@@ -320,6 +320,8 @@ function aimentor_get_ajax_payload() {
                 'dismissNonce'      => wp_create_nonce( 'aimentor_onboarding' ),
                 'usageNonce'        => wp_create_nonce( 'aimentor_usage_metrics' ),
                 'logNonce'          => wp_create_nonce( 'aimentor_error_log' ),
+                'restNonce'         => wp_create_nonce( 'wp_rest' ),
+                'historyEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/history' ) ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
                 'strings'           => array(
                         'testingBadge'       => __( 'Testing', 'aimentor' ),

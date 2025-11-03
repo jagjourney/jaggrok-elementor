@@ -329,6 +329,61 @@
         <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $models['openai'] ); ?>" />
         <?php submit_button(); ?>
     </form>
+    <?php
+    $history_entries = aimentor_get_generation_history();
+    $provider_meta   = aimentor_get_provider_meta_map();
+    ?>
+    <div class="aimentor-history-card">
+        <h2 class="aimentor-history-card__title"><?php esc_html_e( 'Recent Generations', 'aimentor' ); ?></h2>
+        <?php if ( empty( $history_entries ) ) : ?>
+        <p class="description"><?php esc_html_e( 'No generation history recorded yet. Generate content to see it appear here.', 'aimentor' ); ?></p>
+        <?php else : ?>
+        <table class="widefat striped aimentor-history-table">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Generated', 'aimentor' ); ?></th>
+                    <th><?php esc_html_e( 'Provider', 'aimentor' ); ?></th>
+                    <th><?php esc_html_e( 'Prompt', 'aimentor' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $history_entries as $entry ) :
+                    $provider_key   = $entry['provider'];
+                    $provider_label = isset( $provider_meta[ $provider_key ]['label'] ) ? $provider_meta[ $provider_key ]['label'] : ucfirst( $provider_key );
+                    $badge_text     = isset( $provider_meta[ $provider_key ]['badgeText'] ) ? $provider_meta[ $provider_key ]['badgeText'] : $provider_label;
+                    $badge_color    = isset( $provider_meta[ $provider_key ]['badgeColor'] ) ? $provider_meta[ $provider_key ]['badgeColor'] : '#444444';
+                    $timestamp      = absint( $entry['timestamp'] );
+                    $prompt_text    = (string) $entry['prompt'];
+                    $prompt_title   = trim( preg_replace( '/\s+/', ' ', $prompt_text ) );
+                    $prompt_excerpt = wp_trim_words( $prompt_text, 30, '…' );
+                    $time_format    = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+                    $formatted_time = '';
+
+                    if ( $timestamp ) {
+                        if ( function_exists( 'wp_date' ) ) {
+                                $formatted_time = wp_date( $time_format, $timestamp );
+                        } else {
+                                $formatted_time = date_i18n( $time_format, $timestamp );
+                        }
+                    }
+                ?>
+                <tr>
+                    <td><?php echo '' !== $formatted_time ? esc_html( $formatted_time ) : '&mdash;'; ?></td>
+                    <td>
+                        <span class="aimentor-history-provider-label"><?php echo esc_html( $provider_label ); ?></span>
+                        <span class="aimentor-provider-badge" style="background-color:<?php echo esc_attr( $badge_color ); ?>;">
+                            <?php echo esc_html( $badge_text ); ?>
+                        </span>
+                    </td>
+                    <td>
+                        <span title="<?php echo esc_attr( $prompt_title ); ?>"><?php echo esc_html( $prompt_excerpt ); ?></span>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
     <!-- ERROR LOG TABLE -->
     <div class="aimentor-error-log-header">
         <h2><?php esc_html_e( 'Error Log', 'aimentor' ); ?></h2>
@@ -424,6 +479,10 @@
 .aimentor-error-log-feedback.is-success { color: #116329; }
 .aimentor-error-log-feedback.is-error { color: #b32d2e; }
 .aimentor-error-log-form { margin-top: 12px; }
+.aimentor-history-card { margin: 32px 0; padding: 20px; border: 1px solid #dcdcdc; border-radius: 8px; background: #fff; }
+.aimentor-history-card__title { margin-top: 0; margin-bottom: 12px; font-size: 20px; font-weight: 600; }
+.aimentor-history-table td span[title] { cursor: help; }
+.aimentor-history-provider-label { font-weight: 600; margin-right: 6px; }
 .aimentor-error-log-form.is-loading { opacity: 0.7; pointer-events: none; }
 .aimentor-error-log-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
 .aimentor-error-log-filters label { font-weight: 600; }
