@@ -734,16 +734,30 @@ add_action( 'wp_ajax_jaggrok_test_api', 'aimentor_test_api_connection' );
 
 // ERROR LOGGING FUNCTION (v1.3.8)
 function aimentor_log_error( $message, $context = [] ) {
-	$log_file  = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
-	$timestamp = gmdate( 'Y-m-d H:i:s' );
-	$log_entry = $message;
+        if ( function_exists( 'aimentor_get_error_log_path' ) ) {
+                $log_file = aimentor_get_error_log_path();
+        } else {
+                $log_file = plugin_dir_path( __FILE__ ) . 'aimentor-errors.log';
+        }
 
-        if ( ! file_exists( $log_dir ) ) {
+        $log_dir   = dirname( $log_file );
+        $timestamp = gmdate( 'Y-m-d H:i:s' );
+        $log_entry = $message;
+
+        if ( ! is_dir( $log_dir ) ) {
                 if ( function_exists( 'wp_mkdir_p' ) ) {
                         wp_mkdir_p( $log_dir );
                 } else {
                         @mkdir( $log_dir, 0755, true );
                 }
+
+                if ( ! is_dir( $log_dir ) ) {
+                        return;
+                }
+        }
+
+        if ( ! is_writable( $log_dir ) ) {
+                return;
         }
 
         if ( is_array( $context ) && ! empty( $context ) ) {
