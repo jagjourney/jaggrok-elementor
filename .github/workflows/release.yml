@@ -157,6 +157,7 @@ jobs:
           fi
 
       - name: Attach archive to release
+        if: ${{ github.event.action == 'created' }}
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.package.outputs.zip_path }}

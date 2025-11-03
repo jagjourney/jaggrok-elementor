@@ -2,6 +2,8 @@
 
 This guide documents the steps for preparing, publishing, and cleaning up a GitHub-backed release of the AiMentor Elementor plugin. Follow each section in order whenever you need to ship a new version or reset the published version number.
 
+> **Always bump the version.** Every pull request that changes runtime code or user-visible behavior must increment the plugin version and associated metadata before it is merged. Shipping work without a coordinated version bump blocks the release workflow and leaves WordPress sites unaware of the update.
+
 ## Prerequisites
 
 Before you start, make sure you have:
