@@ -43,7 +43,7 @@ Every bump must land in a dedicated pull request so the merged commit and the an
 
 > **CI guardrail:** Every pull request that changes anything beyond the version metadata files must update all of the version references above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump, and it also verifies that the new version is strictly greater than the previous release.
 
-Commit the version bump alongside the changelog updates. Tagging should only happen after the pull request is merged into `main`.
+Commit the version bump alongside the changelog updates. Once the pull request merges into `main`, automation handles tagging and drafting the corresponding GitHub release.
 
 ## Resetting to version `0.0.001`
 
@@ -59,14 +59,13 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
    - [ ] Confirm `main` includes the merged version bump, changelog entry, and supporting documentation updates.
    - [ ] Review this guide and other checklists for accuracy, updating them if the release introduces new requirements.
    - [ ] Verify the changelog clearly highlights user-facing changes, upgrade notes, and any known issues.
-2. **Create the tag**
-   - [ ] Create an annotated tag that follows the `vX.Y.Z` convention (for example, `git tag -a v1.0.00 -m 'Release v1.0.00'`). Match the tag to the increment type you selected above so the numeric jump (small, medium, or major) stays consistent.
-   - [ ] Double-check the tagged commit matches the intended `main` SHA before pushing.
-   - [ ] Push the tag to GitHub with `git push origin vX.Y.Z` and capture the timestamp for release notes. WordPress auto-updates rely on the annotated tag name and timestamp to detect the newest build, so the correct increment ensures update clients pick up the release.
-3. **Draft the release**
-   - [ ] Navigate to **Releases → Draft a new release**, select the new tag, and populate the release notes (reuse the changelog entry where helpful).
+2. **Let CI tag & draft the release**
+   - [ ] Merge the version-bump pull request into `main`. The `Auto tag and release` workflow (triggered when the version metadata files change) checks out the latest `main`, reads the plugin header version, and creates an annotated `vX.Y.Z` tag if one does not already exist.
+   - [ ] Wait for the workflow to finish. It pushes the tag to GitHub and immediately opens a draft release using the matching notes file in `docs/releases/` when available. If the tag already exists—because you re-ran the workflow or tagged manually—it exits without modifying anything.
+3. **Polish the release draft**
+   - [ ] Open the newly created draft release and edit the notes if required (for example, to expand on the auto-imported changelog entry or attach supplemental assets).
    - [ ] Attach any prebuilt ZIP asset if the automation should reuse a handcrafted package; otherwise document that CI will build it.
-   - [ ] Save the release as a **draft** (or mark it as a **pre-release**). This immediately triggers `.github/workflows/release.yml`, which now builds and attaches the canonical ZIP even while the release remains private. The workflow logs explicitly call out that the manifest refresh is deferred until publication.
+   - [ ] Leave the release as a **draft** (or mark it as a **pre-release**) until QA approves publication. The downstream `.github/workflows/release.yml` run starts as soon as the draft is created and attaches the canonical ZIP even while the release remains private. The workflow logs explicitly call out that the manifest refresh is deferred until publication.
 4. **Monitor automation**
    - [ ] Watch the release workflow in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds. Draft or pre-release runs will skip the manifest step by design; re-run the workflow after publishing if you make note edits while the release is live.
 
