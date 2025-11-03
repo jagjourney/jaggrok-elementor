@@ -29,6 +29,8 @@ Each new release must consistently advertise the target version across source, d
 5. **ZIP artifacts in `/downloads`** (only if you are attaching a handcrafted ZIP to a draft release)
    - Ensure the filename matches the `aimentor-elementor-vX.Y.Z.zip` pattern so the workflow can reuse it.
 
+> **CI guardrail:** Pull requests that touch PHP, `assets/`, or `js/` files must update every version reference above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump.
+
 Commit the version bump alongside the changelog updates. Tagging should only happen after the pull request is merged into `main`.
 
 ## Resetting to version `0.0.001`
