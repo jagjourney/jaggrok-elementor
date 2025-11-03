@@ -130,6 +130,12 @@ if ( ! function_exists( 'add_filter' ) ) {
         }
 }
 
+if ( ! function_exists( 'apply_filters' ) ) {
+        function apply_filters( $tag, $value ) {
+                return $value;
+        }
+}
+
 if ( ! function_exists( 'register_setting' ) ) {
         function register_setting( ...$args ) {
                 return null;
