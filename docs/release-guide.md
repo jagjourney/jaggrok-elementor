@@ -12,9 +12,15 @@ Before you start, make sure you have:
 - PHP 8.1+ available locally when you need to validate or reproduce build steps outside of CI.
 - Time to update the changelog, metadata, and manifest so the workflow can publish the correct artifact and metadata.
 
-## Version bump checklist
+## Version numbering and bump checklist
 
-Each new release must consistently advertise the target version across source, documentation, and manifests. Update the following files together:
+AiMentor Elementor uses a three-part numeric version where each slot has a defined increment size so releases stay in sync with WordPress auto-update expectations:
+
+- **Small fix release (`+0.01`)** – For hotfixes or copy-only changes, bump the third slot by `0.01` (for example, `v1.0.03 → v1.0.04`).
+- **Medium feature release (`+0.10`)** – For additive features that touch PHP or JavaScript, bump the middle slot by `0.10` and reset the last slot to `00` (for example, `v1.0.04 → v1.1.00`).
+- **Major milestone release (`+1.00.00`)** – For large breaking changes or rebrands, bump the first slot by `1`, reset the remaining slots to `.0.00`, and ensure the changelog calls out upgrade guidance (for example, `v1.1.00 → v2.0.00`).
+
+Every bump must land in a dedicated pull request so the merged commit and the annotated tag share the exact version string. Keep the following files aligned:
 
 1. **`aimentor-elementor.php`**
    - Update the plugin header `Version:` field.
@@ -28,6 +34,12 @@ Each new release must consistently advertise the target version across source, d
    - Update `version`, `download_url`, and any hash placeholder if you are simulating a release. The GitHub Action overwrites this file on `gh-pages` during a real release, but keeping the default branch copy current prevents confusion.
 5. **ZIP artifacts in `/downloads`** (only if you are attaching a handcrafted ZIP to a draft release)
    - Ensure the filename matches the `aimentor-elementor-vX.Y.Z.zip` pattern so the workflow can reuse it.
+
+### Increment examples
+
+- **Small fix (`v1.0.03 → v1.0.04`)** – Update only the README copy and changelog, adjust the plugin header and constants, commit, then tag with `git tag -a v1.0.04 -m 'Release v1.0.04'`.
+- **Medium feature (`v1.0.04 → v1.1.00`)** – After merging PHP/JS enhancements, reset the third slot to `00` across the files above, document the feature in `readme.txt`, and create the `v1.1.00` tag.
+- **Major milestone (`v1.1.00 → v2.0.00`)** – Coordinate breaking changes, migrate documentation, ensure upgrade notes are prominent, and tag `v2.0.00` once all references match.
 
 > **CI guardrail:** Pull requests that touch PHP, `assets/`, or `js/` files must update every version reference above. The `Version bump check` workflow fails with a message like `Version bump required: update versions in … before merging.` listing whichever files still need a bump.
 
@@ -48,9 +60,9 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
    - [ ] Review this guide and other checklists for accuracy, updating them if the release introduces new requirements.
    - [ ] Verify the changelog clearly highlights user-facing changes, upgrade notes, and any known issues.
 2. **Create the tag**
-   - [ ] Create an annotated tag that follows the `vX.Y.Z` convention (for example, `git tag -a v1.0.00 -m 'Release v1.0.00'`).
+   - [ ] Create an annotated tag that follows the `vX.Y.Z` convention (for example, `git tag -a v1.0.00 -m 'Release v1.0.00'`). Match the tag to the increment type you selected above so the numeric jump (small, medium, or major) stays consistent.
    - [ ] Double-check the tagged commit matches the intended `main` SHA before pushing.
-   - [ ] Push the tag to GitHub with `git push origin vX.Y.Z` and capture the timestamp for release notes.
+   - [ ] Push the tag to GitHub with `git push origin vX.Y.Z` and capture the timestamp for release notes. WordPress auto-updates rely on the annotated tag name and timestamp to detect the newest build, so the correct increment ensures update clients pick up the release.
 3. **Draft the release**
    - [ ] Navigate to **Releases → Draft a new release**, select the new tag, and populate the release notes (reuse the changelog entry where helpful).
    - [ ] Attach any prebuilt ZIP asset if the automation should reuse a handcrafted package; otherwise document that CI will build it.
