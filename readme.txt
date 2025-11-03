@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 0.0.001
+Stable tag: 1.0.00
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,7 +87,7 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
-= 0.0.001 =
+= 1.0.00 =
 * Rebranded to AiMentor Elementor with legacy compatibility shims
 * Added migration to mirror legacy JagGrok options and assets
 * Updated scripts, classes, and AJAX endpoints to support AiMentor handles

@@ -1,9 +1,9 @@
 {
   "name": "AiMentor Elementor",
   "slug": "aimentor-elementor",
-  "version": "0.0.001",
-  "download_url": "https://github.com/aimentor/aimentor-elementor/releases/download/v0.0.001/aimentor-elementor-v0.0.001.zip",
-  "released_at": "2024-05-01T00:00:00Z",
+  "version": "1.0.00",
+  "download_url": "https://github.com/aimentor/aimentor-elementor/releases/download/v1.0.00/aimentor-elementor-v1.0.00.zip",
+  "released_at": "2024-05-22T00:00:00Z",
   "checksum": {
     "algorithm": "sha256",
     "hash": ""
