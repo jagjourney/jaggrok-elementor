@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.02
+Stable tag: 1.3.00
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.00 =
+* Registered the private `ai_layout` post type so archived layouts stay isolated from public content and ship with provider context.
+* Added settings controls for enabling archival and exposing the admin list table when teams want to browse saved layouts.
+* Persisted successful canvas and content payloads when archival is enabled so editors can revisit generated output alongside prompts.
+
 = 1.2.02 =
 * Ensured the GitHub-backed updater loads regardless of Elementor status so WordPress always surfaces new releases.
 

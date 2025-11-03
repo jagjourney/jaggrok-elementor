@@ -584,6 +584,41 @@
                 </td>
             </tr>
             <tr>
+                <th scope="row"><?php esc_html_e( 'Archive Layouts', 'aimentor' ); ?></th>
+                <td>
+                    <?php
+                    $archive_layouts    = get_option( 'aimentor_archive_layouts', 'no' );
+                    $archive_show_ui    = get_option( 'aimentor_archive_layouts_show_ui', 'no' );
+                    $archive_list_table = admin_url( 'edit.php?post_type=ai_layout' );
+                    ?>
+                    <input type="hidden" name="aimentor_archive_layouts" value="no" />
+                    <label>
+                        <input type="checkbox" name="aimentor_archive_layouts" value="yes" <?php checked( $archive_layouts, 'yes' ); ?> />
+                        <?php esc_html_e( 'Save each generated canvas or content response for later review.', 'aimentor' ); ?>
+                    </label>
+                    <p class="description"><?php esc_html_e( 'Stores the raw payload as a private AI Layout post so you can audit or reuse results.', 'aimentor' ); ?></p>
+                    <input type="hidden" name="aimentor_archive_layouts_show_ui" value="no" />
+                    <?php if ( 'yes' === $archive_layouts ) : ?>
+                        <label style="margin-top:8px; display:block;">
+                            <input type="checkbox" name="aimentor_archive_layouts_show_ui" value="yes" <?php checked( $archive_show_ui, 'yes' ); ?> />
+                            <?php esc_html_e( 'Expose the AI Layout archive screens in the WordPress admin.', 'aimentor' ); ?>
+                        </label>
+                        <?php if ( current_user_can( 'edit_posts' ) ) : ?>
+                            <p class="description">
+                                <?php
+                                printf(
+                                        wp_kses_post( __( 'Browse saved layouts in the <a href="%s">AI Layouts list table</a>.', 'aimentor' ) ),
+                                        esc_url( $archive_list_table )
+                                );
+                                ?>
+                            </p>
+                        <?php endif; ?>
+                    <?php else : ?>
+                        <p class="description"><?php esc_html_e( 'Enable archival to keep a running history of generated layouts.', 'aimentor' ); ?></p>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><?php esc_html_e( 'Default Style', 'aimentor' ); ?></th>
                 <td>
                     <?php $style = get_option( 'aimentor_theme_style', 'modern' ); ?>

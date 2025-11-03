@@ -1197,6 +1197,128 @@ function aimentor_store_canvas_history_entry( $layout, $meta ) {
         return $normalized_entry;
 }
 
+function aimentor_is_layout_archival_enabled() {
+        return 'yes' === get_option( 'aimentor_archive_layouts', 'no' );
+}
+
+function aimentor_maybe_archive_generation_payload( $payload, $context = [] ) {
+        if ( ! aimentor_is_layout_archival_enabled() ) {
+                return;
+        }
+
+        if ( ! post_type_exists( 'ai_layout' ) ) {
+                return;
+        }
+
+        $type = isset( $context['type'] ) ? sanitize_key( $context['type'] ) : 'content';
+
+        if ( ! in_array( $type, [ 'canvas', 'content' ], true ) ) {
+                $type = 'content';
+        }
+
+        if ( is_array( $payload ) || is_object( $payload ) ) {
+                $serialized_payload = wp_json_encode( $payload );
+        } else {
+                $serialized_payload = (string) $payload;
+        }
+
+        if ( false === $serialized_payload ) {
+                return;
+        }
+
+        $serialized_payload = wp_check_invalid_utf8( $serialized_payload );
+        $serialized_payload = trim( (string) $serialized_payload );
+
+        if ( '' === $serialized_payload ) {
+                return;
+        }
+
+        $should_archive = apply_filters( 'aimentor_should_archive_generation', true, $payload, $context );
+
+        if ( ! $should_archive ) {
+                return;
+        }
+
+        $prompt   = isset( $context['prompt'] ) ? sanitize_textarea_field( $context['prompt'] ) : '';
+        $provider = isset( $context['provider'] ) ? sanitize_key( $context['provider'] ) : '';
+        $model    = isset( $context['model'] ) ? sanitize_text_field( $context['model'] ) : '';
+        $tier     = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : '';
+        $task     = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : ( 'canvas' === $type ? 'canvas' : 'content' );
+
+        $title = '';
+
+        if ( '' !== $prompt ) {
+                $title = trim( wp_html_excerpt( $prompt, 80, '…' ) );
+        }
+
+        if ( '' === $title ) {
+                $type_label      = 'canvas' === $type ? __( 'Canvas layout', 'aimentor' ) : __( 'Content layout', 'aimentor' );
+                $datetime_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+                $timestamp       = current_time( 'timestamp' );
+                $formatted_time  = function_exists( 'wp_date' )
+                        ? wp_date( $datetime_format, $timestamp )
+                        : date_i18n( $datetime_format, $timestamp );
+
+                $title = sprintf(
+                        __( '%1$s generated on %2$s', 'aimentor' ),
+                        $type_label,
+                        $formatted_time
+                );
+        }
+
+        $excerpt = '';
+
+        if ( '' !== $prompt ) {
+                $excerpt = sanitize_textarea_field( wp_trim_words( $prompt, 55, '…' ) );
+        }
+
+        $meta_input = [
+                '_aimentor_prompt'          => $prompt,
+                '_aimentor_provider'        => $provider,
+                '_aimentor_generation_type' => $type,
+                '_aimentor_payload_format'  => ( 'canvas' === $type ) ? 'json' : 'html',
+        ];
+
+        if ( '' !== $model ) {
+                $meta_input['_aimentor_model'] = $model;
+        }
+
+        if ( '' !== $tier ) {
+                $meta_input['_aimentor_tier'] = $tier;
+        }
+
+        if ( '' !== $task ) {
+                $meta_input['_aimentor_task'] = $task;
+        }
+
+        $meta_input = array_filter(
+                $meta_input,
+                static function( $value ) {
+                        return '' !== $value && null !== $value;
+                }
+        );
+
+        $post_data = [
+                'post_type'    => 'ai_layout',
+                'post_status'  => 'private',
+                'post_author'  => get_current_user_id(),
+                'post_title'   => $title,
+                'post_content' => $serialized_payload,
+                'post_excerpt' => $excerpt,
+                'meta_input'   => $meta_input,
+        ];
+
+        $post_data = apply_filters( 'aimentor_layout_archive_post_data', $post_data, $context, $payload );
+
+        $post_id = wp_insert_post( $post_data, true );
+
+        if ( is_wp_error( $post_id ) ) {
+                return;
+        }
+
+        do_action( 'aimentor_layout_archived', $post_id, $post_data, $context, $payload );
+}
+
 function aimentor_ajax_store_canvas_history() {
         check_ajax_referer( 'aimentor_canvas_history', 'nonce' );
 
@@ -1443,6 +1565,8 @@ function aimentor_get_default_options() {
                 'aimentor_enable_health_checks'       => 'yes',
                 'aimentor_enable_health_check_alerts' => 'yes',
                 'aimentor_health_check_recipients'    => '',
+                'aimentor_archive_layouts'            => 'no',
+                'aimentor_archive_layouts_show_ui'    => 'no',
         ];
 }
 
@@ -1581,6 +1705,24 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_auto_insert',
                         'default' => $defaults['aimentor_auto_insert'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_archive_layouts',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_archive_layouts'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_archive_layouts_show_ui',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_archive_layouts_show_ui'],
                 ]
         );
 
