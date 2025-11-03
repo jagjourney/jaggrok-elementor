@@ -18,9 +18,7 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
             ? $args['context']
             : [];
 
-        if ( ! isset( $context['task'], $context['tier'] ) ) {
-            $context = $this->normalize_context( $context );
-        }
+        $context = $this->normalize_context( $context );
 
         $model      = ! empty( $args['model'] ) ? sanitize_text_field( $args['model'] ) : $this->get_default_model( $context );
         $max_tokens = isset( $args['max_tokens'] ) ? absint( $args['max_tokens'] ) : 2000;
@@ -78,9 +76,7 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
     }
 
     public function parse_response( $response, $args = [] ) {
-        $context = isset( $args['context']['task'], $args['context']['tier'] )
-            ? $args['context']
-            : $this->normalize_context( $args['context'] ?? [] );
+        $context = $this->normalize_context( $args['context'] ?? [] );
 
         $status_code = wp_remote_retrieve_response_code( $response );
         $raw_body    = wp_remote_retrieve_body( $response );
@@ -173,10 +169,54 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
             $tier = 'fast';
         }
 
+        $brand = $this->build_brand_context( $context );
+
         return [
-            'task' => $task,
-            'tier' => $tier,
+            'task'  => $task,
+            'tier'  => $tier,
+            'brand' => $brand,
         ];
+    }
+
+    protected function build_brand_context( $context ) {
+        $brand = [
+            'primary_color' => '',
+            'tone_keywords' => '',
+        ];
+
+        if ( function_exists( 'aimentor_get_brand_preferences' ) ) {
+            $defaults = aimentor_get_brand_preferences();
+
+            if ( is_array( $defaults ) ) {
+                $brand = array_merge( $brand, array_intersect_key( $defaults, $brand ) );
+            }
+        }
+
+        if ( isset( $context['brand'] ) && is_array( $context['brand'] ) ) {
+            if ( array_key_exists( 'primary_color', $context['brand'] ) ) {
+                $value = $context['brand']['primary_color'];
+
+                if ( function_exists( 'aimentor_sanitize_primary_color' ) ) {
+                    $brand['primary_color'] = aimentor_sanitize_primary_color( $value );
+                } else {
+                    $sanitized = sanitize_hex_color( $value );
+                    $brand['primary_color'] = $sanitized ? strtoupper( $sanitized ) : $brand['primary_color'];
+                }
+            }
+
+            if ( array_key_exists( 'tone_keywords', $context['brand'] ) ) {
+                $value = $context['brand']['tone_keywords'];
+
+                if ( function_exists( 'aimentor_sanitize_tone_keywords' ) ) {
+                    $brand['tone_keywords'] = aimentor_sanitize_tone_keywords( $value );
+                } else {
+                    $sanitized = sanitize_textarea_field( $value );
+                    $brand['tone_keywords'] = trim( preg_replace( '/\s+/', ' ', $sanitized ) );
+                }
+            }
+        }
+
+        return $brand;
     }
 
     protected function get_default_model( $context ) {
@@ -201,7 +241,9 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
             ? ' Output as structured Elementor JSON with dynamic content, forms, and responsive columns.'
             : ' Output as clean Elementor HTML sections optimized for fast insertion.';
 
-        return $suffix . $this->get_brand_prompt_guidance();
+        $brand = isset( $context['brand'] ) ? $context['brand'] : [];
+
+        return $suffix . $this->get_brand_prompt_guidance( $brand );
     }
 
     protected function get_temperature( $context ) {
@@ -220,19 +262,22 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
         return 'quality' === $context['tier'] ? 45 : 30;
     }
 
-    protected function get_brand_prompt_guidance() {
-        $color = sanitize_hex_color( get_option( 'aimentor_primary_color', '#3B82F6' ) );
-        $tone  = sanitize_textarea_field( get_option( 'aimentor_tone_keywords', '' ) );
-        $tone  = trim( preg_replace( '/\s+/', ' ', $tone ) );
+    protected function get_brand_prompt_guidance( $brand ) {
+        if ( ! is_array( $brand ) ) {
+            $brand = [];
+        }
+
+        $primary_color = isset( $brand['primary_color'] ) ? $brand['primary_color'] : '';
+        $tone_keywords = isset( $brand['tone_keywords'] ) ? $brand['tone_keywords'] : '';
 
         $parts = [];
 
-        if ( ! empty( $color ) ) {
-            $parts[] = sprintf( 'Anchor styling around the brand primary color %s.', strtoupper( $color ) );
+        if ( '' !== $primary_color ) {
+            $parts[] = sprintf( 'Anchor styling around the brand primary color %s.', strtoupper( $primary_color ) );
         }
 
-        if ( '' !== $tone ) {
-            $parts[] = sprintf( 'Keep the writing voice aligned with these tone keywords: %s.', $tone );
+        if ( '' !== $tone_keywords ) {
+            $parts[] = sprintf( 'Keep the writing voice aligned with these tone keywords: %s.', $tone_keywords );
         }
 
         if ( empty( $parts ) ) {

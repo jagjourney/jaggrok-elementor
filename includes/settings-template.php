@@ -80,6 +80,7 @@
     $document_context_choices = aimentor_get_document_context_choices();
     $document_provider_defaults = aimentor_get_document_provider_defaults();
     $provider_labels_map = aimentor_get_provider_labels();
+    $brand_preferences = aimentor_get_brand_preferences();
     $grok_model_labels = [
             'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
             'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
@@ -432,7 +433,7 @@
             <tr>
                 <th scope="row"><label for="aimentor_primary_color"><?php esc_html_e( 'Brand Primary Color', 'aimentor' ); ?></label></th>
                 <td>
-                    <?php $primary_color = get_option( 'aimentor_primary_color', $defaults['aimentor_primary_color'] ); ?>
+                    <?php $primary_color = isset( $brand_preferences['primary_color'] ) ? $brand_preferences['primary_color'] : $defaults['aimentor_primary_color']; ?>
                     <input type="color" id="aimentor_primary_color" name="aimentor_primary_color" value="<?php echo esc_attr( $primary_color ); ?>" />
                     <p class="description"><?php esc_html_e( 'Hints the generator toward your main brand accent color.', 'aimentor' ); ?></p>
                 </td>
@@ -440,7 +441,7 @@
             <tr>
                 <th scope="row"><label for="aimentor_tone_keywords"><?php esc_html_e( 'Tone Keywords', 'aimentor' ); ?></label></th>
                 <td>
-                    <?php $tone_keywords = get_option( 'aimentor_tone_keywords', $defaults['aimentor_tone_keywords'] ); ?>
+                    <?php $tone_keywords = isset( $brand_preferences['tone_keywords'] ) ? $brand_preferences['tone_keywords'] : $defaults['aimentor_tone_keywords']; ?>
                     <textarea id="aimentor_tone_keywords" name="aimentor_tone_keywords" rows="3" class="large-text"><?php echo esc_textarea( $tone_keywords ); ?></textarea>
                     <p class="description"><?php esc_html_e( 'Provide comma-separated adjectives or short phrases to guide the writing voice.', 'aimentor' ); ?></p>
                 </td>
