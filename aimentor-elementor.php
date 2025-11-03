@@ -313,6 +313,11 @@ function aimentor_get_ajax_payload() {
         $default_tier_fallback = aimentor_sanitize_performance_tier( $defaults['aimentor_default_performance'] ?? 'fast' );
         $default_task          = aimentor_sanitize_generation_type( get_option( 'aimentor_default_generation_type', $default_task_fallback ) );
         $default_tier          = aimentor_sanitize_performance_tier( get_option( 'aimentor_default_performance', $default_tier_fallback ) );
+        $document_defaults     = aimentor_get_document_provider_defaults();
+        $option_default_provider = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
+        $context_default         = isset( $document_defaults['default']['provider'] ) ? $document_defaults['default']['provider'] : $option_default_provider;
+        $default_provider        = aimentor_sanitize_provider( $context_default );
+        $default_provider_model  = isset( $document_defaults['default']['model'] ) ? $document_defaults['default']['model'] : '';
         $saved_prompts         = function_exists( 'aimentor_get_saved_prompts_payload' ) ? aimentor_get_saved_prompts_payload() : [
                 'global' => [],
                 'user'   => [],
@@ -383,14 +388,17 @@ function aimentor_get_ajax_payload() {
                         'savedPromptGroupUser'    => __( 'My Prompts', 'aimentor' ),
                         'savedPromptGroupGlobal'  => __( 'Shared Prompts', 'aimentor' ),
                 ),
-                'provider'          => get_option( 'aimentor_provider', 'grok' ),
                 'providerLabels'    => $provider_labels,
                 'providerSummaries' => $provider_summaries,
                 'providersMeta'     => $provider_meta_map,
                 'defaults'          => array(
                         'task' => $default_task,
                         'tier' => $default_tier,
+                        'provider' => $default_provider,
+                        'model' => $default_provider_model,
+                        'contexts' => $document_defaults,
                 ),
+                'provider'          => $default_provider,
                 'modelPresets'      => aimentor_get_model_presets(),
                 'modelLabels'       => aimentor_get_model_labels(),
                 'promptPresets'     => function_exists( 'aimentor_get_prompt_preset_catalog' ) ? aimentor_get_prompt_preset_catalog() : [],

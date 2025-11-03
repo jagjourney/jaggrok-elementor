@@ -77,6 +77,9 @@
     ];
     $models         = aimentor_get_provider_models();
     $allowed_models = aimentor_get_allowed_provider_models();
+    $document_context_choices = aimentor_get_document_context_choices();
+    $document_provider_defaults = aimentor_get_document_provider_defaults();
+    $provider_labels_map = aimentor_get_provider_labels();
     $grok_model_labels = [
             'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
             'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
@@ -295,6 +298,115 @@
                         </select>
                         <p class="description"><?php esc_html_e( 'GPT-4o mini delivers strong reasoning with lower cost; upgrade as your budget allows.', 'aimentor' ); ?></p>
                     </div>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Context Defaults', 'aimentor' ); ?></th>
+                <td>
+                    <p class="description"><?php esc_html_e( 'Choose which provider and model should load automatically for each Elementor document type.', 'aimentor' ); ?></p>
+                    <table class="widefat striped aimentor-context-defaults-table" style="max-width:680px;">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?php esc_html_e( 'Context', 'aimentor' ); ?></th>
+                                <th scope="col"><?php esc_html_e( 'Provider', 'aimentor' ); ?></th>
+                                <th scope="col"><?php esc_html_e( 'Model', 'aimentor' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $document_context_choices as $context_key => $context_meta ) :
+                                $context_label    = isset( $context_meta['label'] ) ? (string) $context_meta['label'] : ucfirst( str_replace( '_', ' ', (string) $context_key ) );
+                                $context_defaults = isset( $document_provider_defaults[ $context_key ] ) ? $document_provider_defaults[ $context_key ] : ( $document_provider_defaults['default'] ?? [] );
+                                $selected_provider = isset( $context_defaults['provider'] ) ? $context_defaults['provider'] : 'grok';
+                                $selected_model    = isset( $context_defaults['model'] ) ? $context_defaults['model'] : '';
+                            ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo esc_html( $context_label ); ?></strong>
+                                    <?php if ( 'default' === $context_key ) : ?>
+                                        <p class="description" style="margin:4px 0 0;">
+                                            <?php esc_html_e( 'Used when no specific mapping is found.', 'aimentor' ); ?>
+                                        </p>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <label class="screen-reader-text" for="aimentor-context-provider-<?php echo esc_attr( md5( $context_key ) ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
+                                    <select name="aimentor_document_provider_defaults[<?php echo esc_attr( $context_key ); ?>][provider]" id="aimentor-context-provider-<?php echo esc_attr( md5( $context_key ) ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                        <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
+                                            <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $selected_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                                <td>
+                                    <label class="screen-reader-text" for="aimentor-context-model-<?php echo esc_attr( md5( $context_key ) ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
+                                    <select name="aimentor_document_provider_defaults[<?php echo esc_attr( $context_key ); ?>][model]" id="aimentor-context-model-<?php echo esc_attr( md5( $context_key ) ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                        <?php foreach ( $allowed_models as $provider_key => $model_group ) :
+                                            $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
+                                        ?>
+                                        <optgroup label="<?php echo esc_attr( $group_label ); ?>">
+                                            <?php foreach ( $model_group as $model_key => $model_label ) : ?>
+                                                <option value="<?php echo esc_attr( $model_key ); ?>" data-provider="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $selected_model, $model_key ); ?>><?php echo esc_html( $model_label ); ?></option>
+                                            <?php endforeach; ?>
+                                        </optgroup>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <p class="description" style="margin-top:8px;">
+                        <?php esc_html_e( 'Editors inherit the default row when a template or post type is not listed.', 'aimentor' ); ?>
+                    </p>
+                    <script>
+                    jQuery(function($) {
+                        function updateContextRow($row) {
+                            if (!$row || !$row.length) {
+                                return;
+                            }
+                            var $provider = $row.find('.aimentor-context-provider');
+                            var $model = $row.find('.aimentor-context-model');
+                            if (!$provider.length || !$model.length) {
+                                return;
+                            }
+                            var providerValue = $provider.val();
+                            var $options = $model.find('option[data-provider]');
+                            var hasEnabled = false;
+                            $options.each(function() {
+                                var $option = $(this);
+                                var optionProvider = $option.data('provider');
+                                var isMatch = !providerValue || optionProvider === providerValue;
+                                $option.prop('disabled', !isMatch);
+                                if (isMatch) {
+                                    hasEnabled = true;
+                                }
+                            });
+                            var $selected = $model.find('option:selected');
+                            if (!$selected.length || $selected.prop('disabled')) {
+                                var $replacement = $options.filter(function() {
+                                    return $(this).data('provider') === providerValue;
+                                }).first();
+                                if ($replacement.length) {
+                                    $model.val($replacement.val());
+                                } else if (hasEnabled) {
+                                    var $fallback = $options.filter(function() {
+                                        return !$(this).prop('disabled');
+                                    }).first();
+                                    if ($fallback.length) {
+                                        $model.val($fallback.val());
+                                    }
+                                } else {
+                                    $model.val('');
+                                }
+                            }
+                        }
+
+                        $('.aimentor-context-provider').on('change.aimentorContext', function() {
+                            updateContextRow($(this).closest('tr'));
+                        }).each(function() {
+                            updateContextRow($(this).closest('tr'));
+                        });
+                    });
+                    </script>
                 </td>
             </tr>
             <tr>

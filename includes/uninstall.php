@@ -14,6 +14,7 @@ foreach ( [
         'aimentor_max_tokens',
         'aimentor_model',
         'aimentor_model_presets',
+        'aimentor_document_provider_defaults',
         'aimentor_openai_model',
         'aimentor_provider',
         'aimentor_provider_models',
