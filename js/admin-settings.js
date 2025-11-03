@@ -57,8 +57,19 @@ jQuery(document).ready(function($) {
     var usageRefreshInterval = (typeof aimentorAjax !== 'undefined' && aimentorAjax.usageRefreshInterval) ? parseInt(aimentorAjax.usageRefreshInterval, 10) : 0;
     var usageTimer = null;
     var logAction = 'aimentor_get_error_logs';
+    var logDownloadAction = 'aimentor_download_error_log';
+    var logClearAction = 'aimentor_clear_error_log';
     var logErrorMessage = '';
+    var logDownloadErrorMessage = '';
+    var logDownloadReadyMessage = '';
+    var logClearConfirmMessage = '';
+    var logClearSuccessMessage = '';
+    var logClearErrorMessage = '';
     var $logForm = null;
+    var $logFeedback = null;
+    var $logActions = null;
+    var $logDownloadButton = null;
+    var $logClearButton = null;
 
     function getString(key, fallback) {
         if (strings && Object.prototype.hasOwnProperty.call(strings, key) && strings[key]) {
@@ -68,6 +79,11 @@ jQuery(document).ready(function($) {
     }
 
     logErrorMessage = getString('logFetchError', 'Unable to load error logs. Please try again.');
+    logDownloadErrorMessage = getString('logDownloadError', 'Unable to download the error log. Please try again.');
+    logDownloadReadyMessage = getString('logDownloadReady', 'Log download will begin shortly.');
+    logClearConfirmMessage = getString('logClearConfirm', 'Are you sure you want to clear the error log? This cannot be undone.');
+    logClearSuccessMessage = getString('logClearSuccess', 'Error log cleared.');
+    logClearErrorMessage = getString('logClearError', 'Unable to clear the error log. Please try again.');
 
     function buildClassList() {
         return statusStates.map(function(state) {
@@ -256,6 +272,79 @@ jQuery(document).ready(function($) {
         $tbody.html('<tr><td colspan="3">' + safeMessage + '</td></tr>');
     }
 
+    function updateLogNonce(newNonce) {
+        if (!newNonce) {
+            return;
+        }
+
+        logNonce = String(newNonce);
+
+        if ($logForm && $logForm.length) {
+            $logForm.attr('data-nonce', logNonce);
+        }
+    }
+
+    function setLogFeedback(message, state) {
+        if (!$logFeedback || !$logFeedback.length) {
+            return;
+        }
+
+        $logFeedback.removeClass('is-success is-error');
+
+        if (!message) {
+            $logFeedback.attr('hidden', 'hidden');
+            $logFeedback.text('');
+            return;
+        }
+
+        if (state === 'success') {
+            $logFeedback.addClass('is-success');
+        } else if (state === 'error') {
+            $logFeedback.addClass('is-error');
+        }
+
+        $logFeedback.text(message);
+        $logFeedback.removeAttr('hidden');
+    }
+
+    function toggleLogActionsBusy(isBusy) {
+        if (!$logActions || !$logActions.length) {
+            return;
+        }
+
+        var $buttons = $logActions.find('button');
+
+        if ($buttons.length) {
+            $buttons.prop('disabled', !!isBusy);
+        }
+
+        $logActions.toggleClass('is-busy', !!isBusy);
+    }
+
+    function parseDispositionFilename(disposition) {
+        if (typeof disposition !== 'string' || !disposition) {
+            return '';
+        }
+
+        var match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+
+        if (match && match[1]) {
+            try {
+                return decodeURIComponent(match[1]);
+            } catch (error) {
+                return match[1];
+            }
+        }
+
+        match = disposition.match(/filename="?([^";]+)"?/i);
+
+        if (match && match[1]) {
+            return match[1];
+        }
+
+        return '';
+    }
+
     function setLogLoading(isLoading) {
         if (!$logForm || !$logForm.length) {
             return;
@@ -429,6 +518,10 @@ jQuery(document).ready(function($) {
     });
 
     $logForm = $('#aimentor-error-log-form');
+    $logActions = $('.aimentor-error-log-actions');
+    $logFeedback = $('#aimentor-error-log-feedback');
+    $logDownloadButton = $('#aimentor-download-log');
+    $logClearButton = $('#aimentor-clear-log');
 
     if ($logForm.length) {
         if (!logNonce) {
@@ -441,6 +534,8 @@ jQuery(document).ready(function($) {
 
         $logForm.on('submit', function(event) {
             event.preventDefault();
+
+            setLogFeedback('');
 
             if (!logNonce) {
                 renderLogError();
@@ -473,8 +568,7 @@ jQuery(document).ready(function($) {
                     renderLogRows(response.data.rows);
 
                     if (response.data.nonce) {
-                        logNonce = response.data.nonce;
-                        $logForm.attr('data-nonce', logNonce);
+                        updateLogNonce(response.data.nonce);
                     }
 
                     return;
@@ -486,6 +580,10 @@ jQuery(document).ready(function($) {
                     message = response.data.message;
                 }
 
+                if (response && response.data && response.data.nonce) {
+                    updateLogNonce(response.data.nonce);
+                }
+
                 renderLogError(message);
             }).fail(function(xhr) {
                 var message = '';
@@ -494,9 +592,207 @@ jQuery(document).ready(function($) {
                     message = xhr.responseJSON.data.message;
                 }
 
+                if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.nonce) {
+                    updateLogNonce(xhr.responseJSON.data.nonce);
+                }
+
                 renderLogError(message);
             }).always(function() {
                 setLogLoading(false);
+            });
+        });
+    }
+
+    if ($logDownloadButton && $logDownloadButton.length && adminAjaxUrl) {
+        $logDownloadButton.on('click', function(event) {
+            event.preventDefault();
+
+            if (!logNonce) {
+                setLogFeedback(logDownloadErrorMessage, 'error');
+                return;
+            }
+
+            setLogFeedback('');
+            toggleLogActionsBusy(true);
+
+            $.ajax({
+                url: adminAjaxUrl,
+                method: 'POST',
+                data: {
+                    action: logDownloadAction,
+                    nonce: logNonce
+                },
+                xhrFields: {
+                    responseType: 'blob'
+                }
+            }).done(function(data, textStatus, jqXHR) {
+                var nonceHeader = jqXHR.getResponseHeader('X-AiMentor-Log-Nonce');
+
+                if (nonceHeader) {
+                    updateLogNonce(nonceHeader);
+                }
+
+                var contentType = (jqXHR.getResponseHeader('Content-Type') || '').toLowerCase();
+
+                if (contentType.indexOf('application/json') === 0) {
+                    var reader = new window.FileReader();
+
+                    reader.onload = function() {
+                        var message = logDownloadErrorMessage;
+
+                        try {
+                            var payload = JSON.parse(reader.result || '{}');
+
+                            if (payload && payload.data) {
+                                if (payload.data.message) {
+                                    message = payload.data.message;
+                                }
+
+                                if (payload.data.nonce) {
+                                    updateLogNonce(payload.data.nonce);
+                                }
+                            }
+                        } catch (error) {
+                            // Ignore parse errors and fall back to default message.
+                        }
+
+                        setLogFeedback(message, 'error');
+                    };
+
+                    reader.onerror = function() {
+                        setLogFeedback(logDownloadErrorMessage, 'error');
+                    };
+
+                    reader.readAsText(data);
+                    return;
+                }
+
+                var filename = parseDispositionFilename(jqXHR.getResponseHeader('Content-Disposition')) || 'aimentor-error-log.log';
+                var blob = data instanceof Blob ? data : new Blob([data], { type: 'text/plain;charset=utf-8' });
+                var downloadUrl = window.URL.createObjectURL(blob);
+                var link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                window.setTimeout(function() {
+                    window.URL.revokeObjectURL(downloadUrl);
+                }, 1000);
+
+                setLogFeedback(logDownloadReadyMessage, 'success');
+            }).fail(function(jqXHR) {
+                var message = logDownloadErrorMessage;
+
+                if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.data) {
+                    if (jqXHR.responseJSON.data.message) {
+                        message = jqXHR.responseJSON.data.message;
+                    }
+
+                    if (jqXHR.responseJSON.data.nonce) {
+                        updateLogNonce(jqXHR.responseJSON.data.nonce);
+                    }
+                } else if (jqXHR && jqXHR.responseText) {
+                    try {
+                        var payload = JSON.parse(jqXHR.responseText);
+
+                        if (payload && payload.data) {
+                            if (payload.data.message) {
+                                message = payload.data.message;
+                            }
+
+                            if (payload.data.nonce) {
+                                updateLogNonce(payload.data.nonce);
+                            }
+                        }
+                    } catch (error) {
+                        // Ignore parse errors.
+                    }
+                }
+
+                setLogFeedback(message, 'error');
+            }).always(function() {
+                toggleLogActionsBusy(false);
+            });
+        });
+    }
+
+    if ($logClearButton && $logClearButton.length) {
+        $logClearButton.on('click', function(event) {
+            event.preventDefault();
+
+            if (!logNonce) {
+                setLogFeedback(logClearErrorMessage, 'error');
+                return;
+            }
+
+            if (typeof window.confirm === 'function' && !window.confirm(logClearConfirmMessage)) {
+                return;
+            }
+
+            setLogFeedback('');
+            toggleLogActionsBusy(true);
+
+            var payload = { nonce: logNonce };
+            var request;
+
+            if (wpAjax) {
+                request = wpAjax.post(logClearAction, payload);
+            } else if (adminAjaxUrl) {
+                request = $.post(adminAjaxUrl, $.extend({ action: logClearAction }, payload));
+            } else {
+                toggleLogActionsBusy(false);
+                setLogFeedback(logClearErrorMessage, 'error');
+                return;
+            }
+
+            request.done(function(response) {
+                if (response && response.success) {
+                    if (response.data && response.data.nonce) {
+                        updateLogNonce(response.data.nonce);
+                    }
+
+                    var successMessage = (response.data && response.data.message) ? response.data.message : logClearSuccessMessage;
+
+                    setLogFeedback(successMessage, 'success');
+
+                    if ($logForm && $logForm.length) {
+                        $logForm.trigger('submit');
+                    }
+
+                    return;
+                }
+
+                var message = logClearErrorMessage;
+
+                if (response && response.data) {
+                    if (response.data.message) {
+                        message = response.data.message;
+                    }
+
+                    if (response.data.nonce) {
+                        updateLogNonce(response.data.nonce);
+                    }
+                }
+
+                setLogFeedback(message, 'error');
+            }).fail(function(xhr) {
+                var message = logClearErrorMessage;
+
+                if (xhr && xhr.responseJSON && xhr.responseJSON.data) {
+                    if (xhr.responseJSON.data.message) {
+                        message = xhr.responseJSON.data.message;
+                    }
+
+                    if (xhr.responseJSON.data.nonce) {
+                        updateLogNonce(xhr.responseJSON.data.nonce);
+                    }
+                }
+
+                setLogFeedback(message, 'error');
+            }).always(function() {
+                toggleLogActionsBusy(false);
             });
         });
     }

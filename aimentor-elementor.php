@@ -333,6 +333,11 @@ function aimentor_get_ajax_payload() {
                         'usageNoContext'      => __( 'Most recent context unavailable.', 'aimentor' ),
                         'usageJustNow'        => __( 'Just now', 'aimentor' ),
                         'logFetchError'       => __( 'Unable to load error logs. Please try again.', 'aimentor' ),
+                        'logDownloadError'    => __( 'Unable to download the error log. Please try again.', 'aimentor' ),
+                        'logDownloadReady'    => __( 'Log download will begin shortly.', 'aimentor' ),
+                        'logClearConfirm'     => __( 'Are you sure you want to clear the error log? This cannot be undone.', 'aimentor' ),
+                        'logClearSuccess'     => __( 'Error log cleared.', 'aimentor' ),
+                        'logClearError'       => __( 'Unable to clear the error log. Please try again.', 'aimentor' ),
                         /* translators: %s: Provider label. */
                         'generateWith'       => __( 'Generate with %s', 'aimentor' ),
                         /* translators: %s: Provider label. */
