@@ -146,6 +146,7 @@ function aimentor_maybe_run_legacy_migration() {
                 'jaggrok_openai_model'           => 'aimentor_openai_model',
                 'jaggrok_api_tested'             => 'aimentor_api_tested',
                 'jaggrok_provider_test_statuses' => 'aimentor_provider_test_statuses',
+                'jaggrok_onboarding_dismissed'   => 'aimentor_onboarding_dismissed',
         );
 
         foreach ( $option_map as $legacy_key => $modern_key ) {
@@ -231,7 +232,7 @@ function aimentor_register_asset_handles() {
         $version = AIMENTOR_PLUGIN_VERSION;
         $base    = AIMENTOR_PLUGIN_URL;
 
-        wp_register_script( 'aimentor-admin-settings', $base . 'js/admin-settings.js', array( 'jquery' ), $version, true );
+        wp_register_script( 'aimentor-admin-settings', $base . 'js/admin-settings.js', array( 'jquery', 'wp-util' ), $version, true );
         wp_register_script( 'aimentor-elementor-widget', $base . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), $version, true );
 }
 add_action( 'init', 'aimentor_register_asset_handles' );
@@ -316,12 +317,14 @@ function aimentor_get_ajax_payload() {
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
                 'nonce'             => wp_create_nonce( 'aimentor_test' ),
+                'dismissNonce'      => wp_create_nonce( 'aimentor_onboarding' ),
                 'strings'           => array(
                         'testingBadge'       => __( 'Testing', 'aimentor' ),
                         'testingDescription' => __( 'Testing connection…', 'aimentor' ),
                         'missingKey'         => __( 'Enter an API key before testing.', 'aimentor' ),
                         'errorBadge'         => __( 'Error', 'aimentor' ),
                         'unknownError'       => __( 'Unknown error', 'aimentor' ),
+                        'onboardingDismissError' => __( 'Unable to dismiss the onboarding card. Please try again.', 'aimentor' ),
                         /* translators: %s: Provider label. */
                         'generateWith'       => __( 'Generate with %s', 'aimentor' ),
                         /* translators: %s: Provider label. */

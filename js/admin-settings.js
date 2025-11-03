@@ -66,6 +66,7 @@ jQuery(document).ready(function($) {
     }
 
     var badgeClassList = buildClassList();
+    var wpAjax = (typeof window.wp !== 'undefined' && window.wp.ajax && typeof window.wp.ajax.post === 'function') ? window.wp.ajax : null;
 
     function updateProviderStatus(provider, data) {
         var $container = $('.aimentor-provider-status[data-provider="' + provider + '"]');
@@ -178,6 +179,50 @@ jQuery(document).ready(function($) {
             });
         }).always(function() {
             $button.prop('disabled', false);
+        });
+    });
+
+    $(document).on('click', '.aimentor-onboarding-card .notice-dismiss', function(event) {
+        event.preventDefault();
+
+        var $dismiss = $(this);
+        var $card = $dismiss.closest('.aimentor-onboarding-card');
+
+        if (!$card.length || $dismiss.data('aimentorProcessing')) {
+            return;
+        }
+
+        $dismiss.data('aimentorProcessing', true);
+        $card.addClass('is-dismissing');
+
+        var nonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.dismissNonce) ? aimentorAjax.dismissNonce : '';
+        if (!nonce) {
+            $dismiss.data('aimentorProcessing', false);
+            $card.removeClass('is-dismissing');
+            if (typeof window.alert === 'function') {
+                window.alert(getString('onboardingDismissError', 'Unable to dismiss onboarding right now. Please try again.'));
+            }
+            return;
+        }
+        var request;
+
+        if (wpAjax) {
+            request = wpAjax.post('aimentor_dismiss_onboarding', { nonce: nonce });
+        } else {
+            var ajaxUrl = (typeof aimentorAjax !== 'undefined' && aimentorAjax.ajaxurl) ? aimentorAjax.ajaxurl : (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
+            request = $.post(ajaxUrl, { action: 'aimentor_dismiss_onboarding', nonce: nonce });
+        }
+
+        request.done(function() {
+            $card.fadeOut(200, function() {
+                $(this).remove();
+            });
+        }).fail(function() {
+            $dismiss.data('aimentorProcessing', false);
+            $card.removeClass('is-dismissing');
+            if (typeof window.alert === 'function') {
+                window.alert(getString('onboardingDismissError', 'Unable to dismiss onboarding right now. Please try again.'));
+            }
         });
     });
 });

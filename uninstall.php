@@ -18,6 +18,7 @@ foreach ( [
         'aimentor_provider',
         'aimentor_provider_models',
         'aimentor_provider_test_statuses',
+        'aimentor_onboarding_dismissed',
         'jaggrok_xai_api_key',
         'jaggrok_openai_api_key',
         'jaggrok_api_tested',
@@ -30,6 +31,7 @@ foreach ( [
         'jaggrok_provider',
         'jaggrok_provider_models',
         'jaggrok_provider_test_statuses',
+        'jaggrok_onboarding_dismissed',
 ] as $option ) {
         delete_option( $option );
 }

@@ -14,46 +14,134 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
+
+        .aimentor-onboarding-card {
+            position: relative;
+            padding-right: 40px;
+            margin: 20px 0;
+        }
+
+        .aimentor-onboarding-card.is-dismissing {
+            opacity: 0.6;
+        }
+
+        .aimentor-onboarding-card__lead {
+            margin-top: 0;
+        }
+
+        .aimentor-onboarding-card__steps {
+            margin: 0;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .aimentor-onboarding-card__step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .aimentor-onboarding-card__step:last-child {
+            margin-bottom: 0;
+        }
+
+        .aimentor-onboarding-card__step .dashicons {
+            margin-top: 2px;
+            font-size: 18px;
+        }
+
+        .aimentor-onboarding-card__step.is-complete .dashicons {
+            color: #1DA866;
+        }
+
+        .aimentor-onboarding-card__step.is-pending .dashicons {
+            color: #2271b1;
+        }
+
+        .aimentor-onboarding-card__step p {
+            margin: 2px 0 0;
+        }
     </style>
 
     <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By AiMentor</a></p>
 
+    <?php
+    $defaults       = aimentor_get_default_options();
+    $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
+    $api_keys       = [
+            'grok'   => get_option( 'aimentor_xai_api_key' ),
+            'openai' => get_option( 'aimentor_openai_api_key' ),
+    ];
+    $models         = aimentor_get_provider_models();
+    $allowed_models = aimentor_get_allowed_provider_models();
+    $grok_model_labels = [
+            'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
+            'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
+            'grok-3'      => __( 'Grok 3 (Standard)', 'aimentor' ),
+            'grok-4-mini' => __( 'Grok 4 Mini (Premium)', 'aimentor' ),
+            'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
+            'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
+    ];
+    $openai_model_labels = [
+            'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
+            'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
+            'gpt-4.1'      => __( 'GPT-4.1 (Reasoning)', 'aimentor' ),
+            'gpt-4.1-mini' => __( 'GPT-4.1 mini (Fast)', 'aimentor' ),
+            'gpt-4.1-nano' => __( 'GPT-4.1 nano (Edge)', 'aimentor' ),
+            'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
+            'o4'           => __( 'o4 (Preview)', 'aimentor' ),
+    ];
+    $provider_statuses = aimentor_get_provider_test_statuses();
+    $provider_status_views = [];
+
+    foreach ( aimentor_get_provider_labels() as $provider_key => $provider_label ) {
+            $current_status = $provider_statuses[ $provider_key ] ?? [ 'status' => '', 'message' => '', 'timestamp' => 0 ];
+            $provider_status_views[ $provider_key ] = aimentor_format_provider_status_for_display( $provider_key, $current_status );
+    }
+
+    $has_api_key           = ! empty( $api_keys['grok'] ) || ! empty( $api_keys['openai'] );
+    $provider_tested       = (bool) get_option( 'aimentor_api_tested', $defaults['aimentor_api_tested'] );
+    $onboarding_dismissed  = 'yes' === get_option( 'aimentor_onboarding_dismissed', $defaults['aimentor_onboarding_dismissed'] );
+    $should_show_onboarding = ! $onboarding_dismissed && ( ! $has_api_key || ! $provider_tested );
+
+    if ( $should_show_onboarding ) :
+            $onboarding_steps = [
+                    [
+                            'label'       => __( 'Add your API key', 'aimentor' ),
+                            'description' => __( 'Paste your xAI or OpenAI key into the fields below.', 'aimentor' ),
+                            'completed'   => $has_api_key,
+                    ],
+                    [
+                            'label'       => __( 'Test your provider', 'aimentor' ),
+                            'description' => __( 'Use “Test Connection” to confirm the integration is ready.', 'aimentor' ),
+                            'completed'   => $provider_tested,
+                    ],
+            ];
+    ?>
+    <div class="notice notice-info is-dismissible aimentor-onboarding-card" data-dismissible="aimentor-onboarding-card">
+        <button type="button" class="notice-dismiss aimentor-onboarding-dismiss"><span class="screen-reader-text"><?php esc_html_e( 'Dismiss this onboarding checklist', 'aimentor' ); ?></span></button>
+        <h2><?php esc_html_e( 'Quick start checklist', 'aimentor' ); ?></h2>
+        <p class="aimentor-onboarding-card__lead"><?php esc_html_e( 'Complete these steps to start generating with AiMentor.', 'aimentor' ); ?></p>
+        <ul class="aimentor-onboarding-card__steps">
+            <?php foreach ( $onboarding_steps as $step ) :
+                    $state      = $step['completed'] ? 'is-complete' : 'is-pending';
+                    $icon_class = $step['completed'] ? 'dashicons-yes' : 'dashicons-marker';
+            ?>
+            <li class="aimentor-onboarding-card__step <?php echo esc_attr( $state ); ?>">
+                <span class="dashicons <?php echo esc_attr( $icon_class ); ?>" aria-hidden="true"></span>
+                <div>
+                    <strong><?php echo esc_html( $step['label'] ); ?></strong>
+                    <p><?php echo esc_html( $step['description'] ); ?></p>
+                </div>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
+
     <form method="post" action="options.php">
         <?php settings_fields( 'aimentor_settings' ); ?>
-        <?php
-        $defaults       = aimentor_get_default_options();
-        $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
-        $api_keys       = [
-                'grok'   => get_option( 'aimentor_xai_api_key' ),
-                'openai' => get_option( 'aimentor_openai_api_key' ),
-        ];
-        $models         = aimentor_get_provider_models();
-        $allowed_models = aimentor_get_allowed_provider_models();
-        $grok_model_labels = [
-                'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
-                'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
-                'grok-3'      => __( 'Grok 3 (Standard)', 'aimentor' ),
-                'grok-4-mini' => __( 'Grok 4 Mini (Premium)', 'aimentor' ),
-                'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
-                'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
-        ];
-        $openai_model_labels = [
-                'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
-                'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
-                'gpt-4.1'      => __( 'GPT-4.1 (Reasoning)', 'aimentor' ),
-                'gpt-4.1-mini' => __( 'GPT-4.1 mini (Fast)', 'aimentor' ),
-                'gpt-4.1-nano' => __( 'GPT-4.1 nano (Edge)', 'aimentor' ),
-                'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
-                'o4'           => __( 'o4 (Preview)', 'aimentor' ),
-        ];
-        $provider_statuses = aimentor_get_provider_test_statuses();
-        $provider_status_views = [];
-
-        foreach ( aimentor_get_provider_labels() as $provider_key => $provider_label ) {
-                $current_status = $provider_statuses[ $provider_key ] ?? [ 'status' => '', 'message' => '', 'timestamp' => 0 ];
-                $provider_status_views[ $provider_key ] = aimentor_format_provider_status_for_display( $provider_key, $current_status );
-        }
-        ?>
         <p class="description aimentor-defaults-notice jaggrok-defaults-notice">
                 <?php
                 printf(
