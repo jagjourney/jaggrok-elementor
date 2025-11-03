@@ -136,4 +136,3 @@ JSON
 
           git worktree remove "$WORKTREE_PATH"
           git branch -D gh-pages || true
-*** End Patch
