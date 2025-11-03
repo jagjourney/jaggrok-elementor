@@ -77,9 +77,39 @@
     ];
     $models         = aimentor_get_provider_models();
     $allowed_models = aimentor_get_allowed_provider_models();
-    $document_context_choices = aimentor_get_document_context_choices();
+    $document_context_blueprint = aimentor_get_document_context_blueprint();
     $document_provider_defaults = aimentor_get_document_provider_defaults();
     $provider_labels_map = aimentor_get_provider_labels();
+    $page_type_defaults = isset( $document_provider_defaults['page_types'] ) && is_array( $document_provider_defaults['page_types'] )
+            ? $document_provider_defaults['page_types']
+            : [];
+    $page_type_blueprint = isset( $document_context_blueprint['page_types'] ) && is_array( $document_context_blueprint['page_types'] )
+            ? $document_context_blueprint['page_types']
+            : [];
+    $combined_page_types = $page_type_blueprint;
+
+    foreach ( $page_type_defaults as $post_type => $defaults_entry ) {
+            if ( isset( $combined_page_types[ $post_type ] ) ) {
+                    continue;
+            }
+
+            $template_map = [];
+
+            if ( isset( $defaults_entry['templates'] ) && is_array( $defaults_entry['templates'] ) ) {
+                    foreach ( $defaults_entry['templates'] as $template_file => $template_entry ) {
+                            $template_map[ $template_file ] = [
+                                    'key'   => 'template:' . $template_file,
+                                    'label' => $template_file,
+                            ];
+                    }
+            }
+
+            $combined_page_types[ $post_type ] = [
+                    'key'       => 'post_type:' . $post_type,
+                    'label'     => ucfirst( trim( str_replace( [ '_', '-' ], ' ', (string) $post_type ) ) ),
+                    'templates' => $template_map,
+            ];
+    }
     $brand_preferences = aimentor_get_brand_preferences();
     $grok_model_labels = [
             'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
@@ -305,6 +335,12 @@
                 <th scope="row"><?php esc_html_e( 'Context Defaults', 'aimentor' ); ?></th>
                 <td>
                     <p class="description"><?php esc_html_e( 'Choose which provider and model should load automatically for each Elementor document type.', 'aimentor' ); ?></p>
+                    <?php
+                    $global_defaults      = isset( $document_provider_defaults['default'] ) ? $document_provider_defaults['default'] : [];
+                    $global_provider      = isset( $global_defaults['provider'] ) ? $global_defaults['provider'] : 'grok';
+                    $global_model         = isset( $global_defaults['model'] ) ? $global_defaults['model'] : '';
+                    $has_page_type_groups = ! empty( $combined_page_types );
+                    ?>
                     <table class="widefat striped aimentor-context-defaults-table" style="max-width:680px;">
                         <thead>
                             <tr>
@@ -314,49 +350,147 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ( $document_context_choices as $context_key => $context_meta ) :
-                                $context_label    = isset( $context_meta['label'] ) ? (string) $context_meta['label'] : ucfirst( str_replace( '_', ' ', (string) $context_key ) );
-                                $context_defaults = isset( $document_provider_defaults[ $context_key ] ) ? $document_provider_defaults[ $context_key ] : ( $document_provider_defaults['default'] ?? [] );
-                                $selected_provider = isset( $context_defaults['provider'] ) ? $context_defaults['provider'] : 'grok';
-                                $selected_model    = isset( $context_defaults['model'] ) ? $context_defaults['model'] : '';
-                            ?>
                             <tr>
                                 <td>
-                                    <strong><?php echo esc_html( $context_label ); ?></strong>
-                                    <?php if ( 'default' === $context_key ) : ?>
-                                        <p class="description" style="margin:4px 0 0;">
-                                            <?php esc_html_e( 'Used when no specific mapping is found.', 'aimentor' ); ?>
-                                        </p>
-                                    <?php endif; ?>
+                                    <strong><?php esc_html_e( 'Global Default', 'aimentor' ); ?></strong>
+                                    <p class="description" style="margin:4px 0 0;">
+                                        <?php esc_html_e( 'Used when no specific mapping is found.', 'aimentor' ); ?>
+                                    </p>
                                 </td>
                                 <td>
-                                    <label class="screen-reader-text" for="aimentor-context-provider-<?php echo esc_attr( md5( $context_key ) ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
-                                    <select name="aimentor_document_provider_defaults[<?php echo esc_attr( $context_key ); ?>][provider]" id="aimentor-context-provider-<?php echo esc_attr( md5( $context_key ) ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                    <label class="screen-reader-text" for="aimentor-context-provider-default"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
+                                    <select name="aimentor_document_provider_defaults[default][provider]" id="aimentor-context-provider-default" class="aimentor-context-provider" style="min-width:160px;">
                                         <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
-                                            <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $selected_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
+                                            <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $global_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
                                 <td>
-                                    <label class="screen-reader-text" for="aimentor-context-model-<?php echo esc_attr( md5( $context_key ) ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
-                                    <select name="aimentor_document_provider_defaults[<?php echo esc_attr( $context_key ); ?>][model]" id="aimentor-context-model-<?php echo esc_attr( md5( $context_key ) ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                    <label class="screen-reader-text" for="aimentor-context-model-default"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
+                                    <select name="aimentor_document_provider_defaults[default][model]" id="aimentor-context-model-default" class="aimentor-context-model" style="min-width:200px;">
                                         <?php foreach ( $allowed_models as $provider_key => $model_group ) :
                                             $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
                                         ?>
                                         <optgroup label="<?php echo esc_attr( $group_label ); ?>">
                                             <?php foreach ( $model_group as $model_key => $model_label ) : ?>
-                                                <option value="<?php echo esc_attr( $model_key ); ?>" data-provider="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $selected_model, $model_key ); ?>><?php echo esc_html( $model_label ); ?></option>
+                                                <option value="<?php echo esc_attr( $model_key ); ?>" data-provider="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $global_model, $model_key ); ?>><?php echo esc_html( $model_label ); ?></option>
                                             <?php endforeach; ?>
                                         </optgroup>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
                         </tbody>
                     </table>
+                    <?php if ( $has_page_type_groups ) : ?>
+                        <?php foreach ( $combined_page_types as $post_type => $meta ) :
+                            $post_type_label    = isset( $meta['label'] ) && '' !== $meta['label'] ? $meta['label'] : ucfirst( (string) $post_type );
+                            $post_type_defaults = isset( $page_type_defaults[ $post_type ] ) && is_array( $page_type_defaults[ $post_type ] ) ? $page_type_defaults[ $post_type ] : [];
+                            $post_type_default  = isset( $post_type_defaults['default'] ) && is_array( $post_type_defaults['default'] ) ? $post_type_defaults['default'] : $global_defaults;
+                            $post_type_provider = isset( $post_type_default['provider'] ) ? $post_type_default['provider'] : $global_provider;
+                            $post_type_model    = isset( $post_type_default['model'] ) ? $post_type_default['model'] : $global_model;
+                            $template_blueprint = isset( $meta['templates'] ) && is_array( $meta['templates'] ) ? $meta['templates'] : [];
+                            $template_default_map = isset( $post_type_defaults['templates'] ) && is_array( $post_type_defaults['templates'] ) ? $post_type_defaults['templates'] : [];
+                        ?>
+                        <div class="aimentor-context-group" style="margin-top:24px;">
+                            <h3 style="margin:0 0 8px;"><?php echo esc_html( sprintf( __( 'Post Type: %s', 'aimentor' ), $post_type_label ) ); ?></h3>
+                            <table class="widefat striped aimentor-context-defaults-table" style="max-width:680px;">
+                                <thead>
+                                    <tr>
+                                        <th scope="col"><?php esc_html_e( 'Context', 'aimentor' ); ?></th>
+                                        <th scope="col"><?php esc_html_e( 'Provider', 'aimentor' ); ?></th>
+                                        <th scope="col"><?php esc_html_e( 'Model', 'aimentor' ); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <strong><?php esc_html_e( 'Post Type Default', 'aimentor' ); ?></strong>
+                                            <p class="description" style="margin:4px 0 0;">
+                                                <?php esc_html_e( 'Applies to Elementor documents for this type when no specific template match is found.', 'aimentor' ); ?>
+                                            </p>
+                                        </td>
+                                        <td>
+                                            <?php $provider_id = 'aimentor-context-provider-' . md5( 'post_type:' . $post_type ); ?>
+                                            <label class="screen-reader-text" for="<?php echo esc_attr( $provider_id ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
+                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][default][provider]" id="<?php echo esc_attr( $provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                                <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
+                                                    <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $post_type_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <?php $model_id = 'aimentor-context-model-' . md5( 'post_type:' . $post_type ); ?>
+                                            <label class="screen-reader-text" for="<?php echo esc_attr( $model_id ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
+                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][default][model]" id="<?php echo esc_attr( $model_id ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                                <?php foreach ( $allowed_models as $provider_key => $model_group ) :
+                                                    $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
+                                                ?>
+                                                <optgroup label="<?php echo esc_attr( $group_label ); ?>">
+                                                    <?php foreach ( $model_group as $model_key => $model_label ) : ?>
+                                                        <option value="<?php echo esc_attr( $model_key ); ?>" data-provider="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $post_type_model, $model_key ); ?>><?php echo esc_html( $model_label ); ?></option>
+                                                    <?php endforeach; ?>
+                                                </optgroup>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <?php if ( ! empty( $template_blueprint ) ) : ?>
+                                        <?php foreach ( $template_blueprint as $template_file => $template_meta ) :
+                                            $template_label = is_array( $template_meta ) && isset( $template_meta['label'] ) ? $template_meta['label'] : ( is_string( $template_meta ) ? $template_meta : $template_file );
+                                            $template_entry    = isset( $template_default_map[ $template_file ] ) && is_array( $template_default_map[ $template_file ] ) ? $template_default_map[ $template_file ] : $post_type_default;
+                                            $template_provider = isset( $template_entry['provider'] ) ? $template_entry['provider'] : $post_type_provider;
+                                            $template_model    = isset( $template_entry['model'] ) ? $template_entry['model'] : $post_type_model;
+                                            $template_provider_id = 'aimentor-context-provider-' . md5( $post_type . '|' . $template_file );
+                                            $template_model_id    = 'aimentor-context-model-' . md5( $post_type . '|' . $template_file );
+                                        ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?php echo esc_html( sprintf( __( 'Template: %s', 'aimentor' ), $template_label ) ); ?></strong>
+                                                <p class="description" style="margin:4px 0 0;">
+                                                    <?php esc_html_e( 'Overrides the post type default when the Elementor document uses this template.', 'aimentor' ); ?>
+                                                </p>
+                                            </td>
+                                            <td>
+                                                <label class="screen-reader-text" for="<?php echo esc_attr( $template_provider_id ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
+                                                <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][provider]" id="<?php echo esc_attr( $template_provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                                    <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
+                                                        <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $template_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <label class="screen-reader-text" for="<?php echo esc_attr( $template_model_id ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
+                                                <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][model]" id="<?php echo esc_attr( $template_model_id ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                                    <?php foreach ( $allowed_models as $provider_key => $model_group ) :
+                                                        $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
+                                                    ?>
+                                                    <optgroup label="<?php echo esc_attr( $group_label ); ?>">
+                                                        <?php foreach ( $model_group as $model_key => $model_label ) : ?>
+                                                            <option value="<?php echo esc_attr( $model_key ); ?>" data-provider="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $template_model, $model_key ); ?>><?php echo esc_html( $model_label ); ?></option>
+                                                        <?php endforeach; ?>
+                                                    </optgroup>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php else : ?>
+                                        <tr>
+                                            <td colspan="3">
+                                                <p class="description" style="margin:8px 0;">
+                                                    <?php esc_html_e( 'No templates detected for this post type. The post type default will apply to all Elementor documents.', 'aimentor' ); ?>
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                     <p class="description" style="margin-top:8px;">
-                        <?php esc_html_e( 'Editors inherit the default row when a template or post type is not listed.', 'aimentor' ); ?>
+                        <?php esc_html_e( 'Editors inherit the global default when no page type or template mapping is defined.', 'aimentor' ); ?>
                     </p>
                     <script>
                     jQuery(function($) {

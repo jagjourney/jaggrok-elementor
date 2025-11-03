@@ -126,12 +126,13 @@ function aimentor_get_provider_labels() {
         ];
 }
 
-function aimentor_get_document_context_choices() {
-        $choices = [
-                'default' => [
+function aimentor_get_document_context_blueprint() {
+        $blueprint = [
+                'default'    => [
+                        'key'   => 'default',
                         'label' => __( 'Default (all Elementor documents)', 'aimentor' ),
-                        'type'  => 'default',
                 ],
+                'page_types' => [],
         ];
 
         if ( function_exists( 'get_post_types' ) ) {
@@ -152,19 +153,24 @@ function aimentor_get_document_context_choices() {
                                 $label = ucfirst( (string) $post_type );
                         }
 
-                        $choices[ 'post_type:' . $post_type ] = [
-                                /* translators: %s: Post type label. */
-                                'label'     => sprintf( __( 'Post Type: %s', 'aimentor' ), $label ),
-                                'type'      => 'post_type',
-                                'post_type' => $post_type,
+                        $blueprint['page_types'][ $post_type ] = [
+                                'key'       => 'post_type:' . $post_type,
+                                'label'     => $label,
+                                'templates' => [],
                         ];
                 }
         }
 
         if ( function_exists( 'wp_get_theme' ) ) {
-                $templates = wp_get_theme()->get_page_templates( null, 'page' );
+                $theme = wp_get_theme();
 
-                if ( is_array( $templates ) ) {
+                foreach ( array_keys( $blueprint['page_types'] ) as $post_type_key ) {
+                        $templates = $theme->get_page_templates( null, $post_type_key );
+
+                        if ( ! is_array( $templates ) ) {
+                                continue;
+                        }
+
                         foreach ( $templates as $template_file => $template_name ) {
                                 if ( '' === $template_file ) {
                                         continue;
@@ -172,13 +178,63 @@ function aimentor_get_document_context_choices() {
 
                                 $label = '' !== $template_name ? $template_name : $template_file;
 
-                                $choices[ 'template:' . $template_file ] = [
-                                        /* translators: %s: Page template label. */
-                                        'label'    => sprintf( __( 'Template: %s', 'aimentor' ), $label ),
-                                        'type'     => 'template',
-                                        'template' => $template_file,
+                                $blueprint['page_types'][ $post_type_key ]['templates'][ $template_file ] = [
+                                        'key'   => 'template:' . $template_file,
+                                        'label' => $label,
                                 ];
                         }
+                }
+        }
+
+        /**
+         * Filter the document context blueprint used for defaults and UI rendering.
+         *
+         * @param array $blueprint Associative array describing defaults, post types, and templates.
+         */
+        $blueprint = apply_filters( 'aimentor_document_context_blueprint', $blueprint );
+
+        if ( ! isset( $blueprint['page_types'] ) || ! is_array( $blueprint['page_types'] ) ) {
+                $blueprint['page_types'] = [];
+        }
+
+        return $blueprint;
+}
+
+function aimentor_get_document_context_choices() {
+        $blueprint = aimentor_get_document_context_blueprint();
+        $choices   = [
+                'default' => [
+                        'label' => $blueprint['default']['label'] ?? __( 'Default (all Elementor documents)', 'aimentor' ),
+                        'type'  => 'default',
+                ],
+        ];
+
+        foreach ( $blueprint['page_types'] as $post_type => $meta ) {
+                $label = isset( $meta['label'] ) ? $meta['label'] : ucfirst( (string) $post_type );
+
+                $choices[ 'post_type:' . $post_type ] = [
+                        /* translators: %s: Post type label. */
+                        'label'     => sprintf( __( 'Post Type: %s', 'aimentor' ), $label ),
+                        'type'      => 'post_type',
+                        'post_type' => $post_type,
+                ];
+
+                if ( empty( $meta['templates'] ) || ! is_array( $meta['templates'] ) ) {
+                        continue;
+                }
+
+                foreach ( $meta['templates'] as $template_file => $template_meta ) {
+                        $template_label = is_array( $template_meta ) && isset( $template_meta['label'] )
+                                ? $template_meta['label']
+                                : ( is_string( $template_meta ) ? $template_meta : $template_file );
+
+                        $choices[ 'template:' . $template_file ] = [
+                                /* translators: 1: Template label, 2: Post type label. */
+                                'label'    => sprintf( __( 'Template: %1$s (%2$s)', 'aimentor' ), $template_label, $label ),
+                                'type'     => 'template',
+                                'template' => $template_file,
+                                'post_type' => $post_type,
+                        ];
                 }
         }
 
@@ -186,39 +242,53 @@ function aimentor_get_document_context_choices() {
          * Filter the list of document contexts available for provider defaults.
          *
          * @param array $choices Associative array of context keys and metadata.
+         * @param array $blueprint Document context blueprint used to generate the choices.
          */
-        return apply_filters( 'aimentor_document_context_choices', $choices );
+        return apply_filters( 'aimentor_document_context_choices', $choices, $blueprint );
 }
 
 function aimentor_get_document_provider_default_map() {
-        $legacy_defaults = aimentor_map_presets_to_legacy_defaults( aimentor_get_provider_model_defaults() );
+        $legacy_defaults  = aimentor_map_presets_to_legacy_defaults( aimentor_get_provider_model_defaults() );
         $default_provider = 'grok';
         $default_model    = $legacy_defaults['grok'] ?? '';
+        $blueprint        = aimentor_get_document_context_blueprint();
 
         $defaults = [
-                'default' => [
+                'default'    => [
                         'provider' => $default_provider,
                         'model'    => $default_model,
                 ],
+                'page_types' => [],
         ];
 
-        foreach ( aimentor_get_document_context_choices() as $context_key => $context_meta ) {
-                if ( isset( $defaults[ $context_key ] ) ) {
+        foreach ( $blueprint['page_types'] as $post_type => $meta ) {
+                $defaults['page_types'][ $post_type ] = [
+                        'default'   => [
+                                'provider' => $default_provider,
+                                'model'    => $default_model,
+                        ],
+                        'templates' => [],
+                ];
+
+                if ( empty( $meta['templates'] ) || ! is_array( $meta['templates'] ) ) {
                         continue;
                 }
 
-                $defaults[ $context_key ] = [
-                        'provider' => $default_provider,
-                        'model'    => $default_model,
-                ];
+                foreach ( $meta['templates'] as $template_file => $template_meta ) {
+                        $defaults['page_types'][ $post_type ]['templates'][ $template_file ] = [
+                                'provider' => $default_provider,
+                                'model'    => $default_model,
+                        ];
+                }
         }
 
         /**
          * Filter the default provider/model map for document contexts.
          *
          * @param array $defaults Default mapping of contexts to provider/model pairs.
+         * @param array $blueprint Document context blueprint describing post types and templates.
          */
-        return apply_filters( 'aimentor_document_provider_default_map', $defaults );
+        return apply_filters( 'aimentor_document_provider_default_map', $defaults, $blueprint );
 }
 
 function aimentor_get_prompt_preset_catalog() {
@@ -1446,36 +1516,135 @@ function aimentor_sanitize_max_tokens( $value ) {
         return $value > 0 ? $value : 2000;
 }
 
+function aimentor_normalize_document_provider_defaults_structure( $value ) {
+        if ( ! is_array( $value ) ) {
+                return [];
+        }
+
+        if ( isset( $value['page_types'] ) && is_array( $value['page_types'] ) ) {
+                return $value;
+        }
+
+        $uses_legacy_keys = false;
+
+        foreach ( array_keys( $value ) as $key ) {
+                if ( is_string( $key ) && false !== strpos( $key, ':' ) ) {
+                        $uses_legacy_keys = true;
+                        break;
+                }
+        }
+
+        if ( ! $uses_legacy_keys ) {
+                return $value;
+        }
+
+        $defaults  = aimentor_get_document_provider_default_map();
+        $blueprint = aimentor_get_document_context_blueprint();
+        $normalized = [
+                'default'    => isset( $value['default'] ) && is_array( $value['default'] ) ? $value['default'] : ( $defaults['default'] ?? [] ),
+                'page_types' => [],
+        ];
+
+        foreach ( $blueprint['page_types'] as $post_type => $meta ) {
+                $normalized['page_types'][ $post_type ] = [
+                        'default'   => $normalized['default'],
+                        'templates' => [],
+                ];
+
+                if ( empty( $meta['templates'] ) || ! is_array( $meta['templates'] ) ) {
+                        continue;
+                }
+
+                foreach ( $meta['templates'] as $template_file => $template_meta ) {
+                        $normalized['page_types'][ $post_type ]['templates'][ $template_file ] = $normalized['default'];
+                }
+        }
+
+        foreach ( $value as $context_key => $context_value ) {
+                if ( ! is_string( $context_key ) || ! is_array( $context_value ) ) {
+                        continue;
+                }
+
+                if ( 'default' === $context_key ) {
+                        $normalized['default'] = $context_value;
+                        continue;
+                }
+
+                if ( 0 === strpos( $context_key, 'post_type:' ) ) {
+                        $post_type = substr( $context_key, strlen( 'post_type:' ) );
+
+                        if ( '' === $post_type ) {
+                                continue;
+                        }
+
+                        if ( ! isset( $normalized['page_types'][ $post_type ] ) ) {
+                                $normalized['page_types'][ $post_type ] = [
+                                        'default'   => $normalized['default'],
+                                        'templates' => [],
+                                ];
+                        }
+
+                        $normalized['page_types'][ $post_type ]['default'] = $context_value;
+                        continue;
+                }
+
+                if ( 0 === strpos( $context_key, 'template:' ) ) {
+                        $template_file = substr( $context_key, strlen( 'template:' ) );
+
+                        if ( '' === $template_file ) {
+                                continue;
+                        }
+
+                        $assigned = false;
+
+                        foreach ( $blueprint['page_types'] as $post_type => $meta ) {
+                                if ( isset( $meta['templates'][ $template_file ] ) ) {
+                                        if ( ! isset( $normalized['page_types'][ $post_type ] ) ) {
+                                                $normalized['page_types'][ $post_type ] = [
+                                                        'default'   => $normalized['default'],
+                                                        'templates' => [],
+                                                ];
+                                        }
+
+                                        $normalized['page_types'][ $post_type ]['templates'][ $template_file ] = $context_value;
+                                        $assigned = true;
+                                        break;
+                                }
+                        }
+
+                        if ( ! $assigned ) {
+                                if ( ! isset( $normalized['page_types']['__global__'] ) ) {
+                                        $normalized['page_types']['__global__'] = [
+                                                'default'   => $normalized['default'],
+                                                'templates' => [],
+                                        ];
+                                }
+
+                                $normalized['page_types']['__global__']['templates'][ $template_file ] = $context_value;
+                        }
+                }
+        }
+
+        return $normalized;
+}
+
 function aimentor_sanitize_document_provider_defaults( $value ) {
         if ( ! is_array( $value ) ) {
                 $value = [];
         }
 
+        $value            = aimentor_normalize_document_provider_defaults_structure( $value );
         $defaults         = aimentor_get_document_provider_default_map();
-        $context_choices  = aimentor_get_document_context_choices();
+        $blueprint        = aimentor_get_document_context_blueprint();
         $allowed_provider = array_keys( aimentor_get_provider_labels() );
-        $sanitized        = [];
+        $sanitized        = [
+                'default'    => [],
+                'page_types' => [],
+        ];
 
-        $context_keys = array_unique(
-                array_merge(
-                        array_keys( $defaults ),
-                        array_keys( $context_choices ),
-                        array_keys( $value )
-                )
-        );
-
-        foreach ( $context_keys as $context_key ) {
-                if ( ! is_string( $context_key ) || '' === $context_key ) {
-                        continue;
-                }
-
-                $incoming = isset( $value[ $context_key ] ) && is_array( $value[ $context_key ] )
-                        ? $value[ $context_key ]
-                        : [];
-
-                $fallback = isset( $defaults[ $context_key ] ) && is_array( $defaults[ $context_key ] )
-                        ? $defaults[ $context_key ]
-                        : ( $defaults['default'] ?? [] );
+        $sanitize_pair = static function( $incoming, $fallback ) use ( $allowed_provider ) {
+                $incoming = is_array( $incoming ) ? $incoming : [];
+                $fallback = is_array( $fallback ) ? $fallback : [];
 
                 $provider = isset( $incoming['provider'] ) ? sanitize_key( $incoming['provider'] ) : '';
 
@@ -1491,10 +1660,99 @@ function aimentor_sanitize_document_provider_defaults( $value ) {
                         $model          = in_array( $fallback_model, $allowed_models, true ) ? $fallback_model : ( $allowed_models[0] ?? '' );
                 }
 
-                $sanitized[ $context_key ] = [
+                return [
                         'provider' => $provider,
                         'model'    => $model,
                 ];
+        };
+
+        $incoming_default = isset( $value['default'] ) ? $value['default'] : [];
+        $sanitized['default'] = $sanitize_pair( $incoming_default, $defaults['default'] ?? [] );
+
+        $incoming_page_types = isset( $value['page_types'] ) && is_array( $value['page_types'] ) ? $value['page_types'] : [];
+        $default_page_types  = isset( $defaults['page_types'] ) && is_array( $defaults['page_types'] ) ? $defaults['page_types'] : [];
+
+        foreach ( $blueprint['page_types'] as $post_type => $meta ) {
+                $incoming_entry = isset( $incoming_page_types[ $post_type ] ) && is_array( $incoming_page_types[ $post_type ] )
+                        ? $incoming_page_types[ $post_type ]
+                        : [];
+
+                $fallback_entry = isset( $default_page_types[ $post_type ] ) && is_array( $default_page_types[ $post_type ] )
+                        ? $default_page_types[ $post_type ]
+                        : [];
+
+                $type_default = $sanitize_pair(
+                        $incoming_entry['default'] ?? $incoming_entry,
+                        $fallback_entry['default'] ?? $sanitized['default']
+                );
+
+                $sanitized['page_types'][ $post_type ] = [
+                        'default'   => $type_default,
+                        'templates' => [],
+                ];
+
+                $incoming_templates = isset( $incoming_entry['templates'] ) && is_array( $incoming_entry['templates'] )
+                        ? $incoming_entry['templates']
+                        : [];
+
+                $fallback_templates = isset( $fallback_entry['templates'] ) && is_array( $fallback_entry['templates'] )
+                        ? $fallback_entry['templates']
+                        : [];
+
+                if ( isset( $meta['templates'] ) && is_array( $meta['templates'] ) ) {
+                        foreach ( $meta['templates'] as $template_file => $template_meta ) {
+                                $incoming_template = isset( $incoming_templates[ $template_file ] ) ? $incoming_templates[ $template_file ] : [];
+                                $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
+
+                                $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $incoming_template, $fallback_template );
+                        }
+                }
+
+                foreach ( $incoming_templates as $template_file => $template_value ) {
+                        if ( isset( $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] ) ) {
+                                continue;
+                        }
+
+                        $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
+                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $template_value, $fallback_template );
+                }
+        }
+
+        foreach ( $incoming_page_types as $post_type => $incoming_entry ) {
+                if ( isset( $sanitized['page_types'][ $post_type ] ) ) {
+                        continue;
+                }
+
+                if ( ! is_array( $incoming_entry ) ) {
+                        continue;
+                }
+
+                $fallback_entry = isset( $default_page_types[ $post_type ] ) && is_array( $default_page_types[ $post_type ] )
+                        ? $default_page_types[ $post_type ]
+                        : [];
+
+                $type_default = $sanitize_pair(
+                        $incoming_entry['default'] ?? $incoming_entry,
+                        $fallback_entry['default'] ?? $sanitized['default']
+                );
+
+                $sanitized['page_types'][ $post_type ] = [
+                        'default'   => $type_default,
+                        'templates' => [],
+                ];
+
+                $incoming_templates = isset( $incoming_entry['templates'] ) && is_array( $incoming_entry['templates'] )
+                        ? $incoming_entry['templates']
+                        : [];
+
+                $fallback_templates = isset( $fallback_entry['templates'] ) && is_array( $fallback_entry['templates'] )
+                        ? $fallback_entry['templates']
+                        : [];
+
+                foreach ( $incoming_templates as $template_file => $template_value ) {
+                        $fallback_template = isset( $fallback_templates[ $template_file ] ) ? $fallback_templates[ $template_file ] : $type_default;
+                        $sanitized['page_types'][ $post_type ]['templates'][ $template_file ] = $sanitize_pair( $template_value, $fallback_template );
+                }
         }
 
         return $sanitized;
@@ -1571,7 +1829,9 @@ function aimentor_get_document_provider_defaults() {
                 $stored = [];
         }
 
-        $merged = array_replace_recursive( aimentor_get_document_provider_default_map(), $stored );
+        $stored  = aimentor_normalize_document_provider_defaults_structure( $stored );
+        $defaults = aimentor_get_document_provider_default_map();
+        $merged   = array_replace_recursive( $defaults, $stored );
 
         return aimentor_sanitize_document_provider_defaults( $merged );
 }
