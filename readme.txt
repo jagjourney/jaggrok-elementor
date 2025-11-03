@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.1.11
+Stable tag: 1.2.00
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.2.00 =
+* Captured successful canvas payloads in a reusable history so editors can revisit recent layouts without leaving Elementor.
+* Added an in-widget carousel that previews recent layouts and lets editors inject saved canvas JSON instantly.
+* Extended the Elementor widget script to cache canvas runs locally, update the history UI in real time, and reuse layouts without round-tripping to the API.
+
 = 1.1.11 =
 * Synced plugin metadata, manifests, and landing collateral with the finalized cooldown messaging release.
 * Documented the rate-limit guidance improvements so Elementor users know why the widget may pause between runs.

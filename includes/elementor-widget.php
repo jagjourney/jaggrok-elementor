@@ -206,6 +206,17 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
         echo '<div class="aimentor-editor-placeholder">';
         echo '<p>' . esc_html__( 'Use the “Write with AiMentor” sidebar button to generate content for this widget.', 'aimentor' ) . '</p>';
         echo '<p class="aimentor-editor-cooldown" aria-live="polite" style="display:none;margin-top:8px;font-size:12px;color:#b45309;"></p>';
+        echo '<div class="aimentor-layout-history" aria-live="polite" data-empty-text="' . esc_attr__( 'Generate a layout to see it here after your next run.', 'aimentor' ) . '">';
+        echo '<div class="aimentor-layout-history__header">';
+        echo '<strong class="aimentor-layout-history__title">' . esc_html__( 'Recent layouts', 'aimentor' ) . '</strong>';
+        echo '<div class="aimentor-layout-history__nav" role="group" aria-label="' . esc_attr__( 'Browse recent layouts', 'aimentor' ) . '">';
+        echo '<button type="button" class="aimentor-layout-history__nav-button aimentor-layout-history__nav-button--prev" aria-label="' . esc_attr__( 'Show previous layout', 'aimentor' ) . '" disabled>&lsaquo;</button>';
+        echo '<button type="button" class="aimentor-layout-history__nav-button aimentor-layout-history__nav-button--next" aria-label="' . esc_attr__( 'Show next layout', 'aimentor' ) . '" disabled>&rsaquo;</button>';
+        echo '</div>';
+        echo '</div>';
+        echo '<div class="aimentor-layout-history__viewport" role="listbox" aria-label="' . esc_attr__( 'Recent AiMentor layouts', 'aimentor' ) . '"></div>';
+        echo '<p class="aimentor-layout-history__empty">' . esc_html__( 'Generate a layout to see it here after your next run.', 'aimentor' ) . '</p>';
+        echo '</div>';
         echo '</div>';
     }
 }

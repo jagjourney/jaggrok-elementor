@@ -88,6 +88,8 @@
         var promptCategoryLookup = promptPresetData.categories;
         var promptCategoryPresetMap = promptPresetData.categoryPresets;
         var savedPromptCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
+        var defaultLayoutSummary = strings.recentLayoutsPreviewMissing || 'Preview unavailable for this layout.';
+        var canvasHistoryStore = createCanvasHistoryStore(aimentorData.canvasHistory || [], parseInt(aimentorData.canvasHistoryMax, 10) || 0);
 
         function computeCooldownSeconds(rateLimit) {
             if (!rateLimit || typeof rateLimit !== 'object') {
@@ -164,6 +166,414 @@
             } else {
                 $notice.text('').hide();
             }
+        }
+
+        function sanitizeCanvasLayout(layout) {
+            if (!layout) {
+                return '';
+            }
+
+            var jsonString = '';
+
+            if (typeof layout === 'string') {
+                jsonString = layout;
+            } else {
+                try {
+                    jsonString = JSON.stringify(layout);
+                } catch (err) {
+                    jsonString = '';
+                }
+            }
+
+            if (!jsonString) {
+                return '';
+            }
+
+            try {
+                var decoded = JSON.parse(jsonString);
+                if (!decoded || typeof decoded !== 'object') {
+                    return '';
+                }
+            } catch (err) {
+                return '';
+            }
+
+            return jsonString;
+        }
+
+        function normalizeCanvasHistoryEntry(entry) {
+            if (!entry || typeof entry !== 'object') {
+                return null;
+            }
+
+            var layoutJson = sanitizeCanvasLayout(entry.layout);
+
+            if (!layoutJson) {
+                return null;
+            }
+
+            var summaryText = '';
+
+            if (typeof entry.summary === 'string') {
+                summaryText = entry.summary.trim();
+            }
+
+            var providerKey = sanitizeProvider(entry.provider || '');
+            var normalized = {
+                id: typeof entry.id === 'string' && entry.id ? entry.id : String(Date.now()),
+                summary: summaryText || defaultLayoutSummary,
+                provider: providerKey,
+                model: typeof entry.model === 'string' ? entry.model.trim() : '',
+                task: sanitizeTask(entry.task || 'canvas', true),
+                tier: sanitizeTier(entry.tier || ''),
+                timestamp: typeof entry.timestamp === 'number' ? entry.timestamp : parseInt(entry.timestamp, 10) || Math.round(Date.now() / 1000),
+                layout: layoutJson
+            };
+
+            if (!normalized.provider) {
+                normalized.provider = providerKey || 'grok';
+            }
+
+            return normalized;
+        }
+
+        function sanitizeCanvasHistoryList(list) {
+            if (!Array.isArray(list)) {
+                return [];
+            }
+
+            var sanitized = [];
+
+            list.forEach(function(item) {
+                var normalized = normalizeCanvasHistoryEntry(item);
+
+                if (!normalized) {
+                    return;
+                }
+
+                sanitized = sanitized.filter(function(existing) {
+                    return existing.layout !== normalized.layout && existing.id !== normalized.id;
+                });
+
+                sanitized.push(normalized);
+            });
+
+            return sanitized;
+        }
+
+        function createCanvasHistoryStore(initialEntries, maxItems) {
+            var max = parseInt(maxItems, 10);
+
+            if (!isFinite(max) || max <= 0) {
+                max = 6;
+            }
+
+            var entries = sanitizeCanvasHistoryList(initialEntries).slice(0, max);
+            var subscribers = [];
+
+            function syncGlobal() {
+                window.aimentorAjax = window.aimentorAjax || {};
+                window.aimentorAjax.canvasHistory = entries.slice();
+            }
+
+            function notify() {
+                syncGlobal();
+
+                subscribers.forEach(function(callback) {
+                    if (typeof callback !== 'function') {
+                        return;
+                    }
+
+                    try {
+                        callback(entries.slice());
+                    } catch (err) {
+                        // Ignore subscriber errors so the store keeps working for others.
+                    }
+                });
+            }
+
+            function subscribe(callback) {
+                if (typeof callback === 'function') {
+                    subscribers.push(callback);
+                    callback(entries.slice());
+                }
+
+                return function() {
+                    subscribers = subscribers.filter(function(candidate) {
+                        return candidate !== callback;
+                    });
+                };
+            }
+
+            function set(list) {
+                entries = sanitizeCanvasHistoryList(list).slice(0, max);
+                notify();
+            }
+
+            function add(entry) {
+                var normalized = normalizeCanvasHistoryEntry(entry);
+
+                if (!normalized) {
+                    return;
+                }
+
+                entries = [normalized].concat(entries.filter(function(existing) {
+                    return existing.layout !== normalized.layout && existing.id !== normalized.id;
+                }));
+
+                if (entries.length > max) {
+                    entries = entries.slice(0, max);
+                }
+
+                notify();
+            }
+
+            notify();
+
+            return {
+                get: function() {
+                    return entries.slice();
+                },
+                subscribe: subscribe,
+                set: set,
+                add: add,
+                max: max
+            };
+        }
+
+        function persistCanvasHistory(responseData, summaryText) {
+            if (!responseData || !responseData.canvas_json) {
+                return;
+            }
+
+            if (typeof $.post !== 'function') {
+                return;
+            }
+
+            var layoutJson = sanitizeCanvasLayout(responseData.canvas_json);
+
+            if (!layoutJson) {
+                return;
+            }
+
+            if (!aimentorData.canvasHistoryNonce || !aimentorData.ajaxurl) {
+                return;
+            }
+
+            var summary = '';
+
+            if (typeof summaryText === 'string') {
+                summary = summaryText.replace(/\s+/g, ' ').trim();
+            }
+
+            $.post(aimentorData.ajaxurl, {
+                action: 'aimentor_store_canvas_history',
+                nonce: aimentorData.canvasHistoryNonce,
+                layout: layoutJson,
+                summary: summary,
+                provider: responseData.provider || '',
+                model: responseData.model || '',
+                task: responseData.task || 'canvas',
+                tier: responseData.tier || ''
+            }).done(function(storeResponse) {
+                if (!storeResponse || !storeResponse.success || !storeResponse.data) {
+                    return;
+                }
+
+                if (storeResponse.data.history) {
+                    canvasHistoryStore.set(storeResponse.data.history);
+                    return;
+                }
+
+                if (storeResponse.data.entry) {
+                    canvasHistoryStore.add(storeResponse.data.entry);
+                }
+            });
+        }
+
+        function attachHistoryCarousel($scope) {
+            if (!$scope || !$scope.length) {
+                return;
+            }
+
+            var $container = $scope.find('.aimentor-layout-history');
+
+            if (!$container.length || $container.data('aimentorCarouselInit')) {
+                return;
+            }
+
+            $container.data('aimentorCarouselInit', true);
+
+            var $viewport = $container.find('.aimentor-layout-history__viewport');
+            var $empty = $container.find('.aimentor-layout-history__empty');
+            var $navButtons = $container.find('.aimentor-layout-history__nav-button');
+            var $title = $container.find('.aimentor-layout-history__title');
+            var state = { index: 0 };
+            var unsubscribe = null;
+
+            if (strings.recentLayoutsHeading && $title.length) {
+                $title.text(strings.recentLayoutsHeading);
+            }
+
+            if (strings.recentLayoutsEmpty) {
+                if ($empty.length) {
+                    $empty.text(strings.recentLayoutsEmpty);
+                }
+                $container.attr('data-empty-text', strings.recentLayoutsEmpty);
+            }
+
+            function render(entries) {
+                entries = Array.isArray(entries) ? entries : [];
+
+                if (!entries.length) {
+                    $viewport.empty();
+                    $empty.show();
+                    $navButtons.prop('disabled', true).attr('aria-disabled', 'true');
+                    return;
+                }
+
+                $empty.hide();
+
+                if (state.index >= entries.length) {
+                    state.index = 0;
+                }
+
+                if (state.index < 0) {
+                    state.index = 0;
+                }
+
+                var entry = entries[state.index];
+                var providerLabel = providerLabels[entry.provider] || entry.provider || '';
+                var metaParts = [];
+
+                if (entry.tier === 'quality' && (strings.qualityLabel || '').length) {
+                    metaParts.push(strings.qualityLabel);
+                } else if (entry.tier === 'fast' && (strings.fastLabel || '').length) {
+                    metaParts.push(strings.fastLabel);
+                }
+
+                if (providerLabel) {
+                    metaParts.push(providerLabel);
+                }
+
+                if (entry.model) {
+                    metaParts.push(entry.model);
+                }
+
+                var separator = strings.recentLayoutsMetaSeparator || strings.summarySeparator || ' • ';
+                var metaText = metaParts.join(separator);
+                var timestampText = '';
+
+                if (entry.timestamp) {
+                    var timestampDate = new Date(entry.timestamp * 1000);
+
+                    if (!isNaN(timestampDate.getTime())) {
+                        var formattedDate = timestampDate.toLocaleString();
+
+                        if (strings.recentLayoutsTimestamp) {
+                            timestampText = strings.recentLayoutsTimestamp.replace('%s', formattedDate);
+                        } else {
+                            timestampText = formattedDate;
+                        }
+                    }
+                }
+
+                var subtitleParts = [];
+
+                if (timestampText) {
+                    subtitleParts.push(timestampText);
+                }
+
+                if (metaText) {
+                    subtitleParts.push(metaText);
+                }
+
+                var subtitle = subtitleParts.join(separator);
+                var summary = entry.summary || defaultLayoutSummary;
+                var html = '' +
+                    '<article class="aimentor-layout-history__item" role="option" aria-selected="true" data-entry-id="' + escapeHtml(entry.id) + '">' +
+                    '  <div class="aimentor-layout-history__preview">' + escapeHtml(summary) + '</div>' +
+                    (subtitle ? '  <p class="aimentor-layout-history__meta">' + escapeHtml(subtitle) + '</p>' : '') +
+                    '  <button type="button" class="button button-secondary aimentor-layout-history__apply">' + escapeHtml(strings.recentLayoutsUse || 'Insert layout') + '</button>' +
+                    '</article>';
+
+                $viewport.html(html);
+
+                var disableNav = entries.length <= 1;
+                $navButtons.prop('disabled', disableNav).attr('aria-disabled', disableNav ? 'true' : 'false');
+            }
+
+            $navButtons.off('click.aimentor').on('click.aimentor', function() {
+                var entries = canvasHistoryStore.get();
+
+                if (!entries.length) {
+                    return;
+                }
+
+                var isNext = $(this).hasClass('aimentor-layout-history__nav-button--next');
+                state.index = (state.index + (isNext ? 1 : -1) + entries.length) % entries.length;
+                render(entries);
+            });
+
+            $container.off('click.aimentorHistory').on('click.aimentorHistory', '.aimentor-layout-history__apply', function(event) {
+                event.preventDefault();
+
+                var $item = $(this).closest('.aimentor-layout-history__item');
+                var entryId = $item.data('entry-id');
+
+                if (!entryId) {
+                    return;
+                }
+
+                var entries = canvasHistoryStore.get();
+                var entry = null;
+
+                for (var i = 0; i < entries.length; i++) {
+                    if (entries[i] && entries[i].id === entryId) {
+                        entry = entries[i];
+                        break;
+                    }
+                }
+
+                if (!entry) {
+                    return;
+                }
+
+                var parsedLayout = null;
+
+                try {
+                    parsedLayout = JSON.parse(entry.layout);
+                } catch (err) {
+                    parsedLayout = null;
+                }
+
+                if (!parsedLayout || !window.elementorFrontend || !elementorFrontend.elementsHandler) {
+                    return;
+                }
+
+                elementorFrontend.elementsHandler.addElements(parsedLayout);
+            });
+
+            unsubscribe = canvasHistoryStore.subscribe(function(entries) {
+                entries = Array.isArray(entries) ? entries : [];
+
+                if (!entries.length) {
+                    state.index = 0;
+                } else if (state.index >= entries.length) {
+                    state.index = 0;
+                }
+
+                render(entries);
+            });
+
+            $container.data('aimentorCarouselUnsub', unsubscribe);
+
+            $container.on('remove.aimentor', function() {
+                if (typeof unsubscribe === 'function') {
+                    unsubscribe();
+                    unsubscribe = null;
+                }
+            });
         }
 
         ensureBadgeStyles();
@@ -885,8 +1295,14 @@
 
                         if (response && response.success) {
                             var summaryText = extractResponseSummary(response, widgetState.provider, widgetState);
-                            if (response.data && response.data.canvas_json && window.elementorFrontend && elementorFrontend.elementsHandler) {
+                            var hasCanvasPayload = response.data && response.data.canvas_json;
+
+                            if (hasCanvasPayload && window.elementorFrontend && elementorFrontend.elementsHandler) {
                                 elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
+                            }
+
+                            if (hasCanvasPayload) {
+                                persistCanvasHistory(response.data, summaryText);
                             }
                             if ($output.length) {
                                 $output.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
@@ -1112,8 +1528,14 @@
 
                     if (response && response.success) {
                         var summaryText = extractResponseSummary(response, providerValue, selection);
-                        if (response.data && response.data.canvas_json && window.elementorFrontend && elementorFrontend.elementsHandler) {
+                        var hasCanvasPayload = response.data && response.data.canvas_json;
+
+                        if (hasCanvasPayload && window.elementorFrontend && elementorFrontend.elementsHandler) {
                             elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
+                        }
+
+                        if (hasCanvasPayload) {
+                            persistCanvasHistory(response.data, summaryText);
                         }
                         if (response.data && response.data.html) {
                             var snippet = response.data.html.substring(0, 160);
@@ -1176,6 +1598,18 @@
                 });
             });
         }
+
+        if (window.elementorFrontend && elementorFrontend.hooks && typeof elementorFrontend.hooks.addAction === 'function') {
+            ['aimentor-ai-generator', 'jaggrok-ai-generator'].forEach(function(slug) {
+                elementorFrontend.hooks.addAction('frontend/element_ready/' + slug + '.default', function($scope) {
+                    attachHistoryCarousel($scope);
+                });
+            });
+        }
+
+        $('.elementor-widget-aimentor-ai-generator, .elementor-widget-jaggrok-ai-generator').each(function() {
+            attachHistoryCarousel($(this));
+        });
 
         function buildPromptPresetData(catalog) {
             var data = {
