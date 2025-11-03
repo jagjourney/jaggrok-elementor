@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/aimentor/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.2.02
+ * Version: 1.3.00
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.2.02' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.3.00' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -239,6 +239,136 @@ function aimentor_register_asset_handles() {
         wp_register_script( 'aimentor-elementor-widget', $base . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), $version, true );
 }
 add_action( 'init', 'aimentor_register_asset_handles' );
+
+/**
+ * Register the private post type used to archive generated layouts.
+ */
+function aimentor_register_ai_layout_post_type() {
+        $archival_enabled = 'yes' === get_option( 'aimentor_archive_layouts', 'no' );
+        $show_ui_option   = 'yes' === get_option( 'aimentor_archive_layouts_show_ui', 'no' );
+        $show_ui          = $archival_enabled && $show_ui_option;
+
+        $labels = array(
+                'name'                  => __( 'AI Layouts', 'aimentor' ),
+                'singular_name'         => __( 'AI Layout', 'aimentor' ),
+                'menu_name'             => __( 'AI Layouts', 'aimentor' ),
+                'name_admin_bar'        => __( 'AI Layout', 'aimentor' ),
+                'add_new'               => __( 'Add New', 'aimentor' ),
+                'add_new_item'          => __( 'Add New AI Layout', 'aimentor' ),
+                'edit_item'             => __( 'Edit AI Layout', 'aimentor' ),
+                'new_item'              => __( 'New AI Layout', 'aimentor' ),
+                'view_item'             => __( 'View AI Layout', 'aimentor' ),
+                'search_items'          => __( 'Search AI Layouts', 'aimentor' ),
+                'not_found'             => __( 'No AI layouts found.', 'aimentor' ),
+                'not_found_in_trash'    => __( 'No AI layouts found in Trash.', 'aimentor' ),
+                'all_items'             => __( 'All AI Layouts', 'aimentor' ),
+                'archives'              => __( 'AI Layout Archives', 'aimentor' ),
+                'items_list'            => __( 'AI Layout list', 'aimentor' ),
+                'filter_items_list'     => __( 'Filter AI layouts list', 'aimentor' ),
+                'items_list_navigation' => __( 'AI layouts list navigation', 'aimentor' ),
+        );
+
+        register_post_type(
+                'ai_layout',
+                array(
+                        'labels'              => $labels,
+                        'public'              => false,
+                        'hierarchical'        => false,
+                        'show_ui'             => $show_ui,
+                        'show_in_menu'        => false,
+                        'show_in_admin_bar'   => $show_ui,
+                        'show_in_nav_menus'   => false,
+                        'show_in_rest'        => false,
+                        'supports'            => array( 'title', 'editor', 'excerpt' ),
+                        'menu_icon'           => 'dashicons-layout',
+                        'capability_type'     => 'post',
+                        'map_meta_cap'        => true,
+                        'has_archive'         => false,
+                        'rewrite'             => false,
+                        'query_var'           => false,
+                        'exclude_from_search' => true,
+                        'can_export'          => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_provider',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_text_field',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_prompt',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_textarea_field',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_generation_type',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_key',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_model',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_text_field',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_tier',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_key',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_task',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_key',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_payload_format',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_key',
+                        'show_in_rest'      => false,
+                )
+        );
+}
+add_action( 'init', 'aimentor_register_ai_layout_post_type', 5 );
 
 /**
  * Output the Elementor dependency notice.
@@ -919,6 +1049,20 @@ function jaggrok_generate_page_ajax() {
                         );
                 }
 
+                if ( function_exists( 'aimentor_maybe_archive_generation_payload' ) ) {
+                        aimentor_maybe_archive_generation_payload(
+                                $result['content'],
+                                array(
+                                        'type'     => 'canvas',
+                                        'prompt'   => $prompt,
+                                        'provider' => $provider_key,
+                                        'model'    => $model,
+                                        'task'     => $task,
+                                        'tier'     => $tier,
+                                )
+                        );
+                }
+
                 $response_payload['canvas_json'] = $result['content'];
                 wp_send_json_success( $response_payload );
         }
@@ -932,6 +1076,20 @@ function jaggrok_generate_page_ajax() {
                                 'task'   => $task,
                                 'tier'   => $tier,
                                 'origin' => 'generation',
+                        )
+                );
+        }
+
+        if ( function_exists( 'aimentor_maybe_archive_generation_payload' ) ) {
+                aimentor_maybe_archive_generation_payload(
+                        $result['content'],
+                        array(
+                                'type'     => 'content',
+                                'prompt'   => $prompt,
+                                'provider' => $provider_key,
+                                'model'    => $model,
+                                'task'     => $task,
+                                'tier'     => $tier,
                         )
                 );
         }
