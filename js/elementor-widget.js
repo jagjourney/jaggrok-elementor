@@ -83,7 +83,10 @@
         var savedPromptsData = aimentorData.savedPrompts || {};
         var savedPromptsStore = normalizeSavedPrompts(savedPromptsData);
         var savedPromptSelectNodes = [];
-        var promptPresetLookup = buildPromptPresetLookup(aimentorData.promptPresets || {});
+        var promptPresetData = buildPromptPresetData(aimentorData.promptPresets || {});
+        var promptPresetLookup = promptPresetData.presets;
+        var promptCategoryLookup = promptPresetData.categories;
+        var promptCategoryPresetMap = promptPresetData.categoryPresets;
         var savedPromptCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
 
         ensureBadgeStyles();
@@ -1020,34 +1023,64 @@
             });
         }
 
-        function buildPromptPresetLookup(catalog) {
-            var lookup = {};
+        function buildPromptPresetData(catalog) {
+            var data = {
+                presets: {},
+                categories: {},
+                categoryPresets: {}
+            };
             if (!catalog || typeof catalog !== 'object') {
-                return lookup;
+                return data;
             }
             Object.keys(catalog).forEach(function(providerKey) {
-                var providerPresets = catalog[providerKey];
-                if (!providerPresets || typeof providerPresets !== 'object') {
+                var providerEntry = catalog[providerKey];
+                if (!providerEntry || typeof providerEntry !== 'object') {
                     return;
                 }
-                Object.keys(providerPresets).forEach(function(presetKey) {
-                    var meta = providerPresets[presetKey];
-                    if (!meta || typeof meta !== 'object') {
+                Object.keys(providerEntry).forEach(function(categoryKey) {
+                    var categoryMeta = providerEntry[categoryKey];
+                    if (!categoryMeta || typeof categoryMeta !== 'object') {
                         return;
                     }
-                    var entry = {
-                        id: providerKey + '::' + presetKey,
-                        key: presetKey,
+                    var categoryId = providerKey + '::' + categoryKey;
+                    var categoryLabel = typeof categoryMeta.label === 'string' ? categoryMeta.label : categoryKey;
+                    var categoryDescription = typeof categoryMeta.description === 'string' ? categoryMeta.description : '';
+                    data.categories[categoryId] = {
+                        id: categoryId,
+                        key: categoryKey,
                         provider: providerKey,
-                        label: typeof meta.label === 'string' ? meta.label : presetKey,
-                        description: typeof meta.description === 'string' ? meta.description : '',
-                        prompt: typeof meta.prompt === 'string' ? meta.prompt : '',
-                        task: typeof meta.task === 'string' ? meta.task : ''
+                        label: categoryLabel,
+                        description: categoryDescription
                     };
-                    lookup[entry.id] = entry;
+                    data.categoryPresets[categoryId] = [];
+
+                    var presets = categoryMeta.presets;
+                    if (!presets || typeof presets !== 'object') {
+                        return;
+                    }
+
+                    Object.keys(presets).forEach(function(presetKey) {
+                        var presetMeta = presets[presetKey];
+                        if (!presetMeta || typeof presetMeta !== 'object') {
+                            return;
+                        }
+                        var presetId = providerKey + '::' + categoryKey + '::' + presetKey;
+                        data.presets[presetId] = {
+                            id: presetId,
+                            key: presetKey,
+                            provider: providerKey,
+                            categoryId: categoryId,
+                            categoryKey: categoryKey,
+                            label: typeof presetMeta.label === 'string' ? presetMeta.label : presetKey,
+                            description: typeof presetMeta.description === 'string' ? presetMeta.description : '',
+                            prompt: typeof presetMeta.prompt === 'string' ? presetMeta.prompt : '',
+                            task: typeof presetMeta.task === 'string' ? presetMeta.task : ''
+                        };
+                        data.categoryPresets[categoryId].push(presetId);
+                    });
                 });
             });
-            return lookup;
+            return data;
         }
 
         function getPromptPreset(value) {
@@ -1055,6 +1088,13 @@
                 return null;
             }
             return promptPresetLookup[value] || null;
+        }
+
+        function getPromptCategory(value) {
+            if (!value) {
+                return null;
+            }
+            return promptCategoryLookup[value] || null;
         }
 
         function mergePromptText($field, presetPrompt) {
@@ -1089,21 +1129,57 @@
                 return;
             }
             var providerName = providerLabels[preset.provider] || preset.provider || '';
+            var category = preset.categoryId ? getPromptCategory(preset.categoryId) : null;
             var pieces = [];
             if (providerName) {
                 pieces.push(providerName);
+            }
+            if (category && category.label) {
+                pieces.push(category.label);
             }
             if (preset.label) {
                 pieces.push(preset.label);
             }
             var headline = pieces.join(' • ');
-            var descriptionText = preset.description || '';
+            var descriptionText = preset.description || (category && category.description ? category.description : '');
             var message = headline;
             if (descriptionText) {
                 message = message ? headline + ' — ' + descriptionText : descriptionText;
             }
             if (!message) {
                 message = preset.key || '';
+            }
+            if (message) {
+                $target.text(message).show();
+            } else {
+                $target.text('').hide();
+            }
+        }
+
+        function renderCategoryDescription($target, category) {
+            if (!$target || !$target.length) {
+                return;
+            }
+            if (!category) {
+                $target.text('').hide();
+                return;
+            }
+            var providerName = providerLabels[category.provider] || category.provider || '';
+            var pieces = [];
+            if (providerName) {
+                pieces.push(providerName);
+            }
+            if (category.label) {
+                pieces.push(category.label);
+            }
+            var headline = pieces.join(' • ');
+            var descriptionText = category.description || '';
+            var message = headline;
+            if (descriptionText) {
+                message = message ? headline + ' — ' + descriptionText : descriptionText;
+            }
+            if (!message) {
+                message = category.key || '';
             }
             if (message) {
                 $target.text(message).show();
@@ -1131,26 +1207,107 @@
             if (!$panel || !$panel.length) {
                 return;
             }
+            var $categorySelect = $panel.find('select[data-setting="aimentor_prompt_category"]');
             var $presetSelect = $panel.find('select[data-setting="aimentor_prompt_preset"]');
             var $promptField = $panel.find('textarea[data-setting="aimentor_prompt_text"]');
             if (!$presetSelect.length || !$promptField.length) {
                 return;
             }
+
             var $control = $presetSelect.closest('.elementor-control');
             var $description = $control.find('.aimentor-preset-description');
             if (!$description.length) {
                 $description = $('<p class="aimentor-preset-description" style="margin-top:8px;font-size:12px;color:#4b5563;display:none;"></p>');
                 $control.find('.elementor-control-input-wrapper').append($description);
             }
-            var initialValue = $presetSelect.val() || '';
-            $presetSelect.data('aimentorLastPreset', initialValue);
-            applyPresetChoice($promptField, initialValue, false, $description);
+
+            var presetOptionCache = [];
+            $presetSelect.find('option').each(function() {
+                var optionValue = typeof this.value === 'string' ? this.value : '';
+                presetOptionCache.push({
+                    value: optionValue,
+                    label: $(this).text()
+                });
+            });
+
+            function buildAllowedPresetLookup(categoryId) {
+                if (!categoryId) {
+                    return null;
+                }
+                var presetIds = promptCategoryPresetMap[categoryId];
+                if (!Array.isArray(presetIds) || !presetIds.length) {
+                    return {};
+                }
+                var lookup = {};
+                presetIds.forEach(function(id) {
+                    lookup[id] = true;
+                });
+                return lookup;
+            }
+
+            function restorePresetOptions(categoryId, preserveSelection) {
+                var allowedLookup = buildAllowedPresetLookup(categoryId);
+                var previousValue = preserveSelection ? ($presetSelect.val() || '') : '';
+                var preservedMatch = false;
+
+                $presetSelect.empty();
+
+                presetOptionCache.forEach(function(option) {
+                    if (!option || typeof option.value === 'undefined') {
+                        return;
+                    }
+                    if (option.value && allowedLookup && !allowedLookup[option.value]) {
+                        return;
+                    }
+                    var $option = $('<option></option>').val(option.value).text(option.label);
+                    $presetSelect.append($option);
+                    if (option.value === previousValue) {
+                        preservedMatch = true;
+                    }
+                });
+
+                var finalValue = preservedMatch ? previousValue : '';
+                $presetSelect.val(finalValue);
+                $presetSelect.data('aimentorLastPreset', finalValue);
+                applyPresetChoice($promptField, finalValue, false, $description);
+            }
+
+            var $categoryDescription = $();
+            if ($categorySelect.length) {
+                var $categoryControl = $categorySelect.closest('.elementor-control');
+                $categoryDescription = $categoryControl.find('.aimentor-preset-category-description');
+                if (!$categoryDescription.length) {
+                    $categoryDescription = $('<p class="aimentor-preset-category-description" style="margin-top:8px;font-size:12px;color:#4b5563;display:none;"></p>');
+                    $categoryControl.find('.elementor-control-input-wrapper').append($categoryDescription);
+                }
+                var initialCategoryValue = $categorySelect.val() || '';
+                renderCategoryDescription($categoryDescription, getPromptCategory(initialCategoryValue));
+                restorePresetOptions(initialCategoryValue, true);
+
+                $categorySelect.off('change.aimentorPresetCategory').on('change.aimentorPresetCategory', function() {
+                    var value = $(this).val() || '';
+                    renderCategoryDescription($categoryDescription, getPromptCategory(value));
+                    restorePresetOptions(value, false);
+                });
+            } else {
+                restorePresetOptions('', true);
+            }
 
             $presetSelect.off('change.aimentorPreset').on('change.aimentorPreset', function() {
                 var value = $(this).val() || '';
                 var previous = $presetSelect.data('aimentorLastPreset') || '';
                 $presetSelect.data('aimentorLastPreset', value);
                 applyPresetChoice($promptField, value, !!value && value !== previous, $description);
+
+                if ($categorySelect.length) {
+                    var preset = getPromptPreset(value);
+                    var presetCategoryId = preset && preset.categoryId ? preset.categoryId : '';
+                    if (presetCategoryId && presetCategoryId !== ($categorySelect.val() || '')) {
+                        $categorySelect.val(presetCategoryId);
+                        renderCategoryDescription($categoryDescription, getPromptCategory(presetCategoryId));
+                        restorePresetOptions(presetCategoryId, true);
+                    }
+                }
             });
         }
 
