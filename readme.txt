@@ -88,6 +88,7 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 
 == Changelog ==
 = 1.0.10 =
+* Rolled the plugin metadata, changelog references, and distribution manifest back to version 1.0.10 so the published ZIP and WordPress update prompts match the intended release.
 * Scheduled a daily provider health check that re-tests active API connections and keeps the cron aligned with the settings toggle.
 * Recorded consecutive connection failures, clearing counters on success and surfacing administrator alerts when thresholds are exceeded.
 * Added settings toggles to control automated checks, enable alert emails, and configure notification recipients directly from the dashboard.
