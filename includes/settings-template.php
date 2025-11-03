@@ -1,7 +1,6 @@
 
 <div class="wrap">
-    <h1><img src="<?php echo plugin_dir_url( __DIR__ ); ?>assets/icon-128x128.png" style="height:40px; vertical-align:middle;">
-        AiMentor Elementor Settings</h1>
+    <h1>AiMentor Elementor Settings</h1>
     <style>
         .aimentor-provider-badge {
             display: inline-flex;
