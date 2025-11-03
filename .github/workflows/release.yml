@@ -121,6 +121,41 @@ jobs:
           echo "zip_path=$PWD/${ZIP_NAME}" >> "$GITHUB_OUTPUT"
           echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
 
+      - name: Verify archive structure
+        run: |
+          set -euo pipefail
+
+          ZIP_PATH='${{ steps.package.outputs.zip_path }}'
+          SLUG='${{ env.PLUGIN_SLUG }}'
+
+          if [ ! -f "$ZIP_PATH" ]; then
+            echo "::error ::Expected archive $ZIP_PATH not found" >&2
+            exit 1
+          fi
+
+          mapfile -t ENTRIES < <(zipinfo -1 "$ZIP_PATH")
+
+          if [ "${#ENTRIES[@]}" -eq 0 ]; then
+            echo "::error ::Archive $ZIP_PATH is empty" >&2
+            exit 1
+          fi
+
+          BAD=0
+          for ENTRY in "${ENTRIES[@]}"; do
+            # Extract top-level directory name (characters before the first '/')
+            TOP_LEVEL="${ENTRY%%/*}"
+
+            if [ -z "$TOP_LEVEL" ] || [ "$TOP_LEVEL" != "$SLUG" ]; then
+              echo "::error ::Archive entry '$ENTRY' is not under ${SLUG}/" >&2
+              BAD=1
+            fi
+          done
+
+          if [ "$BAD" -ne 0 ]; then
+            echo "::error ::Archive contains entries outside of ${SLUG}/. Rebuild the package before retrying." >&2
+            exit 1
+          fi
+
       - name: Attach archive to release
         uses: softprops/action-gh-release@v1
         with:
