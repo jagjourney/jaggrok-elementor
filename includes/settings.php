@@ -1414,6 +1414,314 @@ function aimentor_register_generation_history_route() {
 }
 add_action( 'rest_api_init', 'aimentor_register_generation_history_route' );
 
+function aimentor_perform_generation_request( $prompt, $provider_key = '', $args = [] ) {
+        $args = wp_parse_args(
+                $args,
+                [
+                        'task'          => '',
+                        'tier'          => '',
+                        'origin'        => 'rest',
+                        'max_tokens'    => null,
+                        'store_history' => true,
+                        'user_id'       => get_current_user_id(),
+                ]
+        );
+
+        $prompt = sanitize_textarea_field( (string) $prompt );
+
+        if ( '' === $prompt ) {
+                return new WP_Error( 'aimentor_missing_prompt', __( 'Prompt is required.', 'aimentor' ) );
+        }
+
+        $provider_labels = aimentor_get_provider_labels();
+
+        if ( '' === $provider_key ) {
+                $provider_key = get_option( 'aimentor_provider', 'grok' );
+        }
+
+        $provider_key = sanitize_key( (string) $provider_key );
+
+        if ( function_exists( 'aimentor_sanitize_provider' ) ) {
+                $provider_key = aimentor_sanitize_provider( $provider_key );
+        }
+
+        if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
+                return new WP_Error( 'aimentor_invalid_provider', __( 'Invalid provider selected.', 'aimentor' ) );
+        }
+
+        if ( ! function_exists( 'jaggrok_get_active_provider' ) ) {
+                return new WP_Error( 'aimentor_missing_provider_factory', __( 'Provider factory is unavailable.', 'aimentor' ) );
+        }
+
+        $provider = jaggrok_get_active_provider( $provider_key );
+
+        if ( ! $provider instanceof AiMentor_Provider_Interface ) {
+                return new WP_Error( 'aimentor_provider_configuration', __( 'Provider configuration error.', 'aimentor' ) );
+        }
+
+        $requested_task = sanitize_key( (string) $args['task'] );
+        $requested_tier = sanitize_key( (string) $args['tier'] );
+
+        if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
+                $requested_task = aimentor_sanitize_generation_type( $requested_task );
+        } else {
+                $requested_task = $requested_task ? jaggrok_normalize_generation_task( $requested_task ) : '';
+        }
+
+        if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
+                $requested_tier = aimentor_sanitize_performance_tier( $requested_tier );
+        } else {
+                $requested_tier = $requested_tier ? jaggrok_normalize_performance_tier( $requested_tier ) : '';
+        }
+
+        $is_pro          = function_exists( 'aimentor_is_pro_active' ) ? aimentor_is_pro_active() : false;
+        $supports_canvas = $provider->supports_canvas();
+        $resolution      = jaggrok_resolve_generation_preset(
+                $provider_key,
+                $requested_task,
+                $requested_tier,
+                $supports_canvas,
+                $is_pro
+        );
+
+        $task  = $resolution['task'];
+        $tier  = $resolution['tier'];
+        $model = $resolution['model'];
+
+        switch ( $provider_key ) {
+                case 'openai':
+                        $api_key = get_option( 'aimentor_openai_api_key' );
+                        break;
+                case 'grok':
+                default:
+                        $api_key = get_option( 'aimentor_xai_api_key' );
+                        break;
+        }
+
+        $max_tokens = null === $args['max_tokens'] ? get_option( 'aimentor_max_tokens', 2000 ) : absint( $args['max_tokens'] );
+
+        if ( function_exists( 'aimentor_sanitize_max_tokens' ) ) {
+                $max_tokens = aimentor_sanitize_max_tokens( $max_tokens );
+        }
+
+        $origin  = sanitize_key( (string) ( $args['origin'] ?: 'rest' ) );
+        $context = [
+                'task'   => $task,
+                'tier'   => $tier,
+                'origin' => $origin,
+        ];
+
+        $result = $provider->request(
+                $prompt,
+                [
+                        'api_key'    => $api_key,
+                        'model'      => $model,
+                        'max_tokens' => $max_tokens,
+                        'context'    => $context,
+                ]
+        );
+
+        if ( is_wp_error( $result ) ) {
+                if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                        aimentor_record_provider_usage(
+                                $provider_key,
+                                'error',
+                                [
+                                        'model'  => $model,
+                                        'task'   => $task,
+                                        'tier'   => $tier,
+                                        'origin' => $origin,
+                                ]
+                        );
+                }
+
+                if ( function_exists( 'aimentor_log_error' ) ) {
+                        aimentor_log_error(
+                                $result->get_error_message(),
+                                [
+                                        'provider' => $provider_key,
+                                        'model'    => $model,
+                                        'task'     => $task,
+                                        'tier'     => $tier,
+                                        'origin'   => $origin,
+                                        'user_id'  => $args['user_id'],
+                                ]
+                        );
+                }
+
+                $error_data = $result->get_error_data();
+
+                if ( ! is_array( $error_data ) ) {
+                        $error_data = [];
+                }
+
+                $error_data = array_merge(
+                        [
+                                'provider' => $provider_key,
+                                'model'    => $model,
+                                'task'     => $task,
+                                'tier'     => $tier,
+                        ],
+                        $error_data
+                );
+
+                $error_code = $result->get_error_code();
+
+                if ( ! $error_code ) {
+                        $error_code = 'aimentor_generation_failed';
+                }
+
+                return new WP_Error( $error_code, $result->get_error_message(), $error_data );
+        }
+
+        if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                aimentor_record_provider_usage(
+                        $provider_key,
+                        'success',
+                        [
+                                'model'  => $model,
+                                'task'   => $task,
+                                'tier'   => $tier,
+                                'origin' => $origin,
+                        ]
+                );
+        }
+
+        if ( function_exists( 'aimentor_store_generation_history_entry' ) && $args['store_history'] ) {
+                $history_result = aimentor_store_generation_history_entry( $prompt, $provider_key );
+
+                if ( is_wp_error( $history_result ) && function_exists( 'aimentor_log_error' ) ) {
+                        aimentor_log_error(
+                                $history_result->get_error_message(),
+                                [
+                                        'provider' => $provider_key,
+                                        'model'    => $model,
+                                        'task'     => $task,
+                                        'tier'     => $tier,
+                                        'origin'   => $origin,
+                                        'user_id'  => $args['user_id'],
+                                ]
+                        );
+                }
+        }
+
+        if ( function_exists( 'aimentor_maybe_archive_generation_payload' ) ) {
+                $archive_type = isset( $result['type'] ) && 'canvas' === $result['type'] ? 'canvas' : 'content';
+
+                aimentor_maybe_archive_generation_payload(
+                        $result['content'],
+                        [
+                                'type'     => $archive_type,
+                                'prompt'   => $prompt,
+                                'provider' => $provider_key,
+                                'model'    => $model,
+                                'task'     => $task,
+                                'tier'     => $tier,
+                                'origin'   => $origin,
+                        ]
+                );
+        }
+
+        $payload = [
+                'provider'       => $provider_key,
+                'provider_label' => $provider_labels[ $provider_key ] ?? ucfirst( $provider_key ),
+                'model'          => $model,
+                'task'           => $task,
+                'tier'           => $tier,
+                'type'           => isset( $result['type'] ) && 'canvas' === $result['type'] ? 'canvas' : 'content',
+        ];
+
+        if ( ! empty( $result['rate_limit'] ) ) {
+                $payload['rate_limit'] = $result['rate_limit'];
+        }
+
+        if ( 'canvas' === $payload['type'] ) {
+                $payload['canvas_json'] = $result['content'];
+        } else {
+                $payload['html'] = (string) $result['content'];
+        }
+
+        return $payload;
+}
+
+function aimentor_rest_generate_permissions_check( WP_REST_Request $request ) {
+        return current_user_can( 'edit_posts' );
+}
+
+function aimentor_rest_generate_content( WP_REST_Request $request ) {
+        $prompt        = $request->get_param( 'prompt' );
+        $provider      = $request->get_param( 'provider' );
+        $task          = $request->get_param( 'task' );
+        $tier          = $request->get_param( 'tier' );
+        $max_tokens    = $request->get_param( 'max_tokens' );
+        $store_history = $request->get_param( 'store_history' );
+
+        $result = aimentor_perform_generation_request(
+                $prompt,
+                $provider,
+                [
+                        'task'          => is_string( $task ) ? $task : '',
+                        'tier'          => is_string( $tier ) ? $tier : '',
+                        'origin'        => 'rest',
+                        'max_tokens'    => null !== $max_tokens ? $max_tokens : null,
+                        'store_history' => null === $store_history ? true : wp_validate_boolean( $store_history ),
+                        'user_id'       => get_current_user_id(),
+                ]
+        );
+
+        if ( is_wp_error( $result ) ) {
+                return $result;
+        }
+
+        return new WP_REST_Response( $result, 200 );
+}
+
+function aimentor_register_generation_route() {
+        register_rest_route(
+                'aimentor/v1',
+                '/generate',
+                [
+                        [
+                                'methods'             => WP_REST_Server::CREATABLE,
+                                'callback'            => 'aimentor_rest_generate_content',
+                                'permission_callback' => 'aimentor_rest_generate_permissions_check',
+                                'args'                => [
+                                        'prompt' => [
+                                                'type'              => 'string',
+                                                'required'          => true,
+                                                'sanitize_callback' => 'sanitize_textarea_field',
+                                        ],
+                                        'provider' => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'task' => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'tier' => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'max_tokens' => [
+                                                'type'              => 'integer',
+                                                'required'          => false,
+                                                'validate_callback' => 'is_numeric',
+                                        ],
+                                        'store_history' => [
+                                                'type'              => 'boolean',
+                                                'required'          => false,
+                                        ],
+                                ],
+                        ],
+                ]
+        );
+}
+add_action( 'rest_api_init', 'aimentor_register_generation_route' );
+
 function aimentor_get_provider_usage_summary() {
         $data            = aimentor_get_provider_usage_data();
         $labels          = aimentor_get_provider_labels();

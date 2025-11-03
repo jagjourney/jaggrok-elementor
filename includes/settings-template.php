@@ -66,6 +66,22 @@
 
     <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By AiMentor</a></p>
 
+    <div class="notice notice-info" style="max-width: 720px;">
+        <p>
+            <strong><?php esc_html_e( 'Remote generation endpoint', 'aimentor' ); ?></strong>
+            <?php
+            printf(
+                    /* translators: %s: REST endpoint URL */
+                    esc_html__( 'Send authenticated POST requests to %s with prompt and provider parameters to trigger AiMentor remotely.', 'aimentor' ),
+                    '<code>' . esc_html( rest_url( 'aimentor/v1/generate' ) ) . '</code>'
+            );
+            ?>
+        </p>
+        <p class="description">
+            <?php esc_html_e( 'Use an X-WP-Nonce header created with wp_create_nonce(\'wp_rest\') for browser-based requests or authenticate with a WordPress Application Password for server-to-server integrations.', 'aimentor' ); ?>
+        </p>
+    </div>
+
     <?php
     $defaults       = aimentor_get_default_options();
     $usage_metrics  = isset( $aimentor_usage_metrics ) && is_array( $aimentor_usage_metrics ) ? $aimentor_usage_metrics : aimentor_get_provider_usage_summary();
