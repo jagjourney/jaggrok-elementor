@@ -39,34 +39,33 @@ Occasionally you may need to reset the published version to `0.0.001` (for examp
 - Document the rationale in the changelog so users understand why the version dropped.
 - Publish the reset tag (`v0.0.001`) so WordPress update clients receive the corrective build. WordPress will treat the release as the latest version because it follows GitHub's published timestamp, not semver ordering.
 
-## Cutting a release
+## Cut the next release
 
 1. **Prepare code & changelog**
-   - Confirm `main` includes the merged version bump, changelog entry, and any supporting documentation updates.
-   - Review `docs/release-guide.md` and related checklists for accuracy, updating them if the release introduces new requirements.
-   - Verify the changelog clearly highlights user-facing changes, upgrade notes, and any known issues.
+   - [ ] Confirm `main` includes the merged version bump, changelog entry, and supporting documentation updates.
+   - [ ] Review this guide and other checklists for accuracy, updating them if the release introduces new requirements.
+   - [ ] Verify the changelog clearly highlights user-facing changes, upgrade notes, and any known issues.
 2. **Create the tag**
-   - Create an annotated tag that follows the `vX.Y.Z` convention (for example, `git tag -a v1.5.0 -m 'Release v1.5.0'`).
-   - Double-check the tagged commit matches the intended `main` SHA before pushing.
-   - Push the tag to GitHub with `git push origin vX.Y.Z` and note the timestamp for release notes.
+   - [ ] Create an annotated tag that follows the `vX.Y.Z` convention (for example, `git tag -a v1.0.00 -m 'Release v1.0.00'`).
+   - [ ] Double-check the tagged commit matches the intended `main` SHA before pushing.
+   - [ ] Push the tag to GitHub with `git push origin vX.Y.Z` and capture the timestamp for release notes.
 3. **Draft the release**
-   - Navigate to **Releases → Draft a new release**, select the new tag, and populate the release notes (reusing the changelog entry where helpful).
-   - Attach any prebuilt ZIP asset if the automation should reuse a handcrafted package; otherwise note that CI will build it.
-   - Keep the release in draft until stakeholders approve the notes and asset plan, then publish to trigger `.github/workflows/release.yml`.
+   - [ ] Navigate to **Releases → Draft a new release**, select the new tag, and populate the release notes (reuse the changelog entry where helpful).
+   - [ ] Attach any prebuilt ZIP asset if the automation should reuse a handcrafted package; otherwise document that CI will build it.
+   - [ ] Keep the release in draft until stakeholders approve the notes and asset plan, then publish to trigger `.github/workflows/release.yml`.
 4. **Monitor automation**
-   - Watch the release workflow run in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds.
-   - Capture logs or screenshots if you need to document unusual warnings for later follow-up.
-   - If the workflow fails, remediate the issue, retag if necessary, and rerun the workflow before announcing the release.
+   - [ ] Watch the release workflow in **Actions → Release** and confirm each job (build, artifact upload, manifest update) succeeds.
+   - [ ] Capture logs or screenshots if you need to document unusual warnings for later follow-up.
+   - [ ] If the workflow fails, remediate the issue, retag if necessary, and rerun the workflow before announcing the release.
 5. **Verify assets & manifest**
-   - Open the published release to ensure the ZIP asset exists, is named `aimentor-elementor-vX.Y.Z.zip`, and lists the correct build timestamp.
-   - Download the asset locally to spot-check the archive contents and plugin metadata.
-   - Inspect `gh-pages/manifests/aimentor-plugin-info.json` to confirm it references the new tag, download URL, and checksum.
-6. **Socialize the guide updates**
-   - Share any adjustments you made to this release checklist with collaborators via the agreed documentation or communication channels.
-   - Encourage feedback so future releases stay aligned with tooling and stakeholder expectations.
-7. **Post-release monitoring**
-   - Track support channels for regression reports and document confirmed issues for the next release cycle.
-   - Schedule a brief retrospective to capture automation lessons, manual gaps, or process improvements.
+   - [ ] Open the published release to ensure the ZIP asset exists, is named `aimentor-elementor-vX.Y.Z.zip`, and lists the correct build timestamp.
+   - [ ] Download the asset locally to spot-check the archive contents and plugin metadata.
+   - [ ] Inspect `gh-pages/manifests/aimentor-plugin-info.json` to confirm it references the new tag, download URL, and checksum.
+
+### Follow-up tasks
+
+- [ ] Socialize any updates you made to this checklist with collaborators through the agreed documentation or communication channels.
+- [ ] Monitor support channels after publication, document confirmed issues for the next release cycle, and schedule a retrospective if needed.
 
 ## Post-release cleanup
 

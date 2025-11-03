@@ -74,7 +74,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
         /**
          * Filter the saved prompt options exposed to the Elementor widget control.
          *
-         * @since 0.0.001
+         * @since 1.0.00
          *
          * @param array $options Saved prompt select options.
          * @param array $payload Raw saved prompt payload grouped by scope.
