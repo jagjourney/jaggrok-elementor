@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// AiMentor SETTINGS PAGE v1.3.8 (MODEL UPDATE + TIMEOUT LOG)
+// AiMentor SETTINGS PAGE v1.3.15 (PROVIDER TEST METRICS)
 // ============================================================================
 
 function aimentor_get_provider_model_defaults() {
@@ -1958,15 +1958,53 @@ function aimentor_get_provider_usage_summary() {
         return $summary;
 }
 
+function aimentor_normalize_provider_test_history( $history, $limit = 10 ) {
+        if ( ! is_array( $history ) ) {
+                return [];
+        }
+
+        $allowed_statuses = [ 'success', 'error' ];
+        $normalized       = [];
+
+        foreach ( $history as $entry ) {
+                if ( ! is_array( $entry ) ) {
+                        continue;
+                }
+
+                $status = isset( $entry['status'] ) ? $entry['status'] : '';
+
+                if ( ! in_array( $status, $allowed_statuses, true ) ) {
+                        continue;
+                }
+
+                $timestamp = isset( $entry['timestamp'] ) ? absint( $entry['timestamp'] ) : 0;
+
+                $normalized[] = [
+                        'status'    => $status,
+                        'timestamp' => $timestamp,
+                ];
+        }
+
+        if ( $limit > 0 && count( $normalized ) > $limit ) {
+                $normalized = array_slice( $normalized, - $limit );
+        }
+
+        return $normalized;
+}
+
 function aimentor_get_provider_test_statuses() {
         $providers = array_keys( aimentor_get_provider_labels() );
         $defaults  = [];
+        $history_limit = apply_filters( 'aimentor_provider_test_history_limit', 10 );
 
         foreach ( $providers as $provider ) {
                 $defaults[ $provider ] = [
-                        'status'    => '',
-                        'message'   => '',
-                        'timestamp' => 0,
+                        'status'        => '',
+                        'message'       => '',
+                        'timestamp'     => 0,
+                        'success_count' => 0,
+                        'failure_count' => 0,
+                        'history'       => [],
                 ];
         }
 
@@ -1985,11 +2023,17 @@ function aimentor_get_provider_test_statuses() {
 
                 $message = isset( $entry['message'] ) ? sanitize_text_field( $entry['message'] ) : '';
                 $timestamp = isset( $entry['timestamp'] ) ? absint( $entry['timestamp'] ) : 0;
+                $success_count = isset( $entry['success_count'] ) ? absint( $entry['success_count'] ) : 0;
+                $failure_count = isset( $entry['failure_count'] ) ? absint( $entry['failure_count'] ) : 0;
+                $history       = isset( $entry['history'] ) ? aimentor_normalize_provider_test_history( $entry['history'], $history_limit ) : [];
 
                 $defaults[ $provider ] = [
-                        'status'    => $status,
-                        'message'   => $message,
-                        'timestamp' => $timestamp,
+                        'status'        => $status,
+                        'message'       => $message,
+                        'timestamp'     => $timestamp,
+                        'success_count' => $success_count,
+                        'failure_count' => $failure_count,
+                        'history'       => $history,
                 ];
         }
 
@@ -2069,12 +2113,93 @@ function aimentor_update_provider_test_status( $provider_key, $status, $message 
         }
 
         $sanitized_status = in_array( $status, $allowed_statuses, true ) ? $status : '';
+        $history_limit    = apply_filters( 'aimentor_provider_test_history_limit', 10 );
+        $existing         = isset( $statuses[ $provider_key ] ) && is_array( $statuses[ $provider_key ] ) ? $statuses[ $provider_key ] : [];
+        $success_count    = isset( $existing['success_count'] ) ? absint( $existing['success_count'] ) : 0;
+        $failure_count    = isset( $existing['failure_count'] ) ? absint( $existing['failure_count'] ) : 0;
+        $history          = isset( $existing['history'] ) ? aimentor_normalize_provider_test_history( $existing['history'], $history_limit ) : [];
+        $timestamp        = current_time( 'timestamp' );
+
+        if ( 'success' === $sanitized_status ) {
+                $success_count++;
+        } elseif ( 'error' === $sanitized_status ) {
+                $failure_count++;
+        }
+
+        if ( in_array( $sanitized_status, $allowed_statuses, true ) ) {
+                $history[] = [
+                        'status'    => $sanitized_status,
+                        'timestamp' => $timestamp,
+                ];
+
+                if ( $history_limit > 0 && count( $history ) > $history_limit ) {
+                        $history = array_slice( $history, - $history_limit );
+                }
+        }
 
         $statuses[ $provider_key ] = [
-                'status'    => $sanitized_status,
-                'message'   => sanitize_text_field( $message ),
-                'timestamp' => current_time( 'timestamp' ),
+                'status'        => $sanitized_status,
+                'message'       => sanitize_text_field( $message ),
+                'timestamp'     => $timestamp,
+                'success_count' => $success_count,
+                'failure_count' => $failure_count,
+                'history'       => $history,
         ];
+
+        update_option( 'aimentor_provider_test_statuses', $statuses );
+}
+
+function aimentor_maybe_increment_provider_test_counters( $provider_key, $status, $timestamp ) {
+        $allowed_statuses = [ 'success', 'error' ];
+
+        if ( ! in_array( $status, $allowed_statuses, true ) ) {
+                return;
+        }
+
+        $statuses = get_option( 'aimentor_provider_test_statuses', [] );
+
+        if ( ! is_array( $statuses ) || ! isset( $statuses[ $provider_key ] ) || ! is_array( $statuses[ $provider_key ] ) ) {
+                return;
+        }
+
+        $history_limit = apply_filters( 'aimentor_provider_test_history_limit', 10 );
+
+        $entry         = $statuses[ $provider_key ];
+        $success_count = isset( $entry['success_count'] ) ? absint( $entry['success_count'] ) : 0;
+        $failure_count = isset( $entry['failure_count'] ) ? absint( $entry['failure_count'] ) : 0;
+        $history       = isset( $entry['history'] ) ? aimentor_normalize_provider_test_history( $entry['history'], $history_limit ) : [];
+        $timestamp     = absint( $timestamp );
+
+        if ( $timestamp <= 0 ) {
+                $timestamp = current_time( 'timestamp' );
+        }
+
+        $last_entry = end( $history );
+
+        if ( $last_entry && $last_entry['status'] === $status && $last_entry['timestamp'] === $timestamp ) {
+                return;
+        }
+
+        if ( 'success' === $status ) {
+                $success_count++;
+        } else {
+                $failure_count++;
+        }
+
+        $history[] = [
+                'status'    => $status,
+                'timestamp' => $timestamp,
+        ];
+
+        if ( $history_limit > 0 && count( $history ) > $history_limit ) {
+                $history = array_slice( $history, - $history_limit );
+        }
+
+        $entry['success_count'] = $success_count;
+        $entry['failure_count'] = $failure_count;
+        $entry['history']       = $history;
+
+        $statuses[ $provider_key ] = $entry;
 
         update_option( 'aimentor_provider_test_statuses', $statuses );
 }
@@ -2093,6 +2218,15 @@ function aimentor_format_provider_status_for_display( $provider_key, $status_dat
                 : 'idle';
         $timestamp       = isset( $status_data['timestamp'] ) ? absint( $status_data['timestamp'] ) : 0;
         $message         = isset( $status_data['message'] ) ? $status_data['message'] : '';
+        $success_count   = isset( $status_data['success_count'] ) ? absint( $status_data['success_count'] ) : 0;
+        $failure_count   = isset( $status_data['failure_count'] ) ? absint( $status_data['failure_count'] ) : 0;
+        $history         = isset( $status_data['history'] ) ? aimentor_normalize_provider_test_history( $status_data['history'] ) : [];
+        $total_count     = $success_count + $failure_count;
+        $success_rate    = $total_count > 0 ? round( ( $success_count / $total_count ) * 100, 1 ) : null;
+        $rate_decimals   = ( null !== $success_rate && abs( $success_rate - (int) $success_rate ) > 0 ) ? 1 : 0;
+        $success_rate_formatted = null !== $success_rate ? number_format_i18n( $success_rate, $rate_decimals ) : null;
+        $summary_label = '';
+        $metrics_label = '';
         $description     = __( 'No tests have been run yet.', 'aimentor' );
 
         if ( $timestamp > 0 ) {
@@ -2119,11 +2253,43 @@ function aimentor_format_provider_status_for_display( $provider_key, $status_dat
                 $state = 'idle';
         }
 
+        if ( $total_count > 0 ) {
+                $rate_label   = null !== $success_rate_formatted ? $success_rate_formatted . '%' : number_format_i18n( $success_count );
+                $summary_label = sprintf(
+                        /* translators: 1: success rate percentage, 2: successful tests, 3: total tests */
+                        __( '%1$s success • %2$d/%3$d', 'aimentor' ),
+                        $rate_label,
+                        $success_count,
+                        $total_count
+                );
+                $metrics_label = sprintf(
+                        /* translators: 1: success rate percentage, 2: total tests, 3: successful tests, 4: failed tests */
+                        __( 'Success rate %1$s across %2$d tests (%3$d success, %4$d failure).', 'aimentor' ),
+                        $rate_label,
+                        $total_count,
+                        $success_count,
+                        $failure_count
+                );
+        } else {
+                $summary_label = __( 'No tests yet', 'aimentor' );
+                $metrics_label = __( 'No connection tests recorded yet.', 'aimentor' );
+        }
+
         return [
-                'badge_state' => $state,
-                'badge_label' => $badge_labels[ $state ],
-                'description' => $description,
-                'timestamp'   => $timestamp,
+                'badge_state'            => $state,
+                'badge_label'            => $badge_labels[ $state ],
+                'description'            => $description,
+                'timestamp'              => $timestamp,
+                'message'                => $message,
+                'success_count'          => $success_count,
+                'failure_count'          => $failure_count,
+                'total_count'            => $total_count,
+                'success_rate'           => $success_rate,
+                'success_rate_formatted' => $success_rate_formatted,
+                'summary_label'          => $summary_label,
+                'metrics_label'          => $metrics_label,
+                'history'                => $history,
+                'raw_status'             => $status_data['status'] ?? '',
         ];
 }
 
@@ -3483,7 +3649,7 @@ function aimentor_get_usage_metrics_ajax() {
 add_action( 'wp_ajax_aimentor_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 add_action( 'wp_ajax_jaggrok_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 
-// AJAX Test API (v1.3.8 - MODEL UPDATE + TIMEOUT LOG)
+// AJAX Test API (v1.3.15 - PROVIDER TEST METRICS)
 function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
         $args = wp_parse_args(
                 $args,
@@ -3752,12 +3918,24 @@ function aimentor_test_api_connection() {
                 $view['provider'] = $provider_key;
                 $view['message']  = $result->get_error_message();
 
+                aimentor_maybe_increment_provider_test_counters(
+                        $provider_key,
+                        $status[ $provider_key ]['status'] ?? '',
+                        $status[ $provider_key ]['timestamp'] ?? 0
+                );
+
                 wp_send_json_error( $view, 400 );
         }
 
         $status = aimentor_get_provider_test_statuses();
         $view   = aimentor_format_provider_status_for_display( $provider_key, $status[ $provider_key ] ?? [] );
         $view['provider'] = $provider_key;
+
+        aimentor_maybe_increment_provider_test_counters(
+                $provider_key,
+                $status[ $provider_key ]['status'] ?? '',
+                $status[ $provider_key ]['timestamp'] ?? 0
+        );
 
         wp_send_json_success( $view );
 }
@@ -4002,7 +4180,7 @@ function aimentor_run_scheduled_provider_checks() {
         update_option( 'aimentor_provider_health_failures', $state );
 }
 
-// ERROR LOGGING FUNCTION (v1.3.8)
+// ERROR LOGGING FUNCTION (v1.3.15)
 function aimentor_log_error( $message, $context = [] ) {
         if ( function_exists( 'aimentor_get_error_log_path' ) ) {
                 $log_file = aimentor_get_error_log_path();

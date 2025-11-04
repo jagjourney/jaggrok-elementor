@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.14
+Stable tag: 1.3.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.15 =
+* Added persistent success and failure counters for each provider so connection tests now track long-term reliability.
+* Surfaced per-provider test totals and success rates in the settings panel to keep administrators informed at a glance.
+* Rendered inline sparkline charts beside each provider badge to visualize recent test outcomes directly in the dashboard.
+
 = 1.3.14 =
 * Added per-provider override settings for timeout and temperature so advanced teams can fine-tune request behavior.
 * Introduced an "Advanced" accordion on the settings screen with granular numeric controls for the new overrides.

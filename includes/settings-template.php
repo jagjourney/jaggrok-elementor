@@ -356,10 +356,36 @@
                         <p class="description">
                             <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="grok"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
-                        <?php $grok_status = isset( $provider_status_views['grok'] ) ? $provider_status_views['grok'] : aimentor_format_provider_status_for_display( 'grok', [] ); ?>
-                        <div class="aimentor-provider-status jaggrok-provider-status" data-provider="grok" data-timestamp="<?php echo esc_attr( $grok_status['timestamp'] ); ?>" aria-live="polite">
+                        <?php
+                        $grok_status         = isset( $provider_status_views['grok'] ) ? $provider_status_views['grok'] : aimentor_format_provider_status_for_display( 'grok', [] );
+                        $grok_history_json   = isset( $grok_status['history'] ) ? wp_json_encode( $grok_status['history'] ) : '[]';
+                        $grok_history_json   = $grok_history_json ? $grok_history_json : '[]';
+                        $grok_success_count  = isset( $grok_status['success_count'] ) ? absint( $grok_status['success_count'] ) : 0;
+                        $grok_failure_count  = isset( $grok_status['failure_count'] ) ? absint( $grok_status['failure_count'] ) : 0;
+                        $grok_total_count    = isset( $grok_status['total_count'] ) ? absint( $grok_status['total_count'] ) : ( $grok_success_count + $grok_failure_count );
+                        $grok_success_rate   = isset( $grok_status['success_rate'] ) && is_numeric( $grok_status['success_rate'] ) ? (string) $grok_status['success_rate'] : '';
+                        $grok_metrics_label  = isset( $grok_status['metrics_label'] ) && $grok_status['metrics_label'] ? $grok_status['metrics_label'] : __( 'No connection tests recorded yet.', 'aimentor' );
+                        $grok_summary_label  = isset( $grok_status['summary_label'] ) && $grok_status['summary_label'] ? $grok_status['summary_label'] : __( 'No tests yet', 'aimentor' );
+                        ?>
+                        <div
+                            class="aimentor-provider-status jaggrok-provider-status"
+                            data-provider="grok"
+                            data-timestamp="<?php echo esc_attr( $grok_status['timestamp'] ); ?>"
+                            data-success-count="<?php echo esc_attr( $grok_success_count ); ?>"
+                            data-failure-count="<?php echo esc_attr( $grok_failure_count ); ?>"
+                            data-total-count="<?php echo esc_attr( $grok_total_count ); ?>"
+                            data-success-rate="<?php echo esc_attr( $grok_success_rate ); ?>"
+                            data-history="<?php echo esc_attr( $grok_history_json ); ?>"
+                            data-provider-label="<?php echo esc_attr( $provider_labels_map['grok'] ?? 'Grok' ); ?>"
+                            data-metrics-label="<?php echo esc_attr( $grok_metrics_label ); ?>"
+                            data-summary-label="<?php echo esc_attr( $grok_summary_label ); ?>"
+                            aria-live="polite"
+                        >
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $grok_status['badge_state'] ); ?>" data-provider="grok"><?php echo esc_html( $grok_status['badge_label'] ); ?></span>
+                            <span class="aimentor-status-trend jaggrok-status-trend" data-provider="grok" aria-hidden="true"></span>
+                            <span class="aimentor-status-metrics-summary" data-provider="grok" aria-hidden="true"><?php echo esc_html( $grok_summary_label ); ?></span>
                             <span class="aimentor-status-description jaggrok-status-description" data-provider="grok"><?php echo esc_html( $grok_status['description'] ); ?></span>
+                            <span class="screen-reader-text aimentor-status-metrics" data-provider="grok"><?php echo esc_html( $grok_metrics_label ); ?></span>
                         </div>
                     </div>
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="anthropic">
@@ -372,10 +398,36 @@
                         <p class="description">
                             <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="anthropic"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
-                        <?php $anthropic_status = isset( $provider_status_views['anthropic'] ) ? $provider_status_views['anthropic'] : aimentor_format_provider_status_for_display( 'anthropic', [] ); ?>
-                        <div class="aimentor-provider-status jaggrok-provider-status" data-provider="anthropic" data-timestamp="<?php echo esc_attr( $anthropic_status['timestamp'] ); ?>" aria-live="polite">
+                        <?php
+                        $anthropic_status        = isset( $provider_status_views['anthropic'] ) ? $provider_status_views['anthropic'] : aimentor_format_provider_status_for_display( 'anthropic', [] );
+                        $anthropic_history_json  = isset( $anthropic_status['history'] ) ? wp_json_encode( $anthropic_status['history'] ) : '[]';
+                        $anthropic_history_json  = $anthropic_history_json ? $anthropic_history_json : '[]';
+                        $anthropic_success_count = isset( $anthropic_status['success_count'] ) ? absint( $anthropic_status['success_count'] ) : 0;
+                        $anthropic_failure_count = isset( $anthropic_status['failure_count'] ) ? absint( $anthropic_status['failure_count'] ) : 0;
+                        $anthropic_total_count   = isset( $anthropic_status['total_count'] ) ? absint( $anthropic_status['total_count'] ) : ( $anthropic_success_count + $anthropic_failure_count );
+                        $anthropic_success_rate  = isset( $anthropic_status['success_rate'] ) && is_numeric( $anthropic_status['success_rate'] ) ? (string) $anthropic_status['success_rate'] : '';
+                        $anthropic_metrics_label = isset( $anthropic_status['metrics_label'] ) && $anthropic_status['metrics_label'] ? $anthropic_status['metrics_label'] : __( 'No connection tests recorded yet.', 'aimentor' );
+                        $anthropic_summary_label = isset( $anthropic_status['summary_label'] ) && $anthropic_status['summary_label'] ? $anthropic_status['summary_label'] : __( 'No tests yet', 'aimentor' );
+                        ?>
+                        <div
+                            class="aimentor-provider-status jaggrok-provider-status"
+                            data-provider="anthropic"
+                            data-timestamp="<?php echo esc_attr( $anthropic_status['timestamp'] ); ?>"
+                            data-success-count="<?php echo esc_attr( $anthropic_success_count ); ?>"
+                            data-failure-count="<?php echo esc_attr( $anthropic_failure_count ); ?>"
+                            data-total-count="<?php echo esc_attr( $anthropic_total_count ); ?>"
+                            data-success-rate="<?php echo esc_attr( $anthropic_success_rate ); ?>"
+                            data-history="<?php echo esc_attr( $anthropic_history_json ); ?>"
+                            data-provider-label="<?php echo esc_attr( $provider_labels_map['anthropic'] ?? 'Anthropic' ); ?>"
+                            data-metrics-label="<?php echo esc_attr( $anthropic_metrics_label ); ?>"
+                            data-summary-label="<?php echo esc_attr( $anthropic_summary_label ); ?>"
+                            aria-live="polite"
+                        >
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $anthropic_status['badge_state'] ); ?>" data-provider="anthropic"><?php echo esc_html( $anthropic_status['badge_label'] ); ?></span>
+                            <span class="aimentor-status-trend jaggrok-status-trend" data-provider="anthropic" aria-hidden="true"></span>
+                            <span class="aimentor-status-metrics-summary" data-provider="anthropic" aria-hidden="true"><?php echo esc_html( $anthropic_summary_label ); ?></span>
                             <span class="aimentor-status-description jaggrok-status-description" data-provider="anthropic"><?php echo esc_html( $anthropic_status['description'] ); ?></span>
+                            <span class="screen-reader-text aimentor-status-metrics" data-provider="anthropic"><?php echo esc_html( $anthropic_metrics_label ); ?></span>
                         </div>
                     </div>
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
@@ -388,10 +440,36 @@
                         <p class="description">
                             <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="openai"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
-                        <?php $openai_status = isset( $provider_status_views['openai'] ) ? $provider_status_views['openai'] : aimentor_format_provider_status_for_display( 'openai', [] ); ?>
-                        <div class="aimentor-provider-status jaggrok-provider-status" data-provider="openai" data-timestamp="<?php echo esc_attr( $openai_status['timestamp'] ); ?>" aria-live="polite">
+                        <?php
+                        $openai_status        = isset( $provider_status_views['openai'] ) ? $provider_status_views['openai'] : aimentor_format_provider_status_for_display( 'openai', [] );
+                        $openai_history_json  = isset( $openai_status['history'] ) ? wp_json_encode( $openai_status['history'] ) : '[]';
+                        $openai_history_json  = $openai_history_json ? $openai_history_json : '[]';
+                        $openai_success_count = isset( $openai_status['success_count'] ) ? absint( $openai_status['success_count'] ) : 0;
+                        $openai_failure_count = isset( $openai_status['failure_count'] ) ? absint( $openai_status['failure_count'] ) : 0;
+                        $openai_total_count   = isset( $openai_status['total_count'] ) ? absint( $openai_status['total_count'] ) : ( $openai_success_count + $openai_failure_count );
+                        $openai_success_rate  = isset( $openai_status['success_rate'] ) && is_numeric( $openai_status['success_rate'] ) ? (string) $openai_status['success_rate'] : '';
+                        $openai_metrics_label = isset( $openai_status['metrics_label'] ) && $openai_status['metrics_label'] ? $openai_status['metrics_label'] : __( 'No connection tests recorded yet.', 'aimentor' );
+                        $openai_summary_label = isset( $openai_status['summary_label'] ) && $openai_status['summary_label'] ? $openai_status['summary_label'] : __( 'No tests yet', 'aimentor' );
+                        ?>
+                        <div
+                            class="aimentor-provider-status jaggrok-provider-status"
+                            data-provider="openai"
+                            data-timestamp="<?php echo esc_attr( $openai_status['timestamp'] ); ?>"
+                            data-success-count="<?php echo esc_attr( $openai_success_count ); ?>"
+                            data-failure-count="<?php echo esc_attr( $openai_failure_count ); ?>"
+                            data-total-count="<?php echo esc_attr( $openai_total_count ); ?>"
+                            data-success-rate="<?php echo esc_attr( $openai_success_rate ); ?>"
+                            data-history="<?php echo esc_attr( $openai_history_json ); ?>"
+                            data-provider-label="<?php echo esc_attr( $provider_labels_map['openai'] ?? 'OpenAI' ); ?>"
+                            data-metrics-label="<?php echo esc_attr( $openai_metrics_label ); ?>"
+                            data-summary-label="<?php echo esc_attr( $openai_summary_label ); ?>"
+                            aria-live="polite"
+                        >
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $openai_status['badge_state'] ); ?>" data-provider="openai"><?php echo esc_html( $openai_status['badge_label'] ); ?></span>
+                            <span class="aimentor-status-trend jaggrok-status-trend" data-provider="openai" aria-hidden="true"></span>
+                            <span class="aimentor-status-metrics-summary" data-provider="openai" aria-hidden="true"><?php echo esc_html( $openai_summary_label ); ?></span>
                             <span class="aimentor-status-description jaggrok-status-description" data-provider="openai"><?php echo esc_html( $openai_status['description'] ); ?></span>
+                            <span class="screen-reader-text aimentor-status-metrics" data-provider="openai"><?php echo esc_html( $openai_metrics_label ); ?></span>
                         </div>
                     </div>
                 </td>
@@ -991,13 +1069,17 @@
 .js .aimentor-provider-help, .js .jaggrok-provider-help { display: none; }
 .aimentor-api-key-container, .jaggrok-api-key-container { display: flex; align-items: center; gap: 8px; max-width: 420px; }
 .aimentor-api-input, .jaggrok-api-input { width: 100%; }
-.aimentor-provider-status, .jaggrok-provider-status { display: flex; align-items: center; gap: 8px; margin-top: 6px; max-width: 520px; }
+.aimentor-provider-status, .jaggrok-provider-status { display: flex; align-items: center; gap: 8px; margin-top: 6px; max-width: 520px; flex-wrap: wrap; }
 .aimentor-status-badge, .jaggrok-status-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; letter-spacing: .01em; }
 .aimentor-status-badge--success, .jaggrok-status-badge--success { background-color: #dff4e2; color: #116329; }
 .aimentor-status-badge--error, .jaggrok-status-badge--error { background-color: #fce1e1; color: #b32d2e; }
 .aimentor-status-badge--idle, .jaggrok-status-badge--idle { background-color: #e7ecf3; color: #2c3e50; }
 .aimentor-status-badge--pending, .jaggrok-status-badge--pending { background-color: #fef3c7; color: #8a6110; }
-.aimentor-status-description, .jaggrok-status-description { display: inline-block; font-size: 13px; line-height: 1.5; }
+.aimentor-status-trend, .jaggrok-status-trend { display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 20px; }
+.aimentor-status-trend__chart { width: 100%; height: 100%; }
+.aimentor-status-trend__empty { font-size: 12px; color: #6b7280; }
+.aimentor-status-metrics-summary { font-size: 12px; color: #6b7280; }
+.aimentor-status-description, .jaggrok-status-description { display: inline-block; font-size: 13px; line-height: 1.5; flex: 1 1 220px; }
 .aimentor-usage-card, .jaggrok-usage-card { margin: 32px 0; padding: 20px; border: 1px solid #dcdcdc; border-radius: 8px; background: #fff; }
 .aimentor-usage-card__header, .jaggrok-usage-card__header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .aimentor-usage-card__title, .jaggrok-usage-card__title { margin: 0; font-size: 20px; font-weight: 600; }
