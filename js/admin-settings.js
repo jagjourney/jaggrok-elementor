@@ -1,5 +1,5 @@
 // ============================================================================
-// AiMentor ADMIN SETTINGS JS v1.4.x
+// AiMentor ADMIN SETTINGS JS v1.3.15
 // ============================================================================
 
 (function(window) {
@@ -104,6 +104,330 @@ jQuery(document).ready(function($) {
         }
 
         return String(value);
+    }
+
+    function formatPercentage(value) {
+        var numeric = typeof value === 'string' ? parseFloat(value) : value;
+
+        if (!isFinite(numeric)) {
+            return '';
+        }
+
+        var clamped = Math.min(Math.max(numeric, 0), 100);
+        var decimals = (clamped % 1 === 0) ? 0 : 1;
+
+        if (typeof window.Intl !== 'undefined' && typeof Intl.NumberFormat === 'function') {
+            try {
+                return new Intl.NumberFormat(undefined, { maximumFractionDigits: decimals }).format(clamped) + '%';
+            } catch (error) {
+                // fall through
+            }
+        }
+
+        return clamped.toFixed(decimals) + '%';
+    }
+
+    function sanitizeHistory(history) {
+        if (!Array.isArray(history)) {
+            return [];
+        }
+
+        var allowed = { success: true, error: true };
+
+        return history.reduce(function(list, entry) {
+            if (!entry || typeof entry !== 'object') {
+                return list;
+            }
+
+            var status = entry.status;
+
+            if (!allowed[status]) {
+                return list;
+            }
+
+            var timestamp = entry.timestamp;
+
+            if (typeof timestamp === 'string') {
+                timestamp = parseInt(timestamp, 10);
+            }
+
+            if (typeof timestamp !== 'number' || !isFinite(timestamp)) {
+                timestamp = 0;
+            }
+
+            list.push({
+                status: status,
+                timestamp: timestamp
+            });
+
+            return list;
+        }, []);
+    }
+
+    function normalizeMetrics(provider, data, container) {
+        var dataset = (container && container.dataset) ? container.dataset : {};
+
+        function parseInteger(value) {
+            var parsed = parseInt(value, 10);
+
+            if (isNaN(parsed)) {
+                return 0;
+            }
+
+            return parsed;
+        }
+
+        function parseFloatValue(value) {
+            var parsed = parseFloat(value);
+
+            return isNaN(parsed) ? NaN : parsed;
+        }
+
+        var metrics = {
+            success_count: 0,
+            failure_count: 0,
+            total_count: 0,
+            success_rate: NaN,
+            history: [],
+            metrics_label: '',
+            summary_label: '',
+            provider_label: dataset.providerLabel || provider
+        };
+
+        var successValue = (data && typeof data.success_count !== 'undefined') ? data.success_count : dataset.successCount;
+        var failureValue = (data && typeof data.failure_count !== 'undefined') ? data.failure_count : dataset.failureCount;
+
+        metrics.success_count = parseInteger(successValue);
+        metrics.failure_count = parseInteger(failureValue);
+        metrics.total_count = metrics.success_count + metrics.failure_count;
+
+        var successRateValue = (data && typeof data.success_rate !== 'undefined') ? data.success_rate : dataset.successRate;
+        var parsedRate = parseFloatValue(successRateValue);
+
+        if (!isNaN(parsedRate)) {
+            metrics.success_rate = parsedRate;
+        }
+
+        if (!isFinite(metrics.success_rate) && metrics.total_count > 0) {
+            metrics.success_rate = (metrics.success_count / metrics.total_count) * 100;
+        }
+
+        var historySource = (data && typeof data.history !== 'undefined') ? data.history : (dataset.history || '[]');
+
+        if (typeof historySource === 'string') {
+            try {
+                historySource = JSON.parse(historySource);
+            } catch (error) {
+                historySource = [];
+            }
+        }
+
+        metrics.history = sanitizeHistory(historySource);
+
+        metrics.metrics_label = (data && typeof data.metrics_label === 'string' && data.metrics_label)
+            ? data.metrics_label
+            : (dataset.metricsLabel || '');
+
+        metrics.summary_label = (data && typeof data.summary_label === 'string' && data.summary_label)
+            ? data.summary_label
+            : (dataset.summaryLabel || '');
+
+        return metrics;
+    }
+
+    function buildMetricsSummary(metrics) {
+        if (!metrics.total_count) {
+            return getString('statusSummaryEmpty', 'No tests yet');
+        }
+
+        var rate = metrics.success_rate;
+
+        if (!isFinite(rate) && metrics.total_count) {
+            rate = (metrics.success_count / metrics.total_count) * 100;
+        }
+
+        var rateLabel = formatPercentage(rate);
+        return rateLabel + ' • ' + formatNumber(metrics.success_count) + '/' + formatNumber(metrics.total_count);
+    }
+
+    function buildMetricsLabel(metrics) {
+        if (!metrics.total_count) {
+            return getString('statusMetricsNoData', 'No connection tests recorded yet.');
+        }
+
+        var rate = metrics.success_rate;
+
+        if (!isFinite(rate) && metrics.total_count) {
+            rate = (metrics.success_count / metrics.total_count) * 100;
+        }
+
+        var rateLabel = formatPercentage(rate);
+        var template = getString('statusMetricsSummary', 'Success rate %rate% across %total% tests (%success% success, %failure% failure).');
+
+        if (template.indexOf('%rate%') !== -1) {
+            return template
+                .replace('%rate%', rateLabel)
+                .replace('%total%', formatNumber(metrics.total_count))
+                .replace('%success%', formatNumber(metrics.success_count))
+                .replace('%failure%', formatNumber(metrics.failure_count));
+        }
+
+        return rateLabel + ' • ' + formatNumber(metrics.success_count) + '/' + formatNumber(metrics.total_count);
+    }
+
+    function renderStatusTrend(provider, metrics, $target) {
+        var $container = ($target && $target.length) ? $target : jQuery('.aimentor-provider-status[data-provider="' + provider + '"]');
+
+        if (!$container.length) {
+            return;
+        }
+
+        var $trend = $container.find('.aimentor-status-trend[data-provider="' + provider + '"]');
+
+        if (!$trend.length) {
+            return;
+        }
+
+        $trend.empty();
+
+        var values = Array.isArray(metrics.history)
+            ? metrics.history.map(function(entry) {
+                    return entry && entry.status === 'success' ? 1 : 0;
+                })
+            : [];
+
+        if (!values.length && metrics.total_count > 0) {
+            var sampleSize = Math.min(metrics.total_count, 10);
+            var successShare = metrics.total_count ? (metrics.success_count / metrics.total_count) : 0;
+
+            for (var i = 0; i < sampleSize; i++) {
+                values.push(i / sampleSize < successShare ? 1 : 0);
+            }
+        }
+
+        if (!values.length) {
+            var placeholder = jQuery('<span />').addClass('aimentor-status-trend__empty').text('—');
+            $trend.append(placeholder);
+            return;
+        }
+
+        var width = 72;
+        var height = 16;
+        var gap = values.length > 1 ? 2 : 0;
+        var barWidth = (width - gap * (values.length - 1)) / values.length;
+
+        if (barWidth < 2) {
+            barWidth = 2;
+        }
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'aimentor-status-trend__chart');
+        svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+        svg.setAttribute('preserveAspectRatio', 'none');
+        svg.setAttribute('focusable', 'false');
+        svg.setAttribute('aria-hidden', 'true');
+
+        values.forEach(function(value, index) {
+            var barHeight = value ? height : Math.max(3, height * 0.35);
+            var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', index * (barWidth + gap));
+            rect.setAttribute('y', height - barHeight);
+            rect.setAttribute('width', barWidth);
+            rect.setAttribute('height', barHeight);
+            rect.setAttribute('rx', 1);
+            rect.setAttribute('ry', 1);
+            rect.setAttribute('fill', value ? '#1DA866' : '#d63638');
+            svg.appendChild(rect);
+        });
+
+        $trend.append(svg);
+    }
+
+    function updateStatusMetrics(provider, data) {
+        var $container = jQuery('.aimentor-provider-status[data-provider="' + provider + '"]');
+
+        if (!$container.length) {
+            return;
+        }
+
+        var container = $container.get(0);
+        var metrics = normalizeMetrics(provider, data || {}, container);
+
+        if (container) {
+            container.dataset.successCount = String(metrics.success_count);
+            container.dataset.failureCount = String(metrics.failure_count);
+            container.dataset.totalCount = String(metrics.total_count);
+
+            if (isFinite(metrics.success_rate)) {
+                container.dataset.successRate = String(metrics.success_rate);
+            } else {
+                delete container.dataset.successRate;
+            }
+
+            if (metrics.history.length) {
+                try {
+                    container.dataset.history = JSON.stringify(metrics.history);
+                } catch (error) {
+                    delete container.dataset.history;
+                }
+            } else {
+                delete container.dataset.history;
+            }
+
+            if (metrics.metrics_label) {
+                container.dataset.metricsLabel = metrics.metrics_label;
+            } else {
+                delete container.dataset.metricsLabel;
+            }
+
+            if (metrics.summary_label) {
+                container.dataset.summaryLabel = metrics.summary_label;
+            } else {
+                delete container.dataset.summaryLabel;
+            }
+        }
+
+        var summaryLabel = (data && typeof data.summary_label === 'string' && data.summary_label) ? data.summary_label : metrics.summary_label;
+
+        if (!summaryLabel) {
+            summaryLabel = buildMetricsSummary(metrics);
+        }
+
+        metrics.summary_label = summaryLabel;
+
+        var metricsLabel = (data && typeof data.metrics_label === 'string' && data.metrics_label) ? data.metrics_label : metrics.metrics_label;
+
+        if (!metricsLabel) {
+            metricsLabel = buildMetricsLabel(metrics);
+        }
+
+        metrics.metrics_label = metricsLabel;
+
+        var $summary = $container.find('.aimentor-status-metrics-summary[data-provider="' + provider + '"]');
+
+        if ($summary.length) {
+            $summary.text(summaryLabel);
+        }
+
+        var $srText = $container.find('.aimentor-status-metrics[data-provider="' + provider + '"]');
+
+        if ($srText.length) {
+            $srText.text(metricsLabel);
+        }
+
+        renderStatusTrend(provider, metrics, $container);
+    }
+
+    function initializeStatusMetrics() {
+        jQuery('.aimentor-provider-status').each(function() {
+            var provider = String(jQuery(this).data('provider') || '');
+
+            if (!provider) {
+                return;
+            }
+
+            updateStatusMetrics(provider, {});
+        });
     }
 
     function buildUsageEventSummary(entry) {
@@ -381,7 +705,11 @@ jQuery(document).ready(function($) {
         if ($description.length && typeof data.description !== 'undefined') {
             $description.text(data.description);
         }
+
+        updateStatusMetrics(provider, data);
     }
+
+    initializeStatusMetrics();
 
     $('.aimentor-test-provider').on('click', function() {
         var $button = $(this);
