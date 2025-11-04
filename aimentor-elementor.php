@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AiMentor Elementor
  * Plugin URI: https://jagjourney.com/
- * Update URI: https://github.com/aimentor/aimentor-elementor
+ * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
  * Version: 1.3.12
  * Author: AiMentor
@@ -764,7 +764,7 @@ if ( class_exists( 'AiMentor_Updater' ) ) {
         global $aimentor_updater;
 
         if ( ! isset( $aimentor_updater ) || ! $aimentor_updater instanceof AiMentor_Updater ) {
-                $aimentor_updater = new AiMentor_Updater( 'aimentor/aimentor-elementor', 'aimentor-elementor' );
+                $aimentor_updater = new AiMentor_Updater( 'jagjourney/aimentor-elementor', 'aimentor-elementor' );
         }
 }
 

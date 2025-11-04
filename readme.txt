@@ -67,8 +67,8 @@ No additional AiMentor-specific updater endpoints are required—the historical 
 native GitHub channel.
 
 == Development ==
-* Source code: https://github.com/aimentor/aimentor-elementor
-* Latest ZIP (tagged releases): https://github.com/aimentor/aimentor-elementor/releases
+* Source code: https://github.com/jagjourney/aimentor-elementor
+* Latest ZIP (tagged releases): https://github.com/jagjourney/aimentor-elementor/releases
 * Release automation: `.github/workflows/release.yml` validates PHP syntax, builds the ZIP package, attaches it to the release,
   and refreshes the lightweight manifest on `gh-pages`.
 * Release checklist and versioning guide: `docs/release-guide.md`.
