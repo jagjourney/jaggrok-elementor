@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// AiMentor SETTINGS PAGE v1.3.15 (PROVIDER TEST METRICS)
+// AiMentor SETTINGS PAGE v1.3.16 (PROVIDER TEST METRICS)
 // ============================================================================
 
 function aimentor_get_provider_model_defaults() {
@@ -64,6 +64,58 @@ function aimentor_get_allowed_provider_models() {
                         'o4'           => __( 'o4 (Preview)', 'aimentor' ),
                 ],
         ];
+}
+
+function aimentor_get_settings_support_resources() {
+        $resources = [
+                'support'   => [
+                        'title' => __( 'Support', 'aimentor' ),
+                        'links' => [
+                                [
+                                        'label'       => __( 'AiMentor Support Center', 'aimentor' ),
+                                        'url'         => 'https://jagjourney.com/support/',
+                                        'description' => __( 'Browse troubleshooting guides or open a help request.', 'aimentor' ),
+                                ],
+                                [
+                                        'label'       => __( 'System Status', 'aimentor' ),
+                                        'url'         => 'https://status.jagjourney.com/',
+                                        'description' => __( 'Check live availability for JagJourney services.', 'aimentor' ),
+                                ],
+                        ],
+                ],
+                'tutorials' => [
+                        'title' => __( 'Tutorials & Learning', 'aimentor' ),
+                        'links' => [
+                                [
+                                        'label'       => __( 'Getting Started with AiMentor', 'aimentor' ),
+                                        'url'         => 'https://jagjourney.com/tutorials/aimentor-getting-started/',
+                                        'description' => __( 'Step-by-step setup guidance for new sites.', 'aimentor' ),
+                                ],
+                                [
+                                        'label'       => __( 'Build Workflows with Elementor', 'aimentor' ),
+                                        'url'         => 'https://jagjourney.com/tutorials/aimentor-workflows/',
+                                        'description' => __( 'See examples of prompt engineering and layout generation.', 'aimentor' ),
+                                ],
+                        ],
+                ],
+                'contact'   => [
+                        'title' => __( 'Contact JagJourney', 'aimentor' ),
+                        'links' => [
+                                [
+                                        'label'       => __( 'Email support@jagjourney.com', 'aimentor' ),
+                                        'url'         => 'mailto:support@jagjourney.com',
+                                        'description' => __( 'Reach the AiMentor success team directly.', 'aimentor' ),
+                                ],
+                                [
+                                        'label'       => __( 'Schedule a Strategy Call', 'aimentor' ),
+                                        'url'         => 'https://jagjourney.com/contact/',
+                                        'description' => __( 'Book onboarding or co-building sessions.', 'aimentor' ),
+                                ],
+                        ],
+                ],
+        ];
+
+        return apply_filters( 'aimentor_settings_support_resources', $resources );
 }
 
 function aimentor_get_request_override_defaults() {
@@ -3649,7 +3701,7 @@ function aimentor_get_usage_metrics_ajax() {
 add_action( 'wp_ajax_aimentor_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 add_action( 'wp_ajax_jaggrok_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 
-// AJAX Test API (v1.3.15 - PROVIDER TEST METRICS)
+// AJAX Test API (v1.3.16 - PROVIDER TEST METRICS)
 function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
         $args = wp_parse_args(
                 $args,
@@ -4180,7 +4232,7 @@ function aimentor_run_scheduled_provider_checks() {
         update_option( 'aimentor_provider_health_failures', $state );
 }
 
-// ERROR LOGGING FUNCTION (v1.3.15)
+// ERROR LOGGING FUNCTION (v1.3.16)
 function aimentor_log_error( $message, $context = [] ) {
         if ( function_exists( 'aimentor_get_error_log_path' ) ) {
                 $log_file = aimentor_get_error_log_path();

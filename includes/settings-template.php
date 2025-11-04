@@ -64,9 +64,12 @@
         }
     </style>
 
-    <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By AiMentor</a></p>
+    <?php $support_sections = aimentor_get_settings_support_resources(); ?>
+    <div class="aimentor-settings-layout">
+        <div class="aimentor-settings-main">
+            <p class="description">Connect to your preferred AI provider and unlock AI-powered page building! <a href="https://jagjourney.com/" target="_blank">By AiMentor</a></p>
 
-    <div class="notice notice-info" style="max-width: 720px;">
+            <div class="notice notice-info" style="max-width: 720px;">
         <p>
             <strong><?php esc_html_e( 'Remote generation endpoint', 'aimentor' ); ?></strong>
             <?php
@@ -80,7 +83,7 @@
         <p class="description">
             <?php esc_html_e( 'Use an X-WP-Nonce header created with wp_create_nonce(\'wp_rest\') for browser-based requests or authenticate with a WordPress Application Password for server-to-server integrations.', 'aimentor' ); ?>
         </p>
-    </div>
+            </div>
 
     <?php
     $defaults       = aimentor_get_default_options();
@@ -1033,9 +1036,72 @@
         ) . '</p>';
     }
     ?>
+        </div><!-- .aimentor-settings-main -->
+        <?php if ( ! empty( $support_sections ) ) : ?>
+        <aside class="aimentor-settings-sidebar" aria-label="<?php esc_attr_e( 'AiMentor help resources', 'aimentor' ); ?>">
+            <div class="aimentor-settings-sidebar__card">
+                <?php foreach ( $support_sections as $section ) :
+                    $links = [];
+
+                    if ( isset( $section['links'] ) && is_array( $section['links'] ) ) {
+                            foreach ( $section['links'] as $link ) {
+                                    if ( empty( $link['label'] ) || empty( $link['url'] ) ) {
+                                            continue;
+                                    }
+
+                                    $links[] = $link;
+                            }
+                    }
+
+                    if ( empty( $links ) ) {
+                            continue;
+                    }
+
+                    $section_title = isset( $section['title'] ) ? $section['title'] : '';
+                ?>
+                <section class="aimentor-support-section">
+                    <?php if ( '' !== $section_title ) : ?>
+                    <h2 class="aimentor-support-section__title"><?php echo esc_html( $section_title ); ?></h2>
+                    <?php endif; ?>
+                    <ul class="aimentor-support-list">
+                        <?php foreach ( $links as $link ) :
+                            $label       = isset( $link['label'] ) ? $link['label'] : '';
+                            $url         = isset( $link['url'] ) ? $link['url'] : '';
+                            $description = isset( $link['description'] ) ? $link['description'] : '';
+                            $is_external = 0 === strpos( $url, 'http' );
+                        ?>
+                        <li class="aimentor-support-list__item">
+                            <a class="aimentor-support-link" href="<?php echo esc_url( $url ); ?>"<?php echo $is_external ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                <?php echo esc_html( $label ); ?>
+                            </a>
+                            <?php if ( '' !== $description ) : ?>
+                            <p class="aimentor-support-description"><?php echo esc_html( $description ); ?></p>
+                            <?php endif; ?>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </section>
+                <?php endforeach; ?>
+            </div>
+        </aside>
+        <?php endif; ?>
+    </div>
 </div>
 
 <style>
+.aimentor-settings-layout { display: flex; gap: 28px; align-items: flex-start; }
+.aimentor-settings-main { flex: 1 1 0; min-width: 0; }
+.aimentor-settings-sidebar { flex: 0 0 280px; max-width: 320px; }
+.aimentor-settings-sidebar__card { border: 1px solid #dcdcdc; border-radius: 8px; background: #fff; padding: 20px; box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06); }
+.aimentor-support-section + .aimentor-support-section { margin-top: 20px; }
+.aimentor-support-section__title { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #1f2937; }
+.aimentor-support-list { list-style: none; margin: 0; padding: 0; }
+.aimentor-support-list__item { margin-bottom: 12px; }
+.aimentor-support-list__item:last-child { margin-bottom: 0; }
+.aimentor-support-link { color: #2563eb; text-decoration: none; font-weight: 600; }
+.aimentor-support-link:focus,
+.aimentor-support-link:hover { text-decoration: underline; color: #1d4ed8; }
+.aimentor-support-description { margin: 4px 0 0; font-size: 13px; color: #4b5563; }
 .aimentor-settings-title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .aimentor-settings-logo { height: 48px; width: 48px; border-radius: 12px; box-shadow: 0 4px 18px rgba(64, 84, 178, 0.25); }
 .aimentor-settings-heading { font-size: 26px; font-weight: 600; color: #1f2937; }
@@ -1109,6 +1175,10 @@
 .aimentor-advanced-field { display: flex; flex-direction: column; margin-bottom: 10px; }
 .aimentor-advanced-field:last-of-type { margin-bottom: 0; }
 .aimentor-advanced-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 4px; }
+@media (max-width: 960px) {
+    .aimentor-settings-layout { flex-direction: column; }
+    .aimentor-settings-sidebar { width: 100%; max-width: none; }
+}
 </style>
 
 <script>
