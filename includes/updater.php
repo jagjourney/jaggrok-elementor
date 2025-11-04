@@ -18,11 +18,11 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
                 public function __construct( $repo = 'jagjourney/aimentor-elementor', $slug = 'aimentor-elementor', array $args = array() ) {
                         $defaults = array(
                                 'manifest_url'        => 'https://jagjourney.github.io/aimentor-elementor/manifests/aimentor-plugin-info.json',
-				'plugin_file'         => 'aimentor-elementor/aimentor-elementor.php',
-				'legacy_slugs'        => array( 'jaggrok-elementor' ),
-				'legacy_plugin_files' => array( 'jaggrok-elementor/aimentor-elementor.php' ),
-                                'legacy_repos'        => array( 'jagjourney/aimentor-elementor', 'aimentor/aimentor-elementor', 'jagjourney/jaggrok-elementor' ),
-			);
+                                'plugin_file'         => 'aimentor-elementor/aimentor-elementor.php',
+                                'legacy_slugs'        => array( 'jaggrok-elementor' ),
+                                'legacy_plugin_files' => array( 'jaggrok-elementor/aimentor-elementor.php' ),
+                                'legacy_repos'        => array( 'aimentor/aimentor-elementor', 'jagjourney/jaggrok-elementor', 'aimentor/jaggrok-elementor' ),
+                        );
 
 			if ( function_exists( 'wp_parse_args' ) ) {
 				$args = wp_parse_args( $args, $defaults );
@@ -33,7 +33,7 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
 			$this->repo = $this->sanitize_repo( $repo );
                         if ( '' === $this->repo ) {
                                 $this->repo = 'jagjourney/aimentor-elementor';
-			}
+                        }
 
 			$this->slug = $this->sanitize_slug( $slug );
 			if ( '' === $this->slug ) {
