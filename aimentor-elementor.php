@@ -21,12 +21,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
-        /**
-         * Current AiMentor Elementor plugin version.
-         *
-         * Updated for each tagged release so dependent systems can detect
-         * available updates and WordPress can surface the correct metadata.
-         */
         define( 'AIMENTOR_PLUGIN_VERSION', '1.3.12' );
 }
 

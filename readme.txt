@@ -96,9 +96,8 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 
 == Changelog ==
 = 1.3.12 =
-* Synced the plugin header, constants, and stable tag to advertise version 1.3.12 everywhere WordPress checks for updates.
-* Regenerated the GitHub-hosted manifest entry so external tooling can resolve the new ZIP and metadata.
-* Documented the release in the public changelog to complete the metadata bump.
+* Updated the plugin update metadata and manifest defaults to reference the `jagjourney/aimentor-elementor` repository so auto-update clients fetch the published ZIP.
+* Pointed the bundled updater and documentation at the new GitHub Pages manifest location.
 
 = 1.3.11 =
 * Added a `wp aimentor generate` WP-CLI command that mirrors the AJAX generation flow, records history, and optionally saves output to disk.
