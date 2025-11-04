@@ -99,6 +99,7 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 * Added a multisite-aware lock that lets network administrators enforce provider and model selections for every site.
 * Updated the settings experience to surface the network toggle in Network Admin and render provider/model controls as read-only when locked.
 * Ensured background AJAX flows honor network-enforced options and refreshed release metadata for 1.3.12.
+* Synced the plugin header, stable tag, and manifest download URL to promote the 1.3.12 release.
 
 = 1.3.11 =
 * Added a `wp aimentor generate` WP-CLI command that mirrors the AJAX generation flow, records history, and optionally saves output to disk.
