@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.15
+Stable tag: 1.3.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,9 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.16 =
+* Added a dedicated settings sidebar that surfaces support, tutorial, and JagJourney contact resources sourced from a filterable helper.
+
 = 1.3.15 =
 * Added persistent success and failure counters for each provider so connection tests now track long-term reliability.
 * Surfaced per-provider test totals and success rates in the settings panel to keep administrators informed at a glance.
