@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.12
+Stable tag: 1.3.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.13 =
+* Added per-provider override settings for timeout and temperature so advanced teams can fine-tune request behavior.
+* Introduced an "Advanced" accordion on the settings screen with granular numeric controls for the new overrides.
+* Applied stored override values within Grok and OpenAI payload builders to honor customized request tuning.
+
 = 1.3.12 =
 * Added a multisite-aware lock that lets network administrators enforce provider and model selections for every site.
 * Updated the settings experience to surface the network toggle in Network Admin and render provider/model controls as read-only when locked.

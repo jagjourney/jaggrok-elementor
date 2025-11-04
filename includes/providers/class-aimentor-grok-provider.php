@@ -1,6 +1,7 @@
 <?php
 
 class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
+    const PROVIDER_KEY = 'grok';
     const API_URL = 'https://api.x.ai/v1/chat/completions';
 
     public function supports_canvas() {
@@ -358,6 +359,45 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
         return $brand;
     }
 
+    protected function get_request_overrides() {
+        if ( ! function_exists( 'aimentor_get_request_overrides' ) ) {
+            return [];
+        }
+
+        $overrides = aimentor_get_request_overrides();
+
+        if ( isset( $overrides[ self::PROVIDER_KEY ] ) && is_array( $overrides[ self::PROVIDER_KEY ] ) ) {
+            return $overrides[ self::PROVIDER_KEY ];
+        }
+
+        return [];
+    }
+
+    protected function get_task_override( $context, $field ) {
+        $overrides = $this->get_request_overrides();
+        $task      = isset( $context['task'] ) ? $context['task'] : 'content';
+
+        if ( ! isset( $overrides[ $task ] ) || ! is_array( $overrides[ $task ] ) ) {
+            return null;
+        }
+
+        if ( ! array_key_exists( $field, $overrides[ $task ] ) ) {
+            return null;
+        }
+
+        $value = $overrides[ $task ][ $field ];
+
+        if ( '' === $value ) {
+            return null;
+        }
+
+        if ( 'temperature' === $field ) {
+            return (float) $value;
+        }
+
+        return (int) $value;
+    }
+
     protected function get_default_model( $context ) {
         $defaults = [
             'canvas'  => [
@@ -386,6 +426,12 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
     }
 
     protected function get_temperature( $context ) {
+        $override = $this->get_task_override( $context, 'temperature' );
+
+        if ( null !== $override ) {
+            return $override;
+        }
+
         if ( 'canvas' === $context['task'] ) {
             return 'quality' === $context['tier'] ? 0.4 : 0.35;
         }
@@ -394,6 +440,12 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
     }
 
     protected function get_default_timeout( $context ) {
+        $override = $this->get_task_override( $context, 'timeout' );
+
+        if ( null !== $override ) {
+            return $override;
+        }
+
         if ( 'canvas' === $context['task'] ) {
             return 'quality' === $context['tier'] ? 75 : 55;
         }
