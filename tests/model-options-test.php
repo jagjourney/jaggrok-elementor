@@ -31,9 +31,16 @@ aimentor_assert_same(
         'Known OpenAI models should pass straight through.'
 );
 
+aimentor_assert_same(
+        'claude-3-5-sonnet',
+        aimentor_sanitize_anthropic_model( 'claude-3-5-sonnet' ),
+        'Known Anthropic models should pass straight through.'
+);
+
 $submitted = [
-        'grok'   => 'grok-4',
-        'openai' => 'not-a-real-model',
+        'grok'      => 'grok-4',
+        'anthropic' => 'not-a-real-model',
+        'openai'    => 'not-a-real-model',
 ];
 
 $sanitized = aimentor_sync_legacy_model_options( $submitted, [] );
@@ -41,10 +48,20 @@ update_option( 'aimentor_provider_models', $sanitized );
 
 aimentor_assert_same( 'grok-4', $sanitized['grok'], 'Grok selection should persist after sanitization.' );
 
-$openai_fallback = aimentor_sanitize_openai_model( 'not-a-real-model' );
+$anthropic_fallback = aimentor_sanitize_anthropic_model( 'not-a-real-model' );
+$openai_fallback    = aimentor_sanitize_openai_model( 'not-a-real-model' );
+
+aimentor_assert_same( $anthropic_fallback, $sanitized['anthropic'], 'Anthropic selection should fall back to the configured default.' );
+
 aimentor_assert_same( $openai_fallback, $sanitized['openai'], 'OpenAI selection should fall back to the configured default.' );
 
 aimentor_assert_same( 'grok-4', get_option( 'aimentor_model' ), 'Legacy Grok option should receive the sanitized model.' );
+
+aimentor_assert_same(
+        $anthropic_fallback,
+        get_option( 'aimentor_anthropic_model' ),
+        'Legacy Anthropic option should receive the sanitized model.'
+);
 
 aimentor_assert_same(
         $openai_fallback,
@@ -71,6 +88,12 @@ aimentor_assert_same(
         $provider_defaults['grok']['content']['quality'],
         $presets['grok']['content']['quality'],
         'Grok quality preset should remain at its default selection.'
+);
+
+aimentor_assert_same(
+        $anthropic_fallback,
+        $presets['anthropic']['content']['fast'],
+        'Anthropic fast preset should honor the sanitized fallback.'
 );
 
 aimentor_assert_same(

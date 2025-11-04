@@ -15,6 +15,16 @@ function aimentor_get_provider_model_defaults() {
                                 'quality' => 'grok-4',
                         ],
                 ],
+                'anthropic' => [
+                        'canvas'  => [
+                                'fast'    => 'claude-3-5-haiku',
+                                'quality' => 'claude-3-5-sonnet',
+                        ],
+                        'content' => [
+                                'fast'    => 'claude-3-5-haiku',
+                                'quality' => 'claude-3-5-sonnet',
+                        ],
+                ],
                 'openai' => [
                         'canvas'  => [
                                 'fast'    => 'gpt-4.1-nano',
@@ -38,6 +48,12 @@ function aimentor_get_allowed_provider_models() {
                         'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
                         'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
                 ],
+                'anthropic' => [
+                        'claude-3-5-haiku'  => __( 'Claude 3.5 Haiku (Fast)', 'aimentor' ),
+                        'claude-3-5-sonnet' => __( 'Claude 3.5 Sonnet (Balanced) ★', 'aimentor' ),
+                        'claude-3-5-opus'   => __( 'Claude 3.5 Opus (Flagship)', 'aimentor' ),
+                        'claude-3-opus'     => __( 'Claude 3 Opus (Legacy)', 'aimentor' ),
+                ],
                 'openai' => [
                         'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
                         'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
@@ -53,9 +69,8 @@ function aimentor_get_allowed_provider_models() {
 function aimentor_get_request_override_defaults() {
         $tasks = [ 'canvas', 'content' ];
         $fields = [ 'temperature', 'timeout' ];
-        $defaults = [ 'grok' => [], 'openai' => [] ];
-
-        foreach ( array_keys( $defaults ) as $provider ) {
+        $defaults = [];
+        foreach ( array_keys( aimentor_get_provider_labels() ) as $provider ) {
                 foreach ( $tasks as $task ) {
                         $defaults[ $provider ][ $task ] = array_fill_keys( $fields, '' );
                 }
@@ -69,11 +84,13 @@ function aimentor_get_network_managed_options() {
                 'aimentor_network_lock_provider_models',
                 'aimentor_provider',
                 'aimentor_xai_api_key',
+                'aimentor_anthropic_api_key',
                 'aimentor_openai_api_key',
                 'aimentor_provider_models',
                 'aimentor_model_presets',
                 'aimentor_document_provider_defaults',
                 'aimentor_model',
+                'aimentor_anthropic_model',
                 'aimentor_openai_model',
                 'aimentor_default_generation_type',
                 'aimentor_default_performance',
@@ -249,6 +266,7 @@ function aimentor_get_model_labels() {
 function aimentor_get_provider_labels() {
         return [
                 'grok'   => __( 'xAI Grok', 'aimentor' ),
+                'anthropic' => __( 'Anthropic Claude', 'aimentor' ),
                 'openai' => __( 'OpenAI', 'aimentor' ),
         ];
 }
@@ -1619,6 +1637,9 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                 case 'openai':
                         $api_key = get_option( 'aimentor_openai_api_key' );
                         break;
+                case 'anthropic':
+                        $api_key = get_option( 'aimentor_anthropic_api_key' );
+                        break;
                 case 'grok':
                 default:
                         $api_key = get_option( 'aimentor_xai_api_key' );
@@ -1982,6 +2003,7 @@ function aimentor_get_default_options() {
         return [
                 'aimentor_provider'                  => 'grok',
                 'aimentor_xai_api_key'               => '',
+                'aimentor_anthropic_api_key'         => '',
                 'aimentor_openai_api_key'            => '',
                 'aimentor_auto_insert'               => 'yes',
                 'aimentor_theme_style'               => 'modern',
@@ -1992,6 +2014,7 @@ function aimentor_get_default_options() {
                 'aimentor_model_presets'             => $provider_defaults,
                 'aimentor_document_provider_defaults' => aimentor_get_document_provider_default_map(),
                 'aimentor_model'                     => $legacy_defaults['grok'] ?? '',
+                'aimentor_anthropic_model'           => $legacy_defaults['anthropic'] ?? '',
                 'aimentor_openai_model'              => $legacy_defaults['openai'] ?? '',
                 'aimentor_default_generation_type'   => 'content',
                 'aimentor_default_performance'       => 'fast',
@@ -2124,6 +2147,15 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_api_key',
                         'default' => $defaults['aimentor_xai_api_key'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_anthropic_api_key',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_api_key',
+                        'default' => $defaults['aimentor_anthropic_api_key'],
                 ]
         );
 
@@ -2262,6 +2294,15 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_openai_model',
                         'default' => $defaults['aimentor_openai_model'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_anthropic_model',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_anthropic_model',
+                        'default' => $defaults['aimentor_anthropic_model'],
                 ]
         );
 
@@ -2894,6 +2935,15 @@ function aimentor_sanitize_openai_model( $value ) {
         return in_array( $value, $allowed, true ) ? $value : $fallback;
 }
 
+function aimentor_sanitize_anthropic_model( $value ) {
+        $value     = sanitize_text_field( $value );
+        $allowed   = aimentor_flatten_allowed_models_for_provider( 'anthropic' );
+        $defaults  = aimentor_map_presets_to_legacy_defaults( aimentor_get_provider_model_defaults() );
+        $fallback  = $defaults['anthropic'] ?? '';
+
+        return in_array( $value, $allowed, true ) ? $value : $fallback;
+}
+
 function aimentor_sync_legacy_model_options( $value, $old_value ) {
         $sanitized = aimentor_sanitize_provider_models( $value );
         $presets   = aimentor_get_provider_model_defaults();
@@ -2921,6 +2971,10 @@ function aimentor_sync_legacy_model_options( $value, $old_value ) {
                 update_option( 'aimentor_model', aimentor_sanitize_model( $sanitized['grok'] ) );
         }
 
+        if ( isset( $sanitized['anthropic'] ) ) {
+                update_option( 'aimentor_anthropic_model', aimentor_sanitize_anthropic_model( $sanitized['anthropic'] ) );
+        }
+
         if ( isset( $sanitized['openai'] ) ) {
                 update_option( 'aimentor_openai_model', aimentor_sanitize_openai_model( $sanitized['openai'] ) );
         }
@@ -2935,7 +2989,7 @@ function aimentor_sync_legacy_model_options_for_site_option( $value, $old_value,
 add_filter( 'pre_update_site_option_aimentor_provider_models', 'aimentor_sync_legacy_model_options_for_site_option', 10, 3 );
 
 function aimentor_sanitize_provider( $value ) {
-        $allowed = [ 'grok', 'openai' ];
+        $allowed = array_keys( aimentor_get_provider_labels() );
         return in_array( $value, $allowed, true ) ? $value : 'grok';
 }
 
@@ -3471,6 +3525,13 @@ function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
 
                         if ( $args['persist_api_key'] ) {
                                 update_option( 'aimentor_openai_api_key', $api_key );
+                        }
+                        break;
+                case 'anthropic':
+                        $model = $models['anthropic'] ?? ( $model_default['anthropic'] ?? '' );
+
+                        if ( $args['persist_api_key'] ) {
+                                update_option( 'aimentor_anthropic_api_key', $api_key );
                         }
                         break;
                 case 'grok':

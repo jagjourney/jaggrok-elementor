@@ -23,6 +23,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
 
     public function get_icon() { return 'eicon-robot'; }
     public function get_categories() { return [ 'general' ]; }
+    public function get_keywords() { return [ 'ai', 'generator', 'grok', 'claude', 'anthropic', 'openai' ]; }
 
     protected function get_saved_prompt_options() {
         if ( ! function_exists( 'aimentor_get_saved_prompts_payload' ) ) {
