@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.16
+Stable tag: 1.3.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,10 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.17 =
+* Added an automatic update preference with status messaging so administrators can opt-in or block AiMentor Elementor auto updates from the settings screen.
+* Hooked into the WordPress plugin auto-update flow to respect the saved preference during update checks.
+
 = 1.3.16 =
 * Added a dedicated settings sidebar that surfaces support, tutorial, and JagJourney contact resources sourced from a filterable helper.
 

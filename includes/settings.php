@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// AiMentor SETTINGS PAGE v1.3.16 (PROVIDER TEST METRICS)
+// AiMentor SETTINGS PAGE v1.3.17 (PROVIDER TEST METRICS)
 // ============================================================================
 
 function aimentor_get_provider_model_defaults() {
@@ -2116,6 +2116,7 @@ function aimentor_get_default_options() {
                 'aimentor_default_performance'       => 'fast',
                 'aimentor_api_tested'                => false,
                 'aimentor_onboarding_dismissed'      => 'no',
+                'aimentor_enable_auto_updates'       => 'yes',
                 'aimentor_enable_health_checks'       => 'yes',
                 'aimentor_enable_health_check_alerts' => 'yes',
                 'aimentor_health_check_recipients'    => '',
@@ -2548,6 +2549,15 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_performance_tier',
                         'default' => $defaults['aimentor_default_performance'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_enable_auto_updates',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_enable_auto_updates'],
                 ]
         );
 
@@ -3701,7 +3711,7 @@ function aimentor_get_usage_metrics_ajax() {
 add_action( 'wp_ajax_aimentor_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 add_action( 'wp_ajax_jaggrok_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 
-// AJAX Test API (v1.3.16 - PROVIDER TEST METRICS)
+// AJAX Test API (v1.3.17 - PROVIDER TEST METRICS)
 function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
         $args = wp_parse_args(
                 $args,
@@ -4002,6 +4012,44 @@ function aimentor_health_checks_enabled() {
         return 'yes' === $value;
 }
 
+function aimentor_auto_updates_enabled() {
+        $defaults = aimentor_get_default_options();
+        $value    = get_option( 'aimentor_enable_auto_updates', $defaults['aimentor_enable_auto_updates'] );
+        $value    = aimentor_sanitize_toggle( $value );
+
+        return 'yes' === $value;
+}
+
+function aimentor_wordpress_allows_plugin_auto_updates() {
+        if ( defined( 'AUTOMATIC_UPDATER_DISABLED' ) && AUTOMATIC_UPDATER_DISABLED ) {
+                return false;
+        }
+
+        if ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) {
+                return false;
+        }
+
+        if ( apply_filters( 'automatic_updater_disabled', false ) ) {
+                return false;
+        }
+
+        if ( function_exists( 'wp_is_auto_update_enabled_for_type' ) ) {
+                if ( ! wp_is_auto_update_enabled_for_type( 'plugin' ) ) {
+                        return false;
+                }
+        }
+
+        return true;
+}
+
+function aimentor_auto_updates_active() {
+        if ( ! aimentor_auto_updates_enabled() ) {
+                return false;
+        }
+
+        return aimentor_wordpress_allows_plugin_auto_updates();
+}
+
 function aimentor_health_check_alerts_enabled() {
         $defaults = aimentor_get_default_options();
         $value    = get_option( 'aimentor_enable_health_check_alerts', $defaults['aimentor_enable_health_check_alerts'] );
@@ -4232,7 +4280,7 @@ function aimentor_run_scheduled_provider_checks() {
         update_option( 'aimentor_provider_health_failures', $state );
 }
 
-// ERROR LOGGING FUNCTION (v1.3.16)
+// ERROR LOGGING FUNCTION (v1.3.17)
 function aimentor_log_error( $message, $context = [] ) {
         if ( function_exists( 'aimentor_get_error_log_path' ) ) {
                 $log_file = aimentor_get_error_log_path();

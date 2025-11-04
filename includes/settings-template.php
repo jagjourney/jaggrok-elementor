@@ -111,6 +111,8 @@
             ? $document_context_blueprint['page_types']
             : [];
     $combined_page_types = $page_type_blueprint;
+    $auto_updates_setting_enabled = function_exists( 'aimentor_auto_updates_enabled' ) ? aimentor_auto_updates_enabled() : true;
+    $auto_updates_active          = function_exists( 'aimentor_auto_updates_active' ) ? aimentor_auto_updates_active() : $auto_updates_setting_enabled;
 
     foreach ( $page_type_defaults as $post_type => $defaults_entry ) {
             if ( '__global__' === $post_type ) {
@@ -475,6 +477,39 @@
                             <span class="screen-reader-text aimentor-status-metrics" data-provider="openai"><?php echo esc_html( $openai_metrics_label ); ?></span>
                         </div>
                     </div>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Automatic Updates', 'aimentor' ); ?></th>
+                <td>
+                    <fieldset>
+                        <legend class="screen-reader-text"><?php esc_html_e( 'Automatic update preference', 'aimentor' ); ?></legend>
+                        <input type="hidden" name="aimentor_enable_auto_updates" value="no" />
+                        <label>
+                            <input type="checkbox" name="aimentor_enable_auto_updates" value="yes" <?php checked( $auto_updates_setting_enabled ); ?> />
+                            <?php esc_html_e( 'Allow WordPress to automatically install AiMentor Elementor updates', 'aimentor' ); ?>
+                        </label>
+                        <p class="description"><?php esc_html_e( 'When enabled, new AiMentor Elementor releases install automatically during the built-in WordPress update checks.', 'aimentor' ); ?></p>
+                        <?php if ( $auto_updates_active ) : ?>
+                            <p class="description">
+                                <span class="dashicons dashicons-yes" aria-hidden="true"></span>
+                                <span class="screen-reader-text"><?php esc_html_e( 'Status:', 'aimentor' ); ?></span>
+                                <?php esc_html_e( 'Automatic updates are currently active for AiMentor Elementor.', 'aimentor' ); ?>
+                            </p>
+                        <?php elseif ( $auto_updates_setting_enabled ) : ?>
+                            <p class="description">
+                                <span class="dashicons dashicons-warning" aria-hidden="true"></span>
+                                <span class="screen-reader-text"><?php esc_html_e( 'Status:', 'aimentor' ); ?></span>
+                                <?php esc_html_e( 'Automatic updates are enabled here, but WordPress automatic plugin updates are disabled elsewhere.', 'aimentor' ); ?>
+                            </p>
+                        <?php else : ?>
+                            <p class="description">
+                                <span class="dashicons dashicons-no-alt" aria-hidden="true"></span>
+                                <span class="screen-reader-text"><?php esc_html_e( 'Status:', 'aimentor' ); ?></span>
+                                <?php esc_html_e( 'Automatic updates are currently disabled for AiMentor Elementor.', 'aimentor' ); ?>
+                            </p>
+                        <?php endif; ?>
+                    </fieldset>
                 </td>
             </tr>
             <tr>
