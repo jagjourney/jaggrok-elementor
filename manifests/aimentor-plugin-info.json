@@ -8,6 +8,6 @@
     "algorithm": "sha256",
     "hash": ""
   },
-  "source": "https://github.com/aimentor/aimentor-elementor",
+  "source": "https://github.com/jagjourney/aimentor-elementor",
   "notes": "This manifest is maintained automatically by the release workflow and mirrors GitHub Releases."
 }
