@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.3.16
+ * Version: 1.3.17
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.3.16' );
+       define( 'AIMENTOR_PLUGIN_VERSION', '1.3.17' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -792,9 +792,37 @@ if ( class_exists( 'AiMentor_Updater' ) ) {
         global $aimentor_updater;
 
         if ( ! isset( $aimentor_updater ) || ! $aimentor_updater instanceof AiMentor_Updater ) {
-               $aimentor_updater = new AiMentor_Updater( 'jagjourney/aimentor-elementor', 'aimentor-elementor' );
+		$aimentor_updater = new AiMentor_Updater( 'jagjourney/aimentor-elementor', 'aimentor-elementor' );
         }
 }
+
+/**
+ * Control whether AiMentor Elementor should receive automatic updates.
+ *
+ * @param bool   $should_update Whether WordPress intends to auto update the plugin.
+ * @param object $item          Plugin update data.
+ * @return bool
+ */
+function aimentor_control_plugin_auto_updates( $should_update, $item ) {
+        if ( empty( $item->plugin ) || AIMENTOR_PLUGIN_BASENAME !== $item->plugin ) {
+                return $should_update;
+        }
+
+        if ( ! function_exists( 'aimentor_auto_updates_enabled' ) ) {
+                return $should_update;
+        }
+
+        if ( ! aimentor_auto_updates_enabled() ) {
+                return false;
+        }
+
+        if ( function_exists( 'aimentor_wordpress_allows_plugin_auto_updates' ) && ! aimentor_wordpress_allows_plugin_auto_updates() ) {
+                return false;
+        }
+
+        return true;
+}
+add_filter( 'auto_update_plugin', 'aimentor_control_plugin_auto_updates', 10, 2 );
 
 /**
  * Resolve the active provider based on configuration.
