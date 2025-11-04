@@ -1921,6 +1921,13 @@
                         badgeText: 'xAI',
                         badgeColor: '#1E1E1E'
                     },
+                    anthropic: {
+                        label: providerLabels.anthropic || 'Anthropic Claude',
+                        icon: '✨',
+                        summary: providerSummaries.anthropic || formatString(strings.contentGenerated, providerLabels.anthropic || 'Anthropic Claude'),
+                        badgeText: 'Claude',
+                        badgeColor: '#FF5C35'
+                    },
                     openai: {
                         label: providerLabels.openai || 'OpenAI',
                         icon: '🔷',

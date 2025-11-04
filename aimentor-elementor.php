@@ -633,20 +633,43 @@ add_action( 'elementor/editor/after_enqueue_scripts', 'aimentor_enqueue_elemento
  */
 function aimentor_get_provider_meta_map() {
         $provider_labels = function_exists( 'aimentor_get_provider_labels' ) ? aimentor_get_provider_labels() : array(
-                'grok'   => __( 'xAI Grok', 'aimentor' ),
-                'openai' => __( 'OpenAI', 'aimentor' ),
+                'grok'      => __( 'xAI Grok', 'aimentor' ),
+                'anthropic' => __( 'Anthropic Claude', 'aimentor' ),
+                'openai'    => __( 'OpenAI', 'aimentor' ),
         );
 
         $meta = array();
 
         foreach ( $provider_labels as $key => $label ) {
-                $is_openai    = ( 'openai' === $key );
+                switch ( $key ) {
+                        case 'grok':
+                                $badge_text  = __( 'xAI', 'aimentor' );
+                                $badge_color = '#1E1E1E';
+                                $icon        = '🚀';
+                                break;
+                        case 'anthropic':
+                                $badge_text  = __( 'Claude', 'aimentor' );
+                                $badge_color = '#FF5C35';
+                                $icon        = '✨';
+                                break;
+                        case 'openai':
+                                $badge_text  = __( 'OpenAI', 'aimentor' );
+                                $badge_color = '#2B8CFF';
+                                $icon        = '🔷';
+                                break;
+                        default:
+                                $badge_text  = $label;
+                                $badge_color = '#3B82F6';
+                                $icon        = '🤖';
+                                break;
+                }
+
                 $meta[ $key ] = array(
                         'label'      => $label,
-                        'icon'       => $is_openai ? '🔷' : '🚀',
+                        'icon'       => $icon,
                         'summary'    => sprintf( __( 'Content generated with %s.', 'aimentor' ), $label ),
-                        'badgeText'  => $is_openai ? __( 'OpenAI', 'aimentor' ) : __( 'xAI', 'aimentor' ),
-                        'badgeColor' => $is_openai ? '#2B8CFF' : '#1E1E1E',
+                        'badgeText'  => $badge_text,
+                        'badgeColor' => $badge_color,
                 );
         }
 
@@ -659,6 +682,7 @@ function aimentor_get_provider_meta_map() {
 // Providers.
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-provider-interface.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-grok-provider.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-anthropic-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-openai-provider.php';
 
 if ( class_exists( 'AiMentor_Provider_Interface' ) && ! class_exists( 'JagGrok_Provider_Interface' ) ) {
@@ -667,6 +691,10 @@ if ( class_exists( 'AiMentor_Provider_Interface' ) && ! class_exists( 'JagGrok_P
 
 if ( class_exists( 'AiMentor_Grok_Provider' ) && ! class_exists( 'JagGrok_Grok_Provider' ) ) {
         class_alias( 'AiMentor_Grok_Provider', 'JagGrok_Grok_Provider' );
+}
+
+if ( class_exists( 'AiMentor_Anthropic_Provider' ) && ! class_exists( 'JagGrok_Anthropic_Provider' ) ) {
+        class_alias( 'AiMentor_Anthropic_Provider', 'JagGrok_Anthropic_Provider' );
 }
 
 if ( class_exists( 'AiMentor_OpenAI_Provider' ) && ! class_exists( 'JagGrok_OpenAI_Provider' ) ) {
@@ -782,6 +810,8 @@ function jaggrok_get_active_provider( $provider_key = null ) {
         switch ( $provider_key ) {
                 case 'openai':
                         return new JagGrok_OpenAI_Provider();
+                case 'anthropic':
+                        return new JagGrok_Anthropic_Provider();
                 case 'grok':
                 default:
                         return new JagGrok_Grok_Provider();

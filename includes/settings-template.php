@@ -92,8 +92,9 @@
     $provider_controls_locked = function_exists( 'aimentor_provider_controls_locked_for_request' ) ? aimentor_provider_controls_locked_for_request() : ( $network_lock_enabled && ! $is_network_admin );
     $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
     $api_keys       = [
-            'grok'   => get_option( 'aimentor_xai_api_key' ),
-            'openai' => get_option( 'aimentor_openai_api_key' ),
+            'grok'      => get_option( 'aimentor_xai_api_key' ),
+            'anthropic' => get_option( 'aimentor_anthropic_api_key' ),
+            'openai'    => get_option( 'aimentor_openai_api_key' ),
     ];
     $models         = aimentor_get_provider_models();
     $allowed_models = aimentor_get_allowed_provider_models();
@@ -145,6 +146,12 @@
             'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
             'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
     ];
+    $anthropic_model_labels = [
+            'claude-3-5-haiku'  => __( 'Claude 3.5 Haiku (Fast)', 'aimentor' ),
+            'claude-3-5-sonnet' => __( 'Claude 3.5 Sonnet (Balanced) ★', 'aimentor' ),
+            'claude-3-5-opus'   => __( 'Claude 3.5 Opus (Flagship)', 'aimentor' ),
+            'claude-3-opus'     => __( 'Claude 3 Opus (Legacy)', 'aimentor' ),
+    ];
     $openai_model_labels = [
             'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
             'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
@@ -167,7 +174,7 @@
     $health_check_recipients      = aimentor_sanitize_health_check_recipients( get_option( 'aimentor_health_check_recipients', $defaults['aimentor_health_check_recipients'] ) );
     $health_check_threshold       = aimentor_get_health_check_failure_threshold();
 
-    $has_api_key           = ! empty( $api_keys['grok'] ) || ! empty( $api_keys['openai'] );
+    $has_api_key           = ! empty( $api_keys['grok'] ) || ! empty( $api_keys['anthropic'] ) || ! empty( $api_keys['openai'] );
     $provider_tested       = (bool) get_option( 'aimentor_api_tested', $defaults['aimentor_api_tested'] );
     $onboarding_dismissed  = 'yes' === get_option( 'aimentor_onboarding_dismissed', $defaults['aimentor_onboarding_dismissed'] );
     $should_show_onboarding = ! $onboarding_dismissed && ( ! $has_api_key || ! $provider_tested );
@@ -176,7 +183,7 @@
             $onboarding_steps = [
                     [
                             'label'       => __( 'Add your API key', 'aimentor' ),
-                            'description' => __( 'Paste your xAI or OpenAI key into the fields below.', 'aimentor' ),
+            'description' => __( 'Paste your xAI, Anthropic, or OpenAI key into the fields below.', 'aimentor' ),
                             'completed'   => $has_api_key,
                     ],
                     [
@@ -261,9 +268,10 @@
         <p class="description aimentor-defaults-notice jaggrok-defaults-notice">
                 <?php
                 printf(
-                        /* translators: 1: Grok model, 2: OpenAI model, 3: max tokens */
-                        esc_html__( 'Defaults: Grok starts on %1$s, OpenAI uses %2$s, and requests are capped at %3$s tokens until you change them.', 'aimentor' ),
+                        /* translators: 1: Grok model, 2: Anthropic model, 3: OpenAI model, 4: max tokens */
+                        esc_html__( 'Defaults: Grok starts on %1$s, Anthropic loads %2$s, OpenAI uses %3$s, and requests are capped at %4$s tokens until you change them.', 'aimentor' ),
                         esc_html( strtoupper( $defaults['aimentor_model'] ) ),
+                        esc_html( strtoupper( $defaults['aimentor_anthropic_model'] ) ),
                         esc_html( strtoupper( $defaults['aimentor_openai_model'] ) ),
                         esc_html( number_format_i18n( $defaults['aimentor_max_tokens'] ) )
                 );
@@ -302,6 +310,14 @@
                             <span class="description aimentor-provider-summary jaggrok-provider-summary"><?php esc_html_e( "Creator tier includes roughly 30 requests per minute and bundled usage. Confirm current allowances on xAI's pricing page.", 'aimentor' ); ?></span>
                         </label>
                         <label class="aimentor-provider-option jaggrok-provider-option">
+                            <input type="radio" name="aimentor_provider" value="anthropic" <?php checked( $provider, 'anthropic' ); ?> <?php disabled( $provider_controls_locked ); ?> />
+                            <span class="aimentor-provider-name jaggrok-provider-name"><?php esc_html_e( 'Anthropic Claude', 'aimentor' ); ?></span>
+                            <span class="aimentor-provider-badge jaggrok-provider-badge" style="background-color:#FF5C35;" aria-hidden="true">
+                                <?php esc_html_e( 'Claude', 'aimentor' ); ?>
+                            </span>
+                            <span class="description aimentor-provider-summary jaggrok-provider-summary"><?php esc_html_e( 'Enterprise-grade safeguards with generous team allowances. Review Anthropic pricing for seat and usage tiers.', 'aimentor' ); ?></span>
+                        </label>
+                        <label class="aimentor-provider-option jaggrok-provider-option">
                             <input type="radio" name="aimentor_provider" value="openai" <?php checked( $provider, 'openai' ); ?> <?php disabled( $provider_controls_locked ); ?> />
                             <span class="aimentor-provider-name jaggrok-provider-name"><?php esc_html_e( 'OpenAI', 'aimentor' ); ?></span>
                             <span class="aimentor-provider-badge jaggrok-provider-badge" style="background-color:#2B8CFF;" aria-hidden="true">
@@ -316,6 +332,10 @@
                     <div class="aimentor-provider-help jaggrok-provider-help" data-provider="grok" aria-live="polite">
                         <p class="description"><?php esc_html_e( 'Grok API access is part of the Creator subscription. Typical soft limits hover around 30 requests/minute; usage beyond that may queue. See the xAI pricing page for up-to-date information.', 'aimentor' ); ?></p>
                         <p class="description"><a href="<?php echo esc_url( 'https://x.ai/pricing' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View xAI pricing & limits', 'aimentor' ); ?></a></p>
+                    </div>
+                    <div class="aimentor-provider-help jaggrok-provider-help" data-provider="anthropic" aria-live="polite">
+                        <p class="description"><?php esc_html_e( 'Claude plans combine usage-based billing with workspace seats. Workspace admins can assign API keys per project for granular control.', 'aimentor' ); ?></p>
+                        <p class="description"><a href="<?php echo esc_url( 'https://www.anthropic.com/pricing' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Review Anthropic pricing & limits', 'aimentor' ); ?></a></p>
                     </div>
                     <div class="aimentor-provider-help jaggrok-provider-help" data-provider="openai" aria-live="polite">
                         <p class="description"><?php esc_html_e( 'OpenAI accounts charge only for tokens used. Most teams start with generous rate limits that scale automatically after billing verification.', 'aimentor' ); ?></p>
@@ -336,10 +356,26 @@
                         <p class="description">
                             <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="grok"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
-                        <?php $grok_status = $provider_status_views['grok']; ?>
+                        <?php $grok_status = isset( $provider_status_views['grok'] ) ? $provider_status_views['grok'] : aimentor_format_provider_status_for_display( 'grok', [] ); ?>
                         <div class="aimentor-provider-status jaggrok-provider-status" data-provider="grok" data-timestamp="<?php echo esc_attr( $grok_status['timestamp'] ); ?>" aria-live="polite">
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $grok_status['badge_state'] ); ?>" data-provider="grok"><?php echo esc_html( $grok_status['badge_label'] ); ?></span>
                             <span class="aimentor-status-description jaggrok-status-description" data-provider="grok"><?php echo esc_html( $grok_status['description'] ); ?></span>
+                        </div>
+                    </div>
+                    <div class="aimentor-provider-group jaggrok-provider-group" data-provider="anthropic">
+                        <label for="aimentor_anthropic_api_key" class="aimentor-provider-group__label jaggrok-provider-group__label"><?php esc_html_e( 'Anthropic API Key', 'aimentor' ); ?></label>
+                        <div class="aimentor-api-key-container jaggrok-api-key-container">
+                            <input type="password" id="aimentor_anthropic_api_key" name="aimentor_anthropic_api_key" value="<?php echo esc_attr( $api_keys['anthropic'] ); ?>" class="regular-text aimentor-api-input jaggrok-api-input" autocomplete="off" placeholder="<?php esc_attr_e( 'sk-ant-...', 'aimentor' ); ?>" />
+                            <button type="button" class="button button-secondary aimentor-toggle-visibility jaggrok-toggle-visibility" data-target="aimentor_anthropic_api_key" data-show-label="<?php esc_attr_e( 'Show', 'aimentor' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide', 'aimentor' ); ?>" aria-label="<?php esc_attr_e( 'Toggle Anthropic API key visibility', 'aimentor' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'aimentor' ); ?></button>
+                        </div>
+                        <p class="description"><a href="<?php echo esc_url( 'https://console.anthropic.com/settings/keys' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Create an API key', 'aimentor' ); ?></a></p>
+                        <p class="description">
+                            <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="anthropic"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
+                        </p>
+                        <?php $anthropic_status = isset( $provider_status_views['anthropic'] ) ? $provider_status_views['anthropic'] : aimentor_format_provider_status_for_display( 'anthropic', [] ); ?>
+                        <div class="aimentor-provider-status jaggrok-provider-status" data-provider="anthropic" data-timestamp="<?php echo esc_attr( $anthropic_status['timestamp'] ); ?>" aria-live="polite">
+                            <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $anthropic_status['badge_state'] ); ?>" data-provider="anthropic"><?php echo esc_html( $anthropic_status['badge_label'] ); ?></span>
+                            <span class="aimentor-status-description jaggrok-status-description" data-provider="anthropic"><?php echo esc_html( $anthropic_status['description'] ); ?></span>
                         </div>
                     </div>
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
@@ -352,7 +388,7 @@
                         <p class="description">
                             <button type="button" class="button aimentor-test-provider jaggrok-test-provider" data-provider="openai"><?php esc_html_e( 'Test Connection', 'aimentor' ); ?></button>
                         </p>
-                        <?php $openai_status = $provider_status_views['openai']; ?>
+                        <?php $openai_status = isset( $provider_status_views['openai'] ) ? $provider_status_views['openai'] : aimentor_format_provider_status_for_display( 'openai', [] ); ?>
                         <div class="aimentor-provider-status jaggrok-provider-status" data-provider="openai" data-timestamp="<?php echo esc_attr( $openai_status['timestamp'] ); ?>" aria-live="polite">
                             <span class="aimentor-status-badge aimentor-status-badge--<?php echo esc_attr( $openai_status['badge_state'] ); ?>" data-provider="openai"><?php echo esc_html( $openai_status['badge_label'] ); ?></span>
                             <span class="aimentor-status-description jaggrok-status-description" data-provider="openai"><?php echo esc_html( $openai_status['description'] ); ?></span>
@@ -397,6 +433,18 @@
                             <input type="hidden" name="aimentor_provider_models[grok]" value="<?php echo esc_attr( $models['grok'] ); ?>" />
                         <?php endif; ?>
                         <p class="description"><?php esc_html_e( 'Grok 3 Beta is a reliable balance of quality and speed for most Elementor flows.', 'aimentor' ); ?></p>
+                    </div>
+                    <div class="aimentor-provider-group jaggrok-provider-group" data-provider="anthropic">
+                        <label class="screen-reader-text" for="aimentor_provider_models_anthropic"><?php esc_html_e( 'Anthropic Claude default model', 'aimentor' ); ?></label>
+                        <select name="aimentor_provider_models[anthropic]" id="aimentor_provider_models_anthropic" class="regular-text" <?php disabled( $provider_controls_locked ); ?>>
+                            <?php foreach ( array_keys( $allowed_models['anthropic'] ) as $model_key ) : ?>
+                                <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['anthropic'], $model_key ); ?>><?php echo esc_html( $anthropic_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ( $provider_controls_locked ) : ?>
+                            <input type="hidden" name="aimentor_provider_models[anthropic]" value="<?php echo esc_attr( $models['anthropic'] ); ?>" />
+                        <?php endif; ?>
+                        <p class="description"><?php esc_html_e( 'Claude Sonnet balances fast responses with strong reasoning for content and layout tasks.', 'aimentor' ); ?></p>
                     </div>
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
                         <label class="screen-reader-text" for="aimentor_provider_models_openai"><?php esc_html_e( 'OpenAI default model', 'aimentor' ); ?></label>
@@ -727,10 +775,7 @@
                         <summary><?php esc_html_e( 'Advanced overrides', 'aimentor' ); ?></summary>
                         <p class="description"><?php esc_html_e( 'Adjust per-provider request behaviour. Leave fields blank to fall back to built-in defaults.', 'aimentor' ); ?></p>
                         <?php
-                        $advanced_provider_labels = [
-                                'grok'   => __( 'xAI Grok', 'aimentor' ),
-                                'openai' => __( 'OpenAI', 'aimentor' ),
-                        ];
+                        $advanced_provider_labels = aimentor_get_provider_labels();
                         $advanced_task_labels = [
                                 'canvas'  => __( 'Canvas', 'aimentor' ),
                                 'content' => __( 'Content', 'aimentor' ),
@@ -771,6 +816,7 @@
             </tr>
         </table>
         <input type="hidden" name="aimentor_model" id="aimentor_model_legacy" value="<?php echo esc_attr( $models['grok'] ); ?>" />
+        <input type="hidden" name="aimentor_anthropic_model" id="aimentor_anthropic_model_legacy" value="<?php echo esc_attr( $models['anthropic'] ); ?>" />
         <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $models['openai'] ); ?>" />
         <?php submit_button(); ?>
     </form>
@@ -1021,6 +1067,10 @@
 
         $('#aimentor_provider_models_grok').on('change', function() {
             $('#aimentor_model_legacy').val($(this).val());
+        });
+
+        $('#aimentor_provider_models_anthropic').on('change', function() {
+            $('#aimentor_anthropic_model_legacy').val($(this).val());
         });
 
         $('#aimentor_provider_models_openai').on('change', function() {
