@@ -34,6 +34,7 @@ Every bump must land in a dedicated pull request so the merged commit and the an
    - Update the GitHub Releases download URL reference so it points to the new ZIP name.
 4. **`manifests/aimentor-plugin-info.json`** (for local testing)
    - Update `version`, `download_url`, and any hash placeholder if you are simulating a release. The GitHub Action overwrites this file on `gh-pages` during a real release, but keeping the default branch copy current prevents confusion.
+   - Confirm the download URL references the `jagjourney/aimentor-elementor` release asset in the pattern `https://github.com/jagjourney/aimentor-elementor/releases/download/vX.Y.Z/aimentor-elementor-vX.Y.Z.zip`.
 5. **ZIP artifacts in `/downloads`** (only if you are attaching a handcrafted ZIP to a draft release)
    - Ensure the filename is `aimentor-elementor.zip` so the workflow can reuse it.
 
