@@ -50,6 +50,20 @@ function aimentor_get_allowed_provider_models() {
         ];
 }
 
+function aimentor_get_request_override_defaults() {
+        $tasks = [ 'canvas', 'content' ];
+        $fields = [ 'temperature', 'timeout' ];
+        $defaults = [ 'grok' => [], 'openai' => [] ];
+
+        foreach ( array_keys( $defaults ) as $provider ) {
+                foreach ( $tasks as $task ) {
+                        $defaults[ $provider ][ $task ] = array_fill_keys( $fields, '' );
+                }
+        }
+
+        return $defaults;
+}
+
 function aimentor_get_network_managed_options() {
         return [
                 'aimentor_network_lock_provider_models',
@@ -65,6 +79,7 @@ function aimentor_get_network_managed_options() {
                 'aimentor_default_performance',
                 'aimentor_provider_test_statuses',
                 'aimentor_api_tested',
+                'aimentor_request_overrides',
         ];
 }
 
@@ -1987,6 +2002,7 @@ function aimentor_get_default_options() {
                 'aimentor_health_check_recipients'    => '',
                 'aimentor_archive_layouts'            => 'no',
                 'aimentor_archive_layouts_show_ui'    => 'no',
+                'aimentor_request_overrides'          => aimentor_get_request_override_defaults(),
                 'aimentor_network_lock_provider_models' => 'no',
         ];
 }
@@ -2198,6 +2214,16 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_provider_models',
                         'default' => $defaults['aimentor_provider_models'],
+                        'type' => 'array',
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_request_overrides',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_request_overrides',
+                        'default' => $defaults['aimentor_request_overrides'],
                         'type' => 'array',
                 ]
         );
@@ -2803,6 +2829,51 @@ function aimentor_get_provider_models() {
         }
 
         return aimentor_sanitize_provider_models( $stored );
+}
+
+function aimentor_sanitize_request_overrides( $value ) {
+        $defaults  = aimentor_get_request_override_defaults();
+        $sanitized = $defaults;
+
+        if ( ! is_array( $value ) ) {
+                return $sanitized;
+        }
+
+        foreach ( $defaults as $provider => $tasks ) {
+                foreach ( array_keys( $tasks ) as $task ) {
+                        $entry = isset( $value[ $provider ][ $task ] ) && is_array( $value[ $provider ][ $task ] )
+                                ? $value[ $provider ][ $task ]
+                                : [];
+
+                        $temperature = isset( $entry['temperature'] ) ? trim( (string) $entry['temperature'] ) : '';
+
+                        if ( '' !== $temperature ) {
+                                $temperature = (float) $temperature;
+                                $temperature = max( 0.0, min( 2.0, $temperature ) );
+                                $sanitized[ $provider ][ $task ]['temperature'] = round( $temperature, 2 );
+                        }
+
+                        $timeout = isset( $entry['timeout'] ) ? $entry['timeout'] : '';
+
+                        if ( '' !== $timeout ) {
+                                $timeout = absint( $timeout );
+                                $timeout = max( 5, min( 600, $timeout ) );
+                                $sanitized[ $provider ][ $task ]['timeout'] = $timeout;
+                        }
+                }
+        }
+
+        return $sanitized;
+}
+
+function aimentor_get_request_overrides() {
+        $stored = get_option( 'aimentor_request_overrides', [] );
+
+        if ( ! is_array( $stored ) ) {
+                $stored = [];
+        }
+
+        return aimentor_sanitize_request_overrides( $stored );
 }
 
 function aimentor_sanitize_model( $value ) {
@@ -3949,6 +4020,7 @@ $aimentor_options_to_mirror = [
         'aimentor_api_tested',
         'aimentor_provider_test_statuses',
         'aimentor_onboarding_dismissed',
+        'aimentor_request_overrides',
 ];
 
 foreach ( $aimentor_options_to_mirror as $option_name ) {

@@ -134,6 +134,9 @@
             ];
     }
     $brand_preferences = aimentor_get_brand_preferences();
+    $request_overrides = aimentor_get_request_overrides();
+    $request_override_defaults = aimentor_get_request_override_defaults();
+    $advanced_has_overrides = $request_overrides !== $request_override_defaults;
     $grok_model_labels = [
             'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
             'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
@@ -717,6 +720,55 @@
                     <p class="description"><?php esc_html_e( 'Higher values allow for more detailed layouts. Stay within your provider limits.', 'aimentor' ); ?></p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Advanced', 'aimentor' ); ?></th>
+                <td>
+                    <details class="aimentor-advanced-settings" <?php echo $advanced_has_overrides ? ' open' : ''; ?>>
+                        <summary><?php esc_html_e( 'Advanced overrides', 'aimentor' ); ?></summary>
+                        <p class="description"><?php esc_html_e( 'Adjust per-provider request behaviour. Leave fields blank to fall back to built-in defaults.', 'aimentor' ); ?></p>
+                        <?php
+                        $advanced_provider_labels = [
+                                'grok'   => __( 'xAI Grok', 'aimentor' ),
+                                'openai' => __( 'OpenAI', 'aimentor' ),
+                        ];
+                        $advanced_task_labels = [
+                                'canvas'  => __( 'Canvas', 'aimentor' ),
+                                'content' => __( 'Content', 'aimentor' ),
+                        ];
+
+                        foreach ( $advanced_provider_labels as $advanced_provider_key => $advanced_provider_label ) :
+                                $provider_overrides = isset( $request_overrides[ $advanced_provider_key ] ) && is_array( $request_overrides[ $advanced_provider_key ] )
+                                        ? $request_overrides[ $advanced_provider_key ]
+                                        : [];
+                        ?>
+                        <div class="aimentor-advanced-provider" data-provider="<?php echo esc_attr( $advanced_provider_key ); ?>">
+                            <h4><?php echo esc_html( $advanced_provider_label ); ?></h4>
+                            <div class="aimentor-advanced-grid">
+                                <?php foreach ( $advanced_task_labels as $advanced_task_key => $advanced_task_label ) :
+                                        $task_overrides      = isset( $provider_overrides[ $advanced_task_key ] ) && is_array( $provider_overrides[ $advanced_task_key ] ) ? $provider_overrides[ $advanced_task_key ] : [];
+                                        $temperature_value   = array_key_exists( 'temperature', $task_overrides ) ? $task_overrides['temperature'] : '';
+                                        $timeout_value       = array_key_exists( 'timeout', $task_overrides ) ? $task_overrides['timeout'] : '';
+                                        $temperature_display = '' === $temperature_value ? '' : $temperature_value;
+                                        $timeout_display     = '' === $timeout_value ? '' : $timeout_value;
+                                ?>
+                                <fieldset class="aimentor-advanced-task">
+                                    <legend><?php echo esc_html( $advanced_task_label ); ?></legend>
+                                    <label class="aimentor-advanced-field">
+                                        <span class="aimentor-advanced-label"><?php esc_html_e( 'Temperature', 'aimentor' ); ?></span>
+                                        <input type="number" step="0.05" min="0" max="2" class="small-text" name="aimentor_request_overrides[<?php echo esc_attr( $advanced_provider_key ); ?>][<?php echo esc_attr( $advanced_task_key ); ?>][temperature]" value="<?php echo '' === $temperature_display ? '' : esc_attr( $temperature_display ); ?>" />
+                                    </label>
+                                    <label class="aimentor-advanced-field">
+                                        <span class="aimentor-advanced-label"><?php esc_html_e( 'Timeout (seconds)', 'aimentor' ); ?></span>
+                                        <input type="number" min="5" max="600" class="small-text" name="aimentor_request_overrides[<?php echo esc_attr( $advanced_provider_key ); ?>][<?php echo esc_attr( $advanced_task_key ); ?>][timeout]" value="<?php echo '' === $timeout_display ? '' : esc_attr( $timeout_display ); ?>" />
+                                    </label>
+                                </fieldset>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </details>
+                </td>
+            </tr>
         </table>
         <input type="hidden" name="aimentor_model" id="aimentor_model_legacy" value="<?php echo esc_attr( $models['grok'] ); ?>" />
         <input type="hidden" name="aimentor_openai_model" id="aimentor_openai_model_legacy" value="<?php echo esc_attr( $models['openai'] ); ?>" />
@@ -914,6 +966,21 @@
 .aimentor-usage-stat__value, .jaggrok-usage-stat__value { font-size: 18px; font-weight: 600; color: #111827; }
 .aimentor-usage-provider__meta, .jaggrok-usage-provider__meta { margin: 0; font-size: 13px; color: #374151; }
 .aimentor-usage-provider__context, .jaggrok-usage-provider__context { margin: 0; font-size: 12px; color: #6b7280; }
+.aimentor-advanced-settings { border: 1px solid #ccd0d4; border-radius: 6px; padding: 12px 16px 16px; background: #fff; max-width: 720px; }
+.aimentor-advanced-settings summary { cursor: pointer; font-weight: 600; margin: -12px -16px 12px; padding: 12px 16px; list-style: none; position: relative; }
+.aimentor-advanced-settings summary::after { content: '\25BE'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); transition: transform 0.2s ease; }
+.aimentor-advanced-settings summary::-webkit-details-marker { display: none; }
+.aimentor-advanced-settings[open] summary { border-bottom: 1px solid #e5e7eb; margin-bottom: 16px; }
+.aimentor-advanced-settings[open] summary::after { transform: translateY(-50%) rotate(180deg); }
+.aimentor-advanced-provider { margin-top: 20px; }
+.aimentor-advanced-provider:first-of-type { margin-top: 0; }
+.aimentor-advanced-provider h4 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+.aimentor-advanced-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.aimentor-advanced-task { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; background: #f9fafb; }
+.aimentor-advanced-task legend { font-weight: 600; padding: 0 4px; margin-bottom: 8px; font-size: 13px; }
+.aimentor-advanced-field { display: flex; flex-direction: column; margin-bottom: 10px; }
+.aimentor-advanced-field:last-of-type { margin-bottom: 0; }
+.aimentor-advanced-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 4px; }
 </style>
 
 <script>

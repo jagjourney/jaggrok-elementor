@@ -15,7 +15,7 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
 		private array $legacy_repos = array();
 		private $remote_info = null;
 
-		public function __construct( $repo = 'aimentor/aimentor-elementor', $slug = 'aimentor-elementor', array $args = array() ) {
+			public function __construct( $repo = 'jagjourney/aimentor-elementor', $slug = 'aimentor-elementor', array $args = array() ) {
 			$defaults = array(
 				'manifest_url'        => 'https://aimentor.github.io/aimentor-elementor/manifests/aimentor-plugin-info.json',
 				'plugin_file'         => 'aimentor-elementor/aimentor-elementor.php',
@@ -32,7 +32,7 @@ if ( ! class_exists( 'AiMentor_Updater' ) ) {
 
 			$this->repo = $this->sanitize_repo( $repo );
 			if ( '' === $this->repo ) {
-				$this->repo = 'aimentor/aimentor-elementor';
+				$this->repo = 'jagjourney/aimentor-elementor';
 			}
 
 			$this->slug = $this->sanitize_slug( $slug );
