@@ -86,6 +86,10 @@
     $defaults       = aimentor_get_default_options();
     $usage_metrics  = isset( $aimentor_usage_metrics ) && is_array( $aimentor_usage_metrics ) ? $aimentor_usage_metrics : aimentor_get_provider_usage_summary();
     $usage_providers = isset( $usage_metrics['providers'] ) && is_array( $usage_metrics['providers'] ) ? $usage_metrics['providers'] : [];
+    $is_network_admin = function_exists( 'is_network_admin' ) && is_network_admin();
+    $is_multisite_instance = function_exists( 'is_multisite' ) ? is_multisite() : false;
+    $network_lock_enabled = function_exists( 'aimentor_is_network_provider_lock_enabled' ) ? aimentor_is_network_provider_lock_enabled() : false;
+    $provider_controls_locked = function_exists( 'aimentor_provider_controls_locked_for_request' ) ? aimentor_provider_controls_locked_for_request() : ( $network_lock_enabled && ! $is_network_admin );
     $provider       = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
     $api_keys       = [
             'grok'   => get_option( 'aimentor_xai_api_key' ),
@@ -263,13 +267,31 @@
                 ?>
         </p>
         <table class="form-table">
+            <?php if ( $is_multisite_instance && $is_network_admin ) : ?>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Network enforcement', 'aimentor' ); ?></th>
+                <td>
+                    <input type="hidden" name="aimentor_network_lock_provider_models" value="no" />
+                    <label>
+                        <input type="checkbox" name="aimentor_network_lock_provider_models" value="yes" <?php checked( $network_lock_enabled ); ?> />
+                        <?php esc_html_e( 'Apply provider and model defaults to every site in this network.', 'aimentor' ); ?>
+                    </label>
+                    <p class="description"><?php esc_html_e( 'When enabled, local site administrators cannot change provider or model defaults and the values saved here are shared everywhere.', 'aimentor' ); ?></p>
+                </td>
+            </tr>
+            <?php endif; ?>
             <tr>
                 <th scope="row"><label><?php esc_html_e( 'Provider', 'aimentor' ); ?></label></th>
                 <td>
+                    <?php if ( $provider_controls_locked ) : ?>
+                        <p class="description"><?php esc_html_e( 'Provider selection is locked by a network administrator.', 'aimentor' ); ?></p>
+                    <?php elseif ( $network_lock_enabled && $is_network_admin ) : ?>
+                        <p class="description"><?php esc_html_e( 'Network enforcement is active. Changes you make to provider and model selections will update every site.', 'aimentor' ); ?></p>
+                    <?php endif; ?>
                     <fieldset id="aimentor-provider-selector" class="aimentor-provider-fieldset jaggrok-provider-fieldset">
                         <legend class="screen-reader-text"><?php esc_html_e( 'AI provider', 'aimentor' ); ?></legend>
                         <label class="aimentor-provider-option jaggrok-provider-option">
-                            <input type="radio" name="aimentor_provider" value="grok" <?php checked( $provider, 'grok' ); ?> />
+                            <input type="radio" name="aimentor_provider" value="grok" <?php checked( $provider, 'grok' ); ?> <?php disabled( $provider_controls_locked ); ?> />
                             <span class="aimentor-provider-name jaggrok-provider-name"><?php esc_html_e( 'xAI Grok', 'aimentor' ); ?></span>
                             <span class="aimentor-provider-badge jaggrok-provider-badge" style="background-color:#1E1E1E;" aria-hidden="true">
                                 <?php esc_html_e( 'xAI', 'aimentor' ); ?>
@@ -277,7 +299,7 @@
                             <span class="description aimentor-provider-summary jaggrok-provider-summary"><?php esc_html_e( "Creator tier includes roughly 30 requests per minute and bundled usage. Confirm current allowances on xAI's pricing page.", 'aimentor' ); ?></span>
                         </label>
                         <label class="aimentor-provider-option jaggrok-provider-option">
-                            <input type="radio" name="aimentor_provider" value="openai" <?php checked( $provider, 'openai' ); ?> />
+                            <input type="radio" name="aimentor_provider" value="openai" <?php checked( $provider, 'openai' ); ?> <?php disabled( $provider_controls_locked ); ?> />
                             <span class="aimentor-provider-name jaggrok-provider-name"><?php esc_html_e( 'OpenAI', 'aimentor' ); ?></span>
                             <span class="aimentor-provider-badge jaggrok-provider-badge" style="background-color:#2B8CFF;" aria-hidden="true">
                                 <?php esc_html_e( 'OpenAI', 'aimentor' ); ?>
@@ -285,6 +307,9 @@
                             <span class="description aimentor-provider-summary jaggrok-provider-summary"><?php esc_html_e( 'Pay-as-you-go billing with token-based rates. Review OpenAI pricing for the latest per-model costs.', 'aimentor' ); ?></span>
                         </label>
                     </fieldset>
+                    <?php if ( $provider_controls_locked ) : ?>
+                        <input type="hidden" name="aimentor_provider" value="<?php echo esc_attr( $provider ); ?>" />
+                    <?php endif; ?>
                     <div class="aimentor-provider-help jaggrok-provider-help" data-provider="grok" aria-live="polite">
                         <p class="description"><?php esc_html_e( 'Grok API access is part of the Creator subscription. Typical soft limits hover around 30 requests/minute; usage beyond that may queue. See the xAI pricing page for up-to-date information.', 'aimentor' ); ?></p>
                         <p class="description"><a href="<?php echo esc_url( 'https://x.ai/pricing' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View xAI pricing & limits', 'aimentor' ); ?></a></p>
@@ -360,20 +385,26 @@
                 <td>
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="grok">
                         <label class="screen-reader-text" for="aimentor_provider_models_grok"><?php esc_html_e( 'xAI Grok default model', 'aimentor' ); ?></label>
-                        <select name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" class="regular-text">
+                        <select name="aimentor_provider_models[grok]" id="aimentor_provider_models_grok" class="regular-text" <?php disabled( $provider_controls_locked ); ?>>
                             <?php foreach ( array_keys( $allowed_models['grok'] ) as $model_key ) : ?>
                                 <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['grok'], $model_key ); ?>><?php echo esc_html( $grok_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if ( $provider_controls_locked ) : ?>
+                            <input type="hidden" name="aimentor_provider_models[grok]" value="<?php echo esc_attr( $models['grok'] ); ?>" />
+                        <?php endif; ?>
                         <p class="description"><?php esc_html_e( 'Grok 3 Beta is a reliable balance of quality and speed for most Elementor flows.', 'aimentor' ); ?></p>
                     </div>
                     <div class="aimentor-provider-group jaggrok-provider-group" data-provider="openai">
                         <label class="screen-reader-text" for="aimentor_provider_models_openai"><?php esc_html_e( 'OpenAI default model', 'aimentor' ); ?></label>
-                        <select name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" class="regular-text">
+                        <select name="aimentor_provider_models[openai]" id="aimentor_provider_models_openai" class="regular-text" <?php disabled( $provider_controls_locked ); ?>>
                             <?php foreach ( array_keys( $allowed_models['openai'] ) as $model_key ) : ?>
                                 <option value="<?php echo esc_attr( $model_key ); ?>" <?php selected( $models['openai'], $model_key ); ?>><?php echo esc_html( $openai_model_labels[ $model_key ] ?? strtoupper( $model_key ) ); ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if ( $provider_controls_locked ) : ?>
+                            <input type="hidden" name="aimentor_provider_models[openai]" value="<?php echo esc_attr( $models['openai'] ); ?>" />
+                        <?php endif; ?>
                         <p class="description"><?php esc_html_e( 'GPT-4o mini delivers strong reasoning with lower cost; upgrade as your budget allows.', 'aimentor' ); ?></p>
                     </div>
                 </td>
@@ -406,15 +437,18 @@
                                 </td>
                                 <td>
                                     <label class="screen-reader-text" for="aimentor-context-provider-default"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
-                                    <select name="aimentor_document_provider_defaults[default][provider]" id="aimentor-context-provider-default" class="aimentor-context-provider" style="min-width:160px;">
+                                    <select name="aimentor_document_provider_defaults[default][provider]" id="aimentor-context-provider-default" class="aimentor-context-provider" style="min-width:160px;" <?php disabled( $provider_controls_locked ); ?>>
                                         <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
                                             <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $global_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <?php if ( $provider_controls_locked ) : ?>
+                                        <input type="hidden" name="aimentor_document_provider_defaults[default][provider]" value="<?php echo esc_attr( $global_provider ); ?>" />
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <label class="screen-reader-text" for="aimentor-context-model-default"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
-                                    <select name="aimentor_document_provider_defaults[default][model]" id="aimentor-context-model-default" class="aimentor-context-model" style="min-width:200px;">
+                                    <select name="aimentor_document_provider_defaults[default][model]" id="aimentor-context-model-default" class="aimentor-context-model" style="min-width:200px;" <?php disabled( $provider_controls_locked ); ?>>
                                         <?php foreach ( $allowed_models as $provider_key => $model_group ) :
                                             $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
                                         ?>
@@ -425,6 +459,9 @@
                                         </optgroup>
                                         <?php endforeach; ?>
                                     </select>
+                                    <?php if ( $provider_controls_locked ) : ?>
+                                        <input type="hidden" name="aimentor_document_provider_defaults[default][model]" value="<?php echo esc_attr( $global_model ); ?>" />
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         </tbody>
@@ -459,16 +496,19 @@
                                         <td>
                                             <?php $provider_id = 'aimentor-context-provider-' . md5( 'post_type:' . $post_type ); ?>
                                             <label class="screen-reader-text" for="<?php echo esc_attr( $provider_id ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
-                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][provider]" id="<?php echo esc_attr( $provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][provider]" id="<?php echo esc_attr( $provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;" <?php disabled( $provider_controls_locked ); ?>>
                                                 <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
                                                     <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $post_type_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
+                                            <?php if ( $provider_controls_locked ) : ?>
+                                                <input type="hidden" name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][provider]" value="<?php echo esc_attr( $post_type_provider ); ?>" />
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php $model_id = 'aimentor-context-model-' . md5( 'post_type:' . $post_type ); ?>
                                             <label class="screen-reader-text" for="<?php echo esc_attr( $model_id ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
-                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][model]" id="<?php echo esc_attr( $model_id ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                            <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][model]" id="<?php echo esc_attr( $model_id ); ?>" class="aimentor-context-model" style="min-width:200px;" <?php disabled( $provider_controls_locked ); ?>>
                                                 <?php foreach ( $allowed_models as $provider_key => $model_group ) :
                                                     $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
                                                 ?>
@@ -479,6 +519,9 @@
                                                 </optgroup>
                                                 <?php endforeach; ?>
                                             </select>
+                                            <?php if ( $provider_controls_locked ) : ?>
+                                                <input type="hidden" name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][model]" value="<?php echo esc_attr( $post_type_model ); ?>" />
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                     <?php if ( ! empty( $template_blueprint ) ) : ?>
@@ -499,15 +542,18 @@
                                             </td>
                                             <td>
                                                 <label class="screen-reader-text" for="<?php echo esc_attr( $template_provider_id ); ?>"><?php esc_html_e( 'Preferred provider', 'aimentor' ); ?></label>
-                                                <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][provider]" id="<?php echo esc_attr( $template_provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;">
+                                                <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][provider]" id="<?php echo esc_attr( $template_provider_id ); ?>" class="aimentor-context-provider" style="min-width:160px;" <?php disabled( $provider_controls_locked ); ?>>
                                                     <?php foreach ( $provider_labels_map as $provider_key => $provider_label ) : ?>
                                                         <option value="<?php echo esc_attr( $provider_key ); ?>" <?php selected( $template_provider, $provider_key ); ?>><?php echo esc_html( $provider_label ); ?></option>
                                                     <?php endforeach; ?>
                                                 </select>
+                                                <?php if ( $provider_controls_locked ) : ?>
+                                                    <input type="hidden" name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][provider]" value="<?php echo esc_attr( $template_provider ); ?>" />
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <label class="screen-reader-text" for="<?php echo esc_attr( $template_model_id ); ?>"><?php esc_html_e( 'Preferred model', 'aimentor' ); ?></label>
-                                                <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][model]" id="<?php echo esc_attr( $template_model_id ); ?>" class="aimentor-context-model" style="min-width:200px;">
+                                                <select name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][model]" id="<?php echo esc_attr( $template_model_id ); ?>" class="aimentor-context-model" style="min-width:200px;" <?php disabled( $provider_controls_locked ); ?>>
                                                     <?php foreach ( $allowed_models as $provider_key => $model_group ) :
                                                         $group_label = isset( $provider_labels_map[ $provider_key ] ) ? $provider_labels_map[ $provider_key ] : strtoupper( $provider_key );
                                                     ?>
@@ -518,6 +564,9 @@
                                                     </optgroup>
                                                     <?php endforeach; ?>
                                                 </select>
+                                                <?php if ( $provider_controls_locked ) : ?>
+                                                    <input type="hidden" name="aimentor_document_provider_defaults[page_types][<?php echo esc_attr( $post_type ); ?>][templates][<?php echo esc_attr( $template_file ); ?>][model]" value="<?php echo esc_attr( $template_model ); ?>" />
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                         <?php endforeach; ?>
