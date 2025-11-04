@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.12
+Stable tag: 1.3.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,14 +67,14 @@ No additional AiMentor-specific updater endpoints are required—the historical 
 native GitHub channel.
 
 == Development ==
-* Source code: https://github.com/aimentor/aimentor-elementor
-* Latest ZIP (tagged releases): https://github.com/aimentor/aimentor-elementor/releases
+* Source code: https://github.com/jagjourney/aimentor-elementor
+* Latest ZIP (tagged releases): https://github.com/jagjourney/aimentor-elementor/releases
 * Release automation: `.github/workflows/release.yml` validates PHP syntax, builds the ZIP package, attaches it to the release,
   and refreshes the lightweight manifest on `gh-pages`.
 * Release checklist and versioning guide: `docs/release-guide.md`.
 
 == Deployment ==
-Tagged releases automatically produce `aimentor-elementor.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
+Tagged releases automatically produce `aimentor-elementor-v<version>.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
 Refer to `docs/release-guide.md` for detailed tagging, workflow, and post-release steps.
 
 Need to stage a build before publication? Save the GitHub release as a draft—the automation now packages and uploads the official ZIP while deferring the manifest update until you publish. Manual ZIP uploads remain optional for bespoke artifacts.
@@ -95,6 +95,12 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.14 =
+* Added per-provider override settings for timeout and temperature so advanced teams can fine-tune request behavior.
+* Introduced an "Advanced" accordion on the settings screen with granular numeric controls for the new overrides.
+* Applied stored override values within Grok and OpenAI payload builders to honor customized request tuning.
+* Updated plugin metadata, manifests, and documentation to reference the jagjourney-hosted release assets and repository URLs.
+
 = 1.3.12 =
 * Added a multisite-aware lock that lets network administrators enforce provider and model selections for every site.
 * Updated the settings experience to surface the network toggle in Network Admin and render provider/model controls as read-only when locked.
