@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.11
+Stable tag: 1.3.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,8 +67,8 @@ No additional AiMentor-specific updater endpoints are required—the historical 
 native GitHub channel.
 
 == Development ==
-* Source code: https://github.com/aimentor/aimentor-elementor
-* Latest ZIP (tagged releases): https://github.com/aimentor/aimentor-elementor/releases
+* Source code: https://github.com/jagjourney/aimentor-elementor
+* Latest ZIP (tagged releases): https://github.com/jagjourney/aimentor-elementor/releases
 * Release automation: `.github/workflows/release.yml` validates PHP syntax, builds the ZIP package, attaches it to the release,
   and refreshes the lightweight manifest on `gh-pages`.
 * Release checklist and versioning guide: `docs/release-guide.md`.
@@ -95,6 +95,10 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.12 =
+* Updated the plugin update metadata and manifest defaults to reference the `jagjourney/aimentor-elementor` repository so auto-update clients fetch the published ZIP.
+* Pointed the bundled updater and documentation at the new GitHub Pages manifest location.
+
 = 1.3.11 =
 * Added a `wp aimentor generate` WP-CLI command that mirrors the AJAX generation flow, records history, and optionally saves output to disk.
 * Documented the WP-CLI workflow with prerequisites and usage examples for both content and canvas exports.

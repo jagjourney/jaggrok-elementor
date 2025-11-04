@@ -160,10 +160,10 @@ extract_manifest_version() {
     error "Could not parse download_url from manifests/aimentor-plugin-info.json (${label})."
   fi
 
-  if [[ "$download_url" =~ /download/v([0-9]+(\.[0-9]+)+)/aimentor-elementor-v([0-9]+(\.[0-9]+)+)\.zip$ ]]; then
+  if [[ "$download_url" =~ /download/v([0-9]+(\.[0-9]+)+)/aimentor-elementor(-v([0-9]+(\.[0-9]+)+))?\.zip$ ]]; then
     local url_version="${BASH_REMATCH[1]}"
-    local zip_version="${BASH_REMATCH[3]}"
-    if [[ "$url_version" != "$zip_version" ]]; then
+    local zip_version="${BASH_REMATCH[4]:-}"
+    if [[ -n "$zip_version" && "$url_version" != "$zip_version" ]]; then
       error "Download URL in manifests/aimentor-plugin-info.json (${label}) is inconsistent (${url_version} vs ${zip_version})."
     fi
     if [[ "$url_version" != "$version" ]]; then
