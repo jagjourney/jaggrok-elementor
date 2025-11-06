@@ -3644,10 +3644,525 @@ function aimentor_clear_error_log_ajax() {
 add_action( 'wp_ajax_aimentor_clear_error_log', 'aimentor_clear_error_log_ajax' );
 add_action( 'wp_ajax_jaggrok_clear_error_log', 'aimentor_clear_error_log_ajax' );
 
-function aimentor_settings_page_callback() {
-        $aimentor_usage_metrics = aimentor_get_provider_usage_summary();
-        include plugin_dir_path( __FILE__ ) . 'settings-template.php';
+function aimentor_get_settings_view_model() {
+        $defaults        = aimentor_get_default_options();
+        $usage_metrics   = aimentor_get_provider_usage_summary();
+        $usage_providers = isset( $usage_metrics['providers'] ) && is_array( $usage_metrics['providers'] ) ? $usage_metrics['providers'] : [];
+
+        $is_network_admin      = function_exists( 'is_network_admin' ) && is_network_admin();
+        $is_multisite_instance = function_exists( 'is_multisite' ) ? is_multisite() : false;
+        $network_lock_enabled  = function_exists( 'aimentor_is_network_provider_lock_enabled' ) ? aimentor_is_network_provider_lock_enabled() : false;
+        $provider_controls_locked = function_exists( 'aimentor_provider_controls_locked_for_request' )
+                ? aimentor_provider_controls_locked_for_request()
+                : ( $network_lock_enabled && ! $is_network_admin );
+
+        $provider = get_option( 'aimentor_provider', $defaults['aimentor_provider'] );
+        $api_keys = [
+                'grok'      => get_option( 'aimentor_xai_api_key' ),
+                'anthropic' => get_option( 'aimentor_anthropic_api_key' ),
+                'openai'    => get_option( 'aimentor_openai_api_key' ),
+        ];
+
+        $models         = aimentor_get_provider_models();
+        $allowed_models = aimentor_get_allowed_provider_models();
+
+        $document_context_blueprint = aimentor_get_document_context_blueprint();
+        $document_provider_defaults = aimentor_get_document_provider_defaults();
+        $provider_labels_map        = aimentor_get_provider_labels();
+
+        $page_type_defaults = isset( $document_provider_defaults['page_types'] ) && is_array( $document_provider_defaults['page_types'] )
+                ? $document_provider_defaults['page_types']
+                : [];
+        $page_type_blueprint = isset( $document_context_blueprint['page_types'] ) && is_array( $document_context_blueprint['page_types'] )
+                ? $document_context_blueprint['page_types']
+                : [];
+
+        $combined_page_types = $page_type_blueprint;
+
+        foreach ( $page_type_defaults as $post_type => $defaults_entry ) {
+                if ( '__global__' === $post_type ) {
+                        continue;
+                }
+
+                if ( isset( $combined_page_types[ $post_type ] ) ) {
+                        continue;
+                }
+
+                $template_map = [];
+
+                if ( isset( $defaults_entry['templates'] ) && is_array( $defaults_entry['templates'] ) ) {
+                        foreach ( $defaults_entry['templates'] as $template_file => $template_entry ) {
+                                $template_map[ $template_file ] = [
+                                        'key'   => 'template:' . $template_file,
+                                        'label' => $template_file,
+                                ];
+                        }
+                }
+
+                $combined_page_types[ $post_type ] = [
+                        'key'       => 'post_type:' . $post_type,
+                        'label'     => ucfirst( trim( str_replace( [ '_', '-' ], ' ', (string) $post_type ) ) ),
+                        'templates' => $template_map,
+                ];
+        }
+
+        $brand_preferences         = aimentor_get_brand_preferences();
+        $request_overrides         = aimentor_get_request_overrides();
+        $request_override_defaults = aimentor_get_request_override_defaults();
+        $advanced_has_overrides    = $request_overrides !== $request_override_defaults;
+
+        $grok_model_labels = [
+                'grok-3-mini' => __( 'Grok 3 Mini (Fast)', 'aimentor' ),
+                'grok-3-beta' => __( 'Grok 3 Beta (Balanced) ★', 'aimentor' ),
+                'grok-3'      => __( 'Grok 3 (Standard)', 'aimentor' ),
+                'grok-4-mini' => __( 'Grok 4 Mini (Premium)', 'aimentor' ),
+                'grok-4'      => __( 'Grok 4 (Flagship)', 'aimentor' ),
+                'grok-4-code' => __( 'Grok 4 Code', 'aimentor' ),
+        ];
+
+        $anthropic_model_labels = [
+                'claude-3-5-haiku'  => __( 'Claude 3.5 Haiku (Fast)', 'aimentor' ),
+                'claude-3-5-sonnet' => __( 'Claude 3.5 Sonnet (Balanced) ★', 'aimentor' ),
+                'claude-3-5-opus'   => __( 'Claude 3.5 Opus (Flagship)', 'aimentor' ),
+                'claude-3-opus'     => __( 'Claude 3 Opus (Legacy)', 'aimentor' ),
+        ];
+
+        $openai_model_labels = [
+                'gpt-4o-mini'  => __( 'GPT-4o mini (Balanced) ★', 'aimentor' ),
+                'gpt-4o'       => __( 'GPT-4o (Flagship)', 'aimentor' ),
+                'gpt-4.1'      => __( 'GPT-4.1 (Reasoning)', 'aimentor' ),
+                'gpt-4.1-mini' => __( 'GPT-4.1 mini (Fast)', 'aimentor' ),
+                'gpt-4.1-nano' => __( 'GPT-4.1 nano (Edge)', 'aimentor' ),
+                'o4-mini'      => __( 'o4-mini (Preview)', 'aimentor' ),
+                'o4'           => __( 'o4 (Preview)', 'aimentor' ),
+        ];
+
+        $provider_statuses     = aimentor_get_provider_test_statuses();
+        $provider_status_views = [];
+
+        foreach ( $provider_labels_map as $provider_key => $provider_label ) {
+                $current_status = $provider_statuses[ $provider_key ] ?? [ 'status' => '', 'message' => '', 'timestamp' => 0 ];
+                $provider_status_views[ $provider_key ] = aimentor_format_provider_status_for_display( $provider_key, $current_status );
+        }
+
+        $health_checks_enabled       = aimentor_health_checks_enabled();
+        $health_check_alerts_enabled = aimentor_health_check_alerts_enabled();
+        $health_check_recipients     = aimentor_sanitize_health_check_recipients( get_option( 'aimentor_health_check_recipients', $defaults['aimentor_health_check_recipients'] ) );
+        $health_check_threshold      = aimentor_get_health_check_failure_threshold();
+
+        $auto_updates_setting_enabled = function_exists( 'aimentor_auto_updates_enabled' ) ? aimentor_auto_updates_enabled() : true;
+        $auto_updates_active          = function_exists( 'aimentor_auto_updates_active' ) ? aimentor_auto_updates_active() : $auto_updates_setting_enabled;
+
+        $has_api_key          = ! empty( $api_keys['grok'] ) || ! empty( $api_keys['anthropic'] ) || ! empty( $api_keys['openai'] );
+        $provider_tested      = (bool) get_option( 'aimentor_api_tested', $defaults['aimentor_api_tested'] );
+        $onboarding_dismissed = 'yes' === get_option( 'aimentor_onboarding_dismissed', $defaults['aimentor_onboarding_dismissed'] );
+        $should_show_onboarding = ! $onboarding_dismissed && ( ! $has_api_key || ! $provider_tested );
+
+        return [
+                'defaults'                    => $defaults,
+                'usage_metrics'               => $usage_metrics,
+                'usage_providers'             => $usage_providers,
+                'is_network_admin'            => $is_network_admin,
+                'is_multisite_instance'       => $is_multisite_instance,
+                'network_lock_enabled'        => $network_lock_enabled,
+                'provider_controls_locked'    => $provider_controls_locked,
+                'provider'                    => $provider,
+                'api_keys'                    => $api_keys,
+                'models'                      => $models,
+                'allowed_models'              => $allowed_models,
+                'document_context_blueprint'  => $document_context_blueprint,
+                'document_provider_defaults'  => $document_provider_defaults,
+                'provider_labels_map'         => $provider_labels_map,
+                'page_type_defaults'          => $page_type_defaults,
+                'page_type_blueprint'         => $page_type_blueprint,
+                'combined_page_types'         => $combined_page_types,
+                'brand_preferences'           => $brand_preferences,
+                'request_overrides'           => $request_overrides,
+                'request_override_defaults'   => $request_override_defaults,
+                'advanced_has_overrides'      => $advanced_has_overrides,
+                'grok_model_labels'           => $grok_model_labels,
+                'anthropic_model_labels'      => $anthropic_model_labels,
+                'openai_model_labels'         => $openai_model_labels,
+                'provider_statuses'           => $provider_statuses,
+                'provider_status_views'       => $provider_status_views,
+                'health_checks_enabled'       => $health_checks_enabled,
+                'health_check_alerts_enabled' => $health_check_alerts_enabled,
+                'health_check_recipients'     => $health_check_recipients,
+                'health_check_threshold'      => $health_check_threshold,
+                'auto_updates_setting_enabled' => $auto_updates_setting_enabled,
+                'auto_updates_active'         => $auto_updates_active,
+                'has_api_key'                 => $has_api_key,
+                'provider_tested'             => $provider_tested,
+                'onboarding_dismissed'        => $onboarding_dismissed,
+                'should_show_onboarding'      => $should_show_onboarding,
+        ];
 }
+
+function aimentor_get_settings_tabs() {
+        $tabs = [
+                'overview'         => [
+                        'label'      => __( 'Overview', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_overview',
+                        'capability' => 'manage_options',
+                ],
+                'provider'         => [
+                        'label'      => __( 'Provider Setup', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_provider',
+                        'capability' => 'manage_options',
+                ],
+                'defaults'         => [
+                        'label'      => __( 'Defaults', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_defaults',
+                        'capability' => 'manage_options',
+                ],
+                'brand-automation' => [
+                        'label'      => __( 'Brand & Automation', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_brand',
+                        'capability' => 'manage_options',
+                ],
+                'logs'             => [
+                        'label'      => __( 'Logs', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_logs',
+                        'capability' => 'manage_options',
+                ],
+        ];
+
+        return apply_filters( 'aimentor_settings_tabs', $tabs );
+}
+
+function aimentor_get_settings_tab_nonce() {
+        static $nonce = null;
+
+        if ( null === $nonce ) {
+                $nonce = wp_create_nonce( 'aimentor_settings_tab' );
+        }
+
+        return $nonce;
+}
+
+function aimentor_render_settings_tab_overview() {
+        $view_model       = aimentor_get_settings_view_model();
+        $support_sections = aimentor_get_settings_support_resources();
+        $rest_endpoint    = rest_url( 'aimentor/v1/generate' );
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-overview.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_provider() {
+        $view_model       = aimentor_get_settings_view_model();
+        $support_sections = aimentor_get_settings_support_resources();
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-provider.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_defaults() {
+        $view_model       = aimentor_get_settings_view_model();
+        $support_sections = aimentor_get_settings_support_resources();
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-defaults.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_brand() {
+        $view_model       = aimentor_get_settings_view_model();
+        $support_sections = aimentor_get_settings_support_resources();
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-brand.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_logs() {
+        $view_model       = aimentor_get_settings_view_model();
+        $support_sections = aimentor_get_settings_support_resources();
+        $history_entries  = aimentor_get_generation_history();
+        $provider_meta    = aimentor_get_provider_meta_map();
+
+        $log_filter_provider = isset( $_GET['provider'] ) ? sanitize_key( wp_unslash( $_GET['provider'] ) ) : '';
+        $log_filter_keyword  = isset( $_GET['keyword'] ) ? sanitize_text_field( wp_unslash( $_GET['keyword'] ) ) : '';
+
+        if ( 'all' === $log_filter_provider ) {
+                $log_filter_provider = '';
+        }
+
+        $log_entries = aimentor_get_error_log_entries(
+                [
+                        'provider' => $log_filter_provider,
+                        'keyword'  => $log_filter_keyword,
+                ]
+        );
+
+        $log_rows = aimentor_build_error_log_rows_html(
+                $log_entries['entries'],
+                [
+                        'readable'      => $log_entries['readable'],
+                        'had_filters'   => ( '' !== $log_filter_provider || '' !== $log_filter_keyword ),
+                        'total_entries' => $log_entries['total_entries'],
+                ]
+        );
+
+        $log_file        = $log_entries['log_file'];
+        $error_log_nonce = wp_create_nonce( 'aimentor_error_log' );
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-logs.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_settings_page_callback() {
+        $tabs = aimentor_get_settings_tabs();
+
+        if ( empty( $tabs ) ) {
+                return;
+        }
+
+        $tab_slugs   = array_keys( $tabs );
+        $default_tab = reset( $tab_slugs );
+        $requested   = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+
+        if ( $requested && isset( $tabs[ $requested ] ) ) {
+                $default_tab = $requested;
+        }
+
+        $tab_nonce = aimentor_get_settings_tab_nonce();
+
+        $initial_html = '';
+
+        if ( isset( $tabs[ $default_tab ]['callback'] ) && is_callable( $tabs[ $default_tab ]['callback'] ) ) {
+                $initial_html = (string) call_user_func( $tabs[ $default_tab ]['callback'] );
+        }
+
+        $page_url = add_query_arg(
+                [
+                        'page' => 'aimentor-settings',
+                ],
+                admin_url( 'options-general.php' )
+        );
+
+        $tab_panel_id      = 'aimentor-settings-tab-content';
+        $default_button_id = 'aimentor-tab-' . sanitize_html_class( $default_tab ) . '-tab';
+        $styles = '/* Settings layout */'
+                . '.aimentor-settings-layout{display:flex;gap:28px;align-items:flex-start;}'
+                . '.aimentor-settings-main{flex:1 1 0;min-width:0;}'
+                . '.aimentor-settings-sidebar{flex:0 0 280px;max-width:320px;}'
+                . '.aimentor-settings-sidebar__card{border:1px solid #dcdcdc;border-radius:8px;background:#fff;padding:20px;box-shadow:0 6px 24px rgba(15,23,42,0.06);}'
+                . '.aimentor-support-section+.aimentor-support-section{margin-top:20px;}'
+                . '.aimentor-support-section__title{margin:0 0 6px;font-size:15px;font-weight:600;color:#1f2937;}'
+                . '.aimentor-support-list{list-style:none;margin:0;padding:0;}'
+                . '.aimentor-support-list__item{margin-bottom:12px;}'
+                . '.aimentor-support-list__item:last-child{margin-bottom:0;}'
+                . '.aimentor-support-link{color:#2563eb;text-decoration:none;font-weight:600;}'
+                . '.aimentor-support-link:focus,.aimentor-support-link:hover{text-decoration:underline;color:#1d4ed8;}'
+                . '.aimentor-support-description{margin:4px 0 0;font-size:13px;color:#4b5563;}'
+                . '.aimentor-settings-title{display:flex;align-items:center;gap:12px;margin-bottom:16px;}'
+                . '.aimentor-settings-logo{height:48px;width:48px;border-radius:12px;box-shadow:0 4px 18px rgba(64,84,178,0.25);}'
+                . '.aimentor-settings-heading{font-size:26px;font-weight:600;color:#1f2937;}'
+                . '.aimentor-settings-badge{display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:linear-gradient(135deg,#4f46e5 0%,#06b6d4 100%);color:#fff;}'
+                . '.aimentor-provider-badge{display:inline-flex;align-items:center;padding:2px 8px;margin-left:6px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:0.05em;}'
+                . '.aimentor-onboarding-card{position:relative;padding-right:40px;margin:20px 0;}'
+                . '.aimentor-onboarding-card.is-dismissing{opacity:0.6;}'
+                . '.aimentor-onboarding-card__lead{margin-top:0;}'
+                . '.aimentor-onboarding-card__steps{margin:0;padding-left:0;list-style:none;}'
+                . '.aimentor-onboarding-card__step{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}'
+                . '.aimentor-onboarding-card__step:last-child{margin-bottom:0;}'
+                . '.aimentor-onboarding-card__step .dashicons{margin-top:2px;font-size:18px;}'
+                . '.aimentor-onboarding-card__step.is-complete .dashicons{color:#1DA866;}'
+                . '.aimentor-onboarding-card__step.is-pending .dashicons{color:#2271b1;}'
+                . '.aimentor-onboarding-card__step p{margin:2px 0 0;}'
+                . '.aimentor-usage-card,.jaggrok-usage-card{margin:32px 0;padding:20px;border:1px solid #dcdcdc;border-radius:8px;background:#fff;}'
+                . '.aimentor-usage-card__header,.jaggrok-usage-card__header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;}'
+                . '.aimentor-usage-card__title,.jaggrok-usage-card__title{margin:0;font-size:20px;font-weight:600;}'
+                . '.aimentor-usage-card__timestamp,.jaggrok-usage-card__timestamp{font-size:12px;color:#6b7280;font-style:italic;}'
+                . '.aimentor-usage-card__description,.jaggrok-usage-card__description{margin-top:8px;max-width:640px;}'
+                . '.aimentor-usage-grid,.jaggrok-usage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px;}'
+                . '.aimentor-usage-provider,.jaggrok-usage-provider{border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#f9fafb;display:flex;flex-direction:column;gap:10px;}'
+                . '.aimentor-usage-provider__title,.jaggrok-usage-provider__title{margin:0;font-size:16px;font-weight:600;color:#1f2937;}'
+                . '.aimentor-usage-provider__stats,.jaggrok-usage-provider__stats{display:flex;gap:12px;}'
+                . '.aimentor-usage-stat,.jaggrok-usage-stat{flex:1 1 auto;background:#fff;border-radius:6px;padding:10px;border:1px solid #e5e7eb;text-align:center;}'
+                . '.aimentor-usage-stat__label,.jaggrok-usage-stat__label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:#6b7280;margin-bottom:4px;}'
+                . '.aimentor-usage-stat__value,.jaggrok-usage-stat__value{font-size:18px;font-weight:600;color:#111827;}'
+                . '.aimentor-usage-provider__meta,.jaggrok-usage-provider__meta{margin:0;font-size:13px;color:#374151;}'
+                . '.aimentor-usage-provider__context,.jaggrok-usage-provider__context{margin:0;font-size:12px;color:#6b7280;}'
+                . '.aimentor-provider-group,.jaggrok-provider-group{margin-bottom:16px;}'
+                . '.js .aimentor-provider-group,.js .jaggrok-provider-group{display:none;}'
+                . '.aimentor-provider-group__label,.jaggrok-provider-group__label{font-weight:600;display:block;margin-bottom:4px;}'
+                . '.aimentor-provider-help,.jaggrok-provider-help{margin-top:8px;max-width:640px;}'
+                . '.js .aimentor-provider-help,.js .jaggrok-provider-help{display:none;}'
+                . '.aimentor-api-key-container,.jaggrok-api-key-container{display:flex;align-items:center;gap:8px;max-width:420px;}'
+                . '.aimentor-api-input,.jaggrok-api-input{width:100%;}'
+                . '.aimentor-provider-status,.jaggrok-provider-status{display:flex;align-items:center;gap:8px;margin-top:6px;max-width:520px;flex-wrap:wrap;}'
+                . '.aimentor-status-badge,.jaggrok-status-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-weight:600;font-size:12px;letter-spacing:.01em;}'
+                . '.aimentor-status-badge--success,.jaggrok-status-badge--success{background-color:#dff4e2;color:#116329;}'
+                . '.aimentor-status-badge--error,.jaggrok-status-badge--error{background-color:#fce1e1;color:#b32d2e;}'
+                . '.aimentor-status-badge--idle,.jaggrok-status-badge--idle{background-color:#e7ecf3;color:#2c3e50;}'
+                . '.aimentor-status-badge--pending,.jaggrok-status-badge--pending{background-color:#fef3c7;color:#8a6110;}'
+                . '.aimentor-status-trend,.jaggrok-status-trend{display:inline-flex;align-items:center;justify-content:center;width:72px;height:20px;}'
+                . '.aimentor-status-trend__chart{width:100%;height:100%;}'
+                . '.aimentor-status-trend__empty{font-size:12px;color:#6b7280;}'
+                . '.aimentor-status-metrics-summary{font-size:12px;color:#6b7280;}'
+                . '.aimentor-status-description,.jaggrok-status-description{display:inline-block;font-size:13px;line-height:1.5;flex:1 1 220px;}'
+                . '.aimentor-history-card{margin:32px 0;padding:20px;border:1px solid #dcdcdc;border-radius:8px;background:#fff;}'
+                . '.aimentor-history-card__title{margin-top:0;margin-bottom:12px;font-size:20px;font-weight:600;}'
+                . '.aimentor-history-table td span[title]{cursor:help;}'
+                . '.aimentor-history-provider-label{font-weight:600;margin-right:6px;}'
+                . '.aimentor-error-log-header{margin-top:32px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;}'
+                . '.aimentor-error-log-actions{display:flex;gap:8px;align-items:center;}'
+                . '.aimentor-error-log-actions.is-busy button{pointer-events:none;}'
+                . '.aimentor-error-log-feedback{margin:8px 0 0;font-size:13px;}'
+                . '.aimentor-error-log-feedback.is-success{color:#116329;}'
+                . '.aimentor-error-log-feedback.is-error{color:#b32d2e;}'
+                . '.aimentor-error-log-form{margin-top:12px;}'
+                . '.aimentor-error-log-form.is-loading{opacity:0.7;pointer-events:none;}'
+                . '.aimentor-error-log-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}'
+                . '.aimentor-error-log-filters label{font-weight:600;}'
+                . '.aimentor-error-log-filters input[type="search"]{min-width:220px;}'
+                . '.required{color:#d63638;}'
+                . '.aimentor-provider-fieldset,.jaggrok-provider-fieldset{border:1px solid #ccd0d4;padding:12px;max-width:640px;background:#fff;border-radius:6px;}'
+                . '.aimentor-provider-option,.jaggrok-provider-option{display:block;margin-bottom:12px;}'
+                . '.aimentor-provider-option:last-of-type,.jaggrok-provider-option:last-of-type{margin-bottom:0;}'
+                . '.aimentor-provider-name,.jaggrok-provider-name{font-weight:600;display:inline-block;margin-right:6px;}'
+                . '.aimentor-provider-summary,.jaggrok-provider-summary{display:block;margin-left:26px;}'
+                . '.aimentor-advanced-settings{border:1px solid #ccd0d4;border-radius:6px;padding:12px 16px 16px;background:#fff;max-width:720px;}'
+                . '.aimentor-advanced-settings summary{cursor:pointer;font-weight:600;margin:-12px -16px 12px;padding:12px 16px;list-style:none;position:relative;}'
+                . '.aimentor-advanced-settings summary::after{content:"\\25BE";position:absolute;right:16px;top:50%;transform:translateY(-50%);transition:transform 0.2s ease;}'
+                . '.aimentor-advanced-settings summary::-webkit-details-marker{display:none;}'
+                . '.aimentor-advanced-settings[open] summary{border-bottom:1px solid #e5e7eb;margin-bottom:16px;}'
+                . '.aimentor-advanced-settings[open] summary::after{transform:translateY(-50%) rotate(180deg);}'
+                . '.aimentor-advanced-provider{margin-top:20px;}'
+                . '.aimentor-advanced-provider:first-of-type{margin-top:0;}'
+                . '.aimentor-advanced-provider h4{margin:0 0 12px;font-size:16px;font-weight:600;}'
+                . '.aimentor-advanced-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}'
+                . '.aimentor-advanced-task{border:1px solid #e5e7eb;border-radius:6px;padding:12px;background:#f9fafb;}'
+                . '.aimentor-advanced-task legend{font-weight:600;padding:0 4px;margin-bottom:8px;font-size:13px;}'
+                . '.aimentor-advanced-field{display:flex;flex-direction:column;margin-bottom:10px;}'
+                . '.aimentor-advanced-field:last-of-type{margin-bottom:0;}'
+                . '.aimentor-advanced-label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin-bottom:4px;}'
+                . '.aimentor-settings-tabs{margin-top:20px;}'
+                . '.aimentor-settings-tabs__nav{display:flex;gap:4px;margin-bottom:16px;}'
+                . '.aimentor-settings-tabs__tab{padding:8px 16px;border:1px solid #ccd0d4;border-bottom:none;background:#f0f0f1;color:#1f2937;cursor:pointer;}'
+                . '.aimentor-settings-tabs__tab.nav-tab-active,.aimentor-settings-tabs__tab[aria-selected="true"]{background:#fff;color:#1f2937;border-bottom:1px solid #fff;}'
+                . '.aimentor-settings-tabs__tab:focus{outline:2px solid #2271b1;outline-offset:2px;}'
+                . '.aimentor-settings-tabs__content{border:1px solid #ccd0d4;background:#fff;padding:20px;}'
+                . '.aimentor-settings-tab-fallback{margin-top:20px;}'
+                . '.aimentor-settings-tab-loading{display:flex;align-items:center;gap:8px;padding:40px 0;justify-content:center;font-size:15px;}'
+                . '.aimentor-settings-tab-loading__spinner{animation:aimentor-spin 1s linear infinite;border:2px solid #dcdcdc;border-top-color:#2271b1;border-radius:50%;width:18px;height:18px;}'
+                . '@keyframes aimentor-spin{to{transform:rotate(360deg);}}'
+                . '.aimentor-settings-error{padding:16px;background:#fce1e1;border:1px solid #c20d0d;border-radius:4px;color:#86181d;}'
+                . '@media (max-width:960px){.aimentor-settings-layout{flex-direction:column;}.aimentor-settings-sidebar{width:100%;max-width:none;}}';
+
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'AiMentor Elementor Settings', 'aimentor' ) . '</h1>';
+        echo '<style id="aimentor-settings-styles">' . $styles . '</style>';
+
+        echo '<div class="aimentor-settings-tabs" data-tab-action="aimentor_load_settings_tab" data-tab-nonce="' . esc_attr( $tab_nonce ) . '" data-default-tab="' . esc_attr( $default_tab ) . '">';
+        echo '<div class="aimentor-settings-tabs__nav" role="tablist" aria-label="' . esc_attr__( 'AiMentor settings sections', 'aimentor' ) . '">';
+
+        foreach ( $tabs as $slug => $tab ) {
+                $button_id = 'aimentor-tab-' . sanitize_html_class( $slug ) . '-tab';
+                $is_active = ( $slug === $default_tab );
+                $href      = add_query_arg( 'tab', $slug, $page_url );
+
+                if ( $is_active ) {
+                        $default_button_id = $button_id;
+                }
+
+                echo '<a href="' . esc_url( $href ) . '" class="aimentor-settings-tabs__tab nav-tab' . ( $is_active ? ' nav-tab-active' : '' ) . '" role="tab" id="' . esc_attr( $button_id ) . '" aria-controls="' . esc_attr( $tab_panel_id ) . '" aria-selected="' . ( $is_active ? 'true' : 'false' ) . '" tabindex="' . ( $is_active ? '0' : '-1' ) . '" data-tab="' . esc_attr( $slug ) . '">';
+                echo esc_html( $tab['label'] );
+                echo '</a>';
+        }
+
+        echo '</div>';
+        echo '<div id="' . esc_attr( $tab_panel_id ) . '" class="aimentor-settings-tabs__content" role="tabpanel" aria-live="polite" aria-labelledby="' . esc_attr( $default_button_id ) . '" aria-busy="false" data-active-tab="' . esc_attr( $default_tab ) . '" tabindex="0"></div>';
+
+        if ( '' !== $initial_html ) {
+                echo '<div id="aimentor-settings-tab-fallback" class="aimentor-settings-tab-fallback" data-tab="' . esc_attr( $default_tab ) . '">';
+                echo $initial_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                echo '</div>';
+        }
+
+        echo '</div>';
+        echo '</div>';
+}
+
+function aimentor_load_settings_tab_ajax() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'You do not have permission to view this tab.', 'aimentor' ),
+                        ],
+                        403
+                );
+        }
+
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_settings_tab' ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                        ],
+                        403
+                );
+        }
+
+        $requested_tab = isset( $_POST['tab'] ) ? sanitize_key( wp_unslash( $_POST['tab'] ) ) : '';
+        $tabs          = aimentor_get_settings_tabs();
+
+        if ( '' === $requested_tab || ! isset( $tabs[ $requested_tab ] ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Unknown settings tab requested.', 'aimentor' ),
+                        ],
+                        400
+                );
+        }
+
+        $tab = $tabs[ $requested_tab ];
+
+        if ( isset( $tab['capability'] ) && ! current_user_can( $tab['capability'] ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'You do not have permission to view this tab.', 'aimentor' ),
+                        ],
+                        403
+                );
+        }
+
+        $callback = isset( $tab['callback'] ) ? $tab['callback'] : null;
+
+        if ( ! $callback || ! is_callable( $callback ) ) {
+                wp_send_json_error(
+                        [
+                                'message' => __( 'Unable to load the requested tab.', 'aimentor' ),
+                        ],
+                        500
+                );
+        }
+
+        $html = (string) call_user_func( $callback );
+
+        wp_send_json_success(
+                [
+                        'html' => $html,
+                ]
+        );
+}
+add_action( 'wp_ajax_aimentor_load_settings_tab', 'aimentor_load_settings_tab_ajax' );
 
 function aimentor_dismiss_onboarding_notice() {
         $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
