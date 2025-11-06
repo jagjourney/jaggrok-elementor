@@ -67,6 +67,19 @@ jQuery(document).ready(function($) {
     var logClearErrorMessage = '';
     var tabAction = (typeof aimentorAjax !== 'undefined' && aimentorAjax.tabAction) ? aimentorAjax.tabAction : 'aimentor_load_settings_tab';
     var tabNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.tabNonce) ? aimentorAjax.tabNonce : '';
+    var EVENT_NAMESPACE = '.aimentorSettings';
+
+    function resolveContext(context) {
+        if (!context) {
+            return null;
+        }
+
+        if (context.jquery) {
+            return context;
+        }
+
+        return $(context);
+    }
 
     function getString(key, fallback) {
         if (strings && Object.prototype.hasOwnProperty.call(strings, key) && strings[key]) {
@@ -203,8 +216,10 @@ jQuery(document).ready(function($) {
         });
     }
 
-    function updateContextRow($row) {
-        if (!$row || !$row.length) {
+    function updateContextRow(row) {
+        var $row = (row && row.jquery) ? row : $(row);
+
+        if (!$row.length) {
             return;
         }
 
@@ -252,7 +267,8 @@ jQuery(document).ready(function($) {
         }
     }
 
-    function initializeProviderControls($context) {
+    function initializeProviderControls(context) {
+        var $context = resolveContext(context);
         var $inputs = ($context && $context.length) ? $context.find('input[name="aimentor_provider"]') : $('input[name="aimentor_provider"]');
 
         if (!$inputs.length) {
@@ -264,7 +280,8 @@ jQuery(document).ready(function($) {
         toggleProviderSections(provider);
     }
 
-    function initializeContextControls($context) {
+    function initializeContextControls(context) {
+        var $context = resolveContext(context);
         var $providers = ($context && $context.length) ? $context.find('.aimentor-context-provider') : $('.aimentor-context-provider');
 
         if (!$providers.length) {
@@ -276,7 +293,8 @@ jQuery(document).ready(function($) {
         });
     }
 
-    function initializeUsageMetricsInContext($context) {
+    function initializeUsageMetricsInContext(context) {
+        var $context = resolveContext(context);
         var $metrics = ($context && $context.length) ? $context.find('#aimentor-usage-metrics') : $('#aimentor-usage-metrics');
 
         if (!$metrics.length || !usageNonce) {
@@ -287,7 +305,8 @@ jQuery(document).ready(function($) {
         scheduleUsageRefresh();
     }
 
-    function syncLegacyModelInputs($context) {
+    function syncLegacyModelInputs(context) {
+        var $context = resolveContext(context);
         var $grokSelect = ($context && $context.length) ? $context.find('#aimentor_provider_models_grok') : $('#aimentor_provider_models_grok');
         var $anthropicSelect = ($context && $context.length) ? $context.find('#aimentor_provider_models_anthropic') : $('#aimentor_provider_models_anthropic');
         var $openaiSelect = ($context && $context.length) ? $context.find('#aimentor_provider_models_openai') : $('#aimentor_provider_models_openai');
@@ -305,7 +324,8 @@ jQuery(document).ready(function($) {
         }
     }
 
-    function initializeLogNonce($context) {
+    function initializeLogNonce(context) {
+        var $context = resolveContext(context);
         var $form = ($context && $context.length) ? $context.find('#aimentor-error-log-form') : $('#aimentor-error-log-form');
 
         if ($form.length) {
@@ -317,7 +337,9 @@ jQuery(document).ready(function($) {
         }
     }
 
-    function initializeDynamicContent($context) {
+    function initializeDynamicContent(context) {
+        var $context = resolveContext(context);
+
         initializeStatusMetrics();
         initializeProviderControls($context);
         initializeContextControls($context);
@@ -325,6 +347,28 @@ jQuery(document).ready(function($) {
         syncLegacyModelInputs($context);
         initializeLogNonce($context);
     }
+
+    $(document)
+        .off('change' + EVENT_NAMESPACE, 'input[name="aimentor_provider"]')
+        .on('change' + EVENT_NAMESPACE, 'input[name="aimentor_provider"]', function() {
+            var provider = String($(this).val() || '');
+            toggleProviderSections(provider);
+            syncLegacyModelInputs();
+        });
+
+    $(document)
+        .off('change' + EVENT_NAMESPACE, '.aimentor-context-provider')
+        .on('change' + EVENT_NAMESPACE, '.aimentor-context-provider', function() {
+            var $row = $(this).closest('tr');
+            updateContextRow($row);
+            syncLegacyModelInputs();
+        });
+
+    $(document)
+        .off('change' + EVENT_NAMESPACE, '.aimentor-context-model')
+        .on('change' + EVENT_NAMESPACE, '.aimentor-context-model', function() {
+            syncLegacyModelInputs();
+        });
 
     function setActiveTabState(tabSlug) {
         var slug = String(tabSlug || '');
@@ -480,13 +524,13 @@ jQuery(document).ready(function($) {
         }
     }
 
-    $tabButtons.on('click', function(event) {
+    $tabButtons.off('click' + EVENT_NAMESPACE).on('click' + EVENT_NAMESPACE, function(event) {
         event.preventDefault();
         var slug = String($(this).data('tab') || '');
         activateTab(slug, { updateHash: true, focus: true });
     });
 
-    $tabButtons.on('keydown', function(event) {
+    $tabButtons.off('keydown' + EVENT_NAMESPACE).on('keydown' + EVENT_NAMESPACE, function(event) {
         var key = event.key || event.which;
         var index = $tabButtons.index(this);
 
@@ -515,7 +559,7 @@ jQuery(document).ready(function($) {
         }
     });
 
-    $(window).on('hashchange', function() {
+    $(window).off('hashchange' + EVENT_NAMESPACE).on('hashchange' + EVENT_NAMESPACE, function() {
         if (suppressHashChange) {
             return;
         }
@@ -1152,9 +1196,11 @@ jQuery(document).ready(function($) {
 
     initializeStatusMetrics();
 
-    $(document).on('click', '.aimentor-test-provider', function() {
-        var $button = $(this);
-        var provider = String($button.data('provider') || '');
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '.aimentor-test-provider')
+        .on('click' + EVENT_NAMESPACE, '.aimentor-test-provider', function() {
+            var $button = $(this);
+            var provider = String($button.data('provider') || '');
 
         if (!provider) {
             return;
@@ -1242,11 +1288,13 @@ jQuery(document).ready(function($) {
         });
     });
 
-    $(document).on('click', '.aimentor-onboarding-card .notice-dismiss', function(event) {
-        event.preventDefault();
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '.aimentor-onboarding-card .notice-dismiss')
+        .on('click' + EVENT_NAMESPACE, '.aimentor-onboarding-card .notice-dismiss', function(event) {
+            event.preventDefault();
 
-        var $dismiss = $(this);
-        var $card = $dismiss.closest('.aimentor-onboarding-card');
+            var $dismiss = $(this);
+            var $card = $dismiss.closest('.aimentor-onboarding-card');
 
         if (!$card.length || $dismiss.data('aimentorProcessing')) {
             return;
@@ -1286,10 +1334,12 @@ jQuery(document).ready(function($) {
         });
     });
 
-    $(document).on('submit', '#aimentor-error-log-form', function(event) {
-        event.preventDefault();
+    $(document)
+        .off('submit' + EVENT_NAMESPACE, '#aimentor-error-log-form')
+        .on('submit' + EVENT_NAMESPACE, '#aimentor-error-log-form', function(event) {
+            event.preventDefault();
 
-        var $form = $(this);
+            var $form = $(this);
 
         if (!logNonce) {
             var existingNonce = $form.data('nonce');
@@ -1366,10 +1416,12 @@ jQuery(document).ready(function($) {
         });
     });
 
-    $(document).on('click', '#aimentor-download-log', function(event) {
-        event.preventDefault();
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '#aimentor-download-log')
+        .on('click' + EVENT_NAMESPACE, '#aimentor-download-log', function(event) {
+            event.preventDefault();
 
-        var $form = $('#aimentor-error-log-form');
+            var $form = $('#aimentor-error-log-form');
 
         if (!logNonce && $form.length) {
             var existingNonce = $form.data('nonce');
@@ -1490,10 +1542,12 @@ jQuery(document).ready(function($) {
         });
     });
 
-    $(document).on('click', '#aimentor-clear-log', function(event) {
-        event.preventDefault();
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '#aimentor-clear-log')
+        .on('click' + EVENT_NAMESPACE, '#aimentor-clear-log', function(event) {
+            event.preventDefault();
 
-        var $form = $('#aimentor-error-log-form');
+            var $form = $('#aimentor-error-log-form');
 
         if (!logNonce && $form.length) {
             var existingNonce = $form.data('nonce');
@@ -1573,6 +1627,25 @@ jQuery(document).ready(function($) {
         }).always(function() {
             toggleLogActionsBusy(false);
         });
+    });
+
+    window.AiMentorAdminSettings = window.AiMentorAdminSettings || {};
+    window.AiMentorAdminSettings.ui = $.extend({}, window.AiMentorAdminSettings.ui || {}, {
+        toggleProviderSections: function(provider) {
+            toggleProviderSections(provider);
+        },
+        updateContextRow: function(row) {
+            updateContextRow(row);
+        },
+        initializeProviderControls: function(context) {
+            initializeProviderControls(context);
+        },
+        initializeContextControls: function(context) {
+            initializeContextControls(context);
+        },
+        initializeDynamicContent: function(context) {
+            initializeDynamicContent(context);
+        }
     });
 
     if ($('#aimentor-usage-metrics').length && usageNonce) {

@@ -1,0 +1,722 @@
+/*
+ * AiMentor Admin Settings Styles
+ * ---------------------------------------------------------------------------
+ * Extracted from the legacy inline styles in includes/settings.php so they can
+ * be cached, maintained, and extended more easily.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Layout */
+/* -------------------------------------------------------------------------- */
+.aimentor-settings-layout {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+}
+
+.aimentor-settings-main {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.aimentor-settings-sidebar {
+    flex: 0 0 280px;
+    max-width: 320px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sidebar Support Cards */
+/* -------------------------------------------------------------------------- */
+.aimentor-settings-sidebar__card {
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+}
+
+.aimentor-support-section + .aimentor-support-section {
+    margin-top: 20px;
+}
+
+.aimentor-support-section__title {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.aimentor-support-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.aimentor-support-list__item {
+    margin-bottom: 12px;
+}
+
+.aimentor-support-list__item:last-child {
+    margin-bottom: 0;
+}
+
+.aimentor-support-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.aimentor-support-link:focus,
+.aimentor-support-link:hover {
+    text-decoration: underline;
+    color: #1d4ed8;
+}
+
+.aimentor-support-description {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Header & Badges */
+/* -------------------------------------------------------------------------- */
+.aimentor-settings-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.aimentor-settings-logo {
+    height: 48px;
+    width: 48px;
+    border-radius: 12px;
+    box-shadow: 0 4px 18px rgba(64, 84, 178, 0.25);
+}
+
+.aimentor-settings-heading {
+    font-size: 26px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.aimentor-settings-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+    color: #fff;
+}
+
+.aimentor-provider-badge,
+.jaggrok-provider-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    margin-left: 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Onboarding Checklist */
+/* -------------------------------------------------------------------------- */
+.aimentor-onboarding-card {
+    position: relative;
+    margin: 20px 0;
+    padding-right: 40px;
+    padding-inline-end: 40px;
+}
+
+.aimentor-onboarding-card.is-dismissing {
+    opacity: 0.6;
+}
+
+.aimentor-onboarding-card__lead {
+    margin-top: 0;
+}
+
+.aimentor-onboarding-card__steps {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.aimentor-onboarding-card__step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.aimentor-onboarding-card__step:last-child {
+    margin-bottom: 0;
+}
+
+.aimentor-onboarding-card__step .dashicons {
+    margin-top: 2px;
+    font-size: 18px;
+}
+
+.aimentor-onboarding-card__step.is-complete .dashicons {
+    color: #1da866;
+}
+
+.aimentor-onboarding-card__step.is-pending .dashicons {
+    color: #2271b1;
+}
+
+.aimentor-onboarding-card__step p {
+    margin: 2px 0 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Usage Metrics */
+/* -------------------------------------------------------------------------- */
+.aimentor-usage-card,
+.jaggrok-usage-card {
+    margin: 32px 0;
+    padding: 20px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.aimentor-usage-card__header,
+.jaggrok-usage-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.aimentor-usage-card__title,
+.jaggrok-usage-card__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.aimentor-usage-card__timestamp,
+.jaggrok-usage-card__timestamp {
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.aimentor-usage-card__description,
+.jaggrok-usage-card__description {
+    margin-top: 8px;
+    max-width: 640px;
+}
+
+.aimentor-usage-grid,
+.jaggrok-usage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.aimentor-usage-provider,
+.jaggrok-usage-provider {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    background: #f9fafb;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.aimentor-usage-provider__title,
+.jaggrok-usage-provider__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.aimentor-usage-provider__stats,
+.jaggrok-usage-provider__stats {
+    display: flex;
+    gap: 12px;
+}
+
+.aimentor-usage-stat,
+.jaggrok-usage-stat {
+    flex: 1 1 auto;
+    background: #fff;
+    border-radius: 6px;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    text-align: center;
+}
+
+.aimentor-usage-stat__label,
+.jaggrok-usage-stat__label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.aimentor-usage-stat__value,
+.jaggrok-usage-stat__value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.aimentor-usage-provider__meta,
+.jaggrok-usage-provider__meta {
+    margin: 0;
+    font-size: 13px;
+    color: #374151;
+}
+
+.aimentor-usage-provider__context,
+.jaggrok-usage-provider__context {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Provider Groups & API Inputs */
+/* -------------------------------------------------------------------------- */
+.aimentor-provider-group,
+.jaggrok-provider-group {
+    margin-bottom: 16px;
+}
+
+.js .aimentor-provider-group,
+.js .jaggrok-provider-group {
+    display: none;
+}
+
+.aimentor-provider-group__label,
+.jaggrok-provider-group__label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.aimentor-provider-help,
+.jaggrok-provider-help {
+    margin-top: 8px;
+    max-width: 640px;
+}
+
+.js .aimentor-provider-help,
+.js .jaggrok-provider-help {
+    display: none;
+}
+
+.aimentor-api-key-container,
+.jaggrok-api-key-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 420px;
+}
+
+.aimentor-api-input,
+.jaggrok-api-input {
+    width: 100%;
+}
+
+.aimentor-provider-status,
+.jaggrok-provider-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    max-width: 520px;
+    flex-wrap: wrap;
+}
+
+.aimentor-status-badge,
+.jaggrok-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+}
+
+.aimentor-status-badge--success,
+.jaggrok-status-badge--success {
+    background-color: #dff4e2;
+    color: #116329;
+}
+
+.aimentor-status-badge--error,
+.jaggrok-status-badge--error {
+    background-color: #fce1e1;
+    color: #b32d2e;
+}
+
+.aimentor-status-badge--idle,
+.jaggrok-status-badge--idle {
+    background-color: #e7ecf3;
+    color: #2c3e50;
+}
+
+.aimentor-status-badge--pending,
+.jaggrok-status-badge--pending {
+    background-color: #fef3c7;
+    color: #8a6110;
+}
+
+.aimentor-status-trend,
+.jaggrok-status-trend {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 20px;
+}
+
+.aimentor-status-trend__chart {
+    width: 100%;
+    height: 100%;
+}
+
+.aimentor-status-trend__empty {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.aimentor-status-metrics-summary {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.aimentor-status-description,
+.jaggrok-status-description {
+    display: inline-block;
+    font-size: 13px;
+    line-height: 1.5;
+    flex: 1 1 220px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* History & Logs */
+/* -------------------------------------------------------------------------- */
+.aimentor-history-card {
+    margin: 32px 0;
+    padding: 20px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.aimentor-history-card__title {
+    margin: 0 0 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.aimentor-history-table td span[title] {
+    cursor: help;
+}
+
+.aimentor-history-provider-label {
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.aimentor-error-log-header {
+    margin-top: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.aimentor-error-log-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.aimentor-error-log-actions.is-busy button {
+    pointer-events: none;
+}
+
+.aimentor-error-log-feedback {
+    margin: 8px 0 0;
+    font-size: 13px;
+}
+
+.aimentor-error-log-feedback.is-success {
+    color: #116329;
+}
+
+.aimentor-error-log-feedback.is-error {
+    color: #b32d2e;
+}
+
+.aimentor-error-log-form {
+    margin-top: 12px;
+}
+
+.aimentor-error-log-form.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.aimentor-error-log-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.aimentor-error-log-filters label {
+    font-weight: 600;
+}
+
+.aimentor-error-log-filters input[type="search"] {
+    min-width: 220px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Provider Selection & Advanced Settings */
+/* -------------------------------------------------------------------------- */
+.required {
+    color: #d63638;
+}
+
+.aimentor-provider-fieldset,
+.jaggrok-provider-fieldset {
+    border: 1px solid #ccd0d4;
+    padding: 12px;
+    max-width: 640px;
+    background: #fff;
+    border-radius: 6px;
+}
+
+.aimentor-provider-option,
+.jaggrok-provider-option {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.aimentor-provider-option:last-of-type,
+.jaggrok-provider-option:last-of-type {
+    margin-bottom: 0;
+}
+
+.aimentor-provider-name,
+.jaggrok-provider-name {
+    font-weight: 600;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.aimentor-provider-summary,
+.jaggrok-provider-summary {
+    display: block;
+    margin-left: 26px;
+    margin-inline-start: 26px;
+}
+
+.aimentor-advanced-settings {
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    padding: 12px 16px 16px;
+    background: #fff;
+    max-width: 720px;
+}
+
+.aimentor-advanced-settings summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin: -12px -16px 12px;
+    padding: 12px 16px;
+    list-style: none;
+    position: relative;
+}
+
+.aimentor-advanced-settings summary::after {
+    content: "\25BE";
+    position: absolute;
+    right: 16px;
+    inset-inline-end: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.2s ease;
+}
+
+.aimentor-advanced-settings summary::-webkit-details-marker {
+    display: none;
+}
+
+.aimentor-advanced-settings[open] summary {
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+
+.aimentor-advanced-settings[open] summary::after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.aimentor-advanced-provider {
+    margin-top: 20px;
+}
+
+.aimentor-advanced-provider:first-of-type {
+    margin-top: 0;
+}
+
+.aimentor-advanced-provider h4 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.aimentor-advanced-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.aimentor-advanced-task {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    background: #f9fafb;
+}
+
+.aimentor-advanced-task legend {
+    font-weight: 600;
+    padding: 0 4px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.aimentor-advanced-field {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.aimentor-advanced-field:last-of-type {
+    margin-bottom: 0;
+}
+
+.aimentor-advanced-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs */
+/* -------------------------------------------------------------------------- */
+.aimentor-settings-tabs {
+    margin-top: 20px;
+}
+
+.aimentor-settings-tabs__nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+}
+
+.aimentor-settings-tabs__tab {
+    padding: 8px 16px;
+    border: 1px solid #ccd0d4;
+    border-bottom: none;
+    background: #f0f0f1;
+    color: #1f2937;
+    cursor: pointer;
+}
+
+.aimentor-settings-tabs__tab.nav-tab-active,
+.aimentor-settings-tabs__tab[aria-selected="true"] {
+    background: #fff;
+    color: #1f2937;
+    border-bottom: 1px solid #fff;
+}
+
+.aimentor-settings-tabs__tab:focus {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+
+.aimentor-settings-tabs__content {
+    border: 1px solid #ccd0d4;
+    background: #fff;
+    padding: 20px;
+}
+
+.aimentor-settings-tab-fallback {
+    margin-top: 20px;
+}
+
+.aimentor-settings-tab-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 0;
+    justify-content: center;
+    font-size: 15px;
+}
+
+.aimentor-settings-tab-loading__spinner {
+    animation: aimentor-spin 1s linear infinite;
+    border: 2px solid #dcdcdc;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+}
+
+.aimentor-settings-error {
+    padding: 16px;
+    background: #fce1e1;
+    border: 1px solid #c20d0d;
+    border-radius: 4px;
+    color: #86181d;
+}
+
+@keyframes aimentor-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive Tweaks */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+    .aimentor-settings-layout {
+        flex-direction: column;
+    }
+
+    .aimentor-settings-sidebar {
+        width: 100%;
+        max-width: none;
+    }
+}

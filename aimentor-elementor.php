@@ -241,6 +241,9 @@ function aimentor_register_asset_handles() {
         $version = AIMENTOR_PLUGIN_VERSION;
         $base    = AIMENTOR_PLUGIN_URL;
 
+        wp_register_style( 'aimentor-admin-settings', $base . 'assets/css/admin-settings.css', array(), $version );
+        wp_style_add_data( 'aimentor-admin-settings', 'rtl', 'replace' );
+
         wp_register_script( 'aimentor-admin-settings', $base . 'js/admin-settings.js', array( 'jquery', 'wp-util' ), $version, true );
         wp_register_script( 'aimentor-elementor-widget', $base . 'js/elementor-widget.js', array( 'jquery', 'elementor-frontend' ), $version, true );
 }
@@ -601,6 +604,10 @@ function aimentor_enqueue_assets( $hook ) {
         if ( $is_elementor_screen && ! $is_settings_screen ) {
                 // Elementor assets are handled via elementor/editor/after_enqueue_scripts.
                 return;
+        }
+
+        if ( $is_settings_screen ) {
+                wp_enqueue_style( 'aimentor-admin-settings' );
         }
 
         wp_enqueue_script( 'aimentor-admin-settings' );
