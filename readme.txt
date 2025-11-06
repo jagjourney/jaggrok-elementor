@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.17
+Stable tag: 1.3.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.3.18 =
+* Added a Saved Prompts settings tab with personal and shared tables, inline creation form, and secure REST-backed delete controls.
+* Wired the new Saved Prompts UI to the existing REST endpoints so updates apply instantly and stay protected by WordPress nonces.
+* Synced the Elementor widget dropdown with Saved Prompt changes in real time to avoid page refreshes after editing prompts.
+
 = 1.3.17 =
 * Added an automatic update preference with status messaging so administrators can opt-in or block AiMentor Elementor auto updates from the settings screen.
 * Hooked into the WordPress plugin auto-update flow to respect the saved preference during update checks.

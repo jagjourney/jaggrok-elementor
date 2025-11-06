@@ -1,5 +1,5 @@
 // ============================================================================
-// AiMentor ADMIN SETTINGS JS v1.3.17
+// AiMentor ADMIN SETTINGS JS v1.3.18
 // ============================================================================
 
 (function(window) {
@@ -96,6 +96,20 @@ jQuery(document).ready(function($) {
     logClearErrorMessage = getString('logClearError', 'Unable to clear the error log. Please try again.');
     var tabLoadingMessage = getString('tabLoading', 'Loading…');
     var tabErrorMessage = getString('tabLoadError', 'Unable to load tab content. Please try again.');
+    var savedPromptsEndpoint = (typeof aimentorAjax !== 'undefined' && aimentorAjax.promptsEndpoint) ? String(aimentorAjax.promptsEndpoint) : '';
+    var savedPromptsRestNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.restNonce) ? String(aimentorAjax.restNonce) : '';
+    var savedPromptsStore = normalizeSavedPrompts((typeof aimentorAjax !== 'undefined' && aimentorAjax.savedPrompts) ? aimentorAjax.savedPrompts : {});
+    var savedPromptCreateSuccessMessage = getString('savedPromptCreateSuccess', 'Prompt saved.');
+    var savedPromptCreateErrorMessage = getString('savedPromptCreateError', 'Unable to save the prompt. Please try again.');
+    var savedPromptDeleteConfirmMessage = getString('savedPromptDeleteConfirm', 'Delete this prompt? This cannot be undone.');
+    var savedPromptDeleteSuccessMessage = getString('savedPromptDeleteSuccess', 'Prompt deleted.');
+    var savedPromptDeleteErrorMessage = getString('savedPromptDeleteError', 'Unable to delete the prompt. Please try again.');
+    var savedPromptPermissionMessage = getString('savedPromptPermissionError', 'You do not have permission to manage saved prompts.');
+    var savedPromptListEmptyMessage = getString('savedPromptListEmpty', 'No prompts saved yet.');
+    var savedPromptColumnLabel = getString('savedPromptColumnLabel', 'Label');
+    var savedPromptColumnPrompt = getString('savedPromptColumnPrompt', 'Prompt');
+    var savedPromptColumnActions = getString('savedPromptColumnActions', 'Actions');
+    var savedPromptDeleteLabel = getString('savedPromptDeleteLabel', 'Delete');
 
     function buildClassList() {
         return statusStates.map(function(state) {
@@ -337,6 +351,430 @@ jQuery(document).ready(function($) {
         }
     }
 
+    function normalizeSavedPromptEntry(entry, scope) {
+        if (!entry || typeof entry !== 'object') {
+            return null;
+        }
+
+        var normalizedScope = scope === 'global' ? 'global' : 'user';
+        if (entry.scope === 'global') {
+            normalizedScope = 'global';
+        } else if (entry.scope === 'user') {
+            normalizedScope = 'user';
+        }
+
+        var id = String(entry.id || '').trim();
+        var prompt = String(entry.prompt || '').trim();
+        var label = String(entry.label || '').trim();
+
+        if (!id || !prompt) {
+            return null;
+        }
+
+        if (!label) {
+            label = prompt.length > 60 ? prompt.substring(0, 57) + '…' : prompt;
+        }
+
+        return {
+            id: id,
+            label: label,
+            prompt: prompt,
+            scope: normalizedScope
+        };
+    }
+
+    function normalizeSavedPrompts(data) {
+        var normalized = { global: [], user: [] };
+
+        if (!data || typeof data !== 'object') {
+            return normalized;
+        }
+
+        ['user', 'global'].forEach(function(scope) {
+            var entries = data[scope];
+
+            if (!Array.isArray(entries)) {
+                return;
+            }
+
+            entries.forEach(function(entry) {
+                var normalizedEntry = normalizeSavedPromptEntry(entry, scope);
+
+                if (normalizedEntry) {
+                    normalized[scope].push(normalizedEntry);
+                }
+            });
+        });
+
+        return normalized;
+    }
+
+    function cloneSavedPromptEntry(entry) {
+        if (!entry || typeof entry !== 'object') {
+            return null;
+        }
+
+        return {
+            id: String(entry.id || ''),
+            label: String(entry.label || ''),
+            prompt: String(entry.prompt || ''),
+            scope: entry.scope === 'global' ? 'global' : 'user'
+        };
+    }
+
+    function cloneSavedPromptsStore() {
+        return {
+            global: savedPromptsStore.global.map(cloneSavedPromptEntry).filter(Boolean),
+            user: savedPromptsStore.user.map(cloneSavedPromptEntry).filter(Boolean)
+        };
+    }
+
+    function setSavedPromptsStore(data, options) {
+        var settings = $.extend({ silent: false }, options);
+        savedPromptsStore = normalizeSavedPrompts(data);
+
+        if (typeof window.aimentorAjax !== 'undefined') {
+            window.aimentorAjax.savedPrompts = cloneSavedPromptsStore();
+        }
+
+        if (!settings.silent) {
+            $(document).trigger('aimentor:saved-prompts-refreshed', { prompts: cloneSavedPromptsStore() });
+        }
+    }
+
+    function resolveSavedPromptEndpoint(container) {
+        var $container = container && container.jquery ? container : $(container);
+        var endpoint = savedPromptsEndpoint;
+
+        if ($container && $container.length) {
+            var dataEndpoint = $container.data('restEndpoint');
+            if (dataEndpoint) {
+                endpoint = String(dataEndpoint);
+            }
+        }
+
+        return endpoint;
+    }
+
+    function resolveSavedPromptNonce(container) {
+        var $container = container && container.jquery ? container : $(container);
+        var nonce = savedPromptsRestNonce;
+
+        if ($container && $container.length) {
+            var dataNonce = $container.data('restNonce');
+
+            if (dataNonce) {
+                nonce = String(dataNonce);
+            } else {
+                var $field = $container.find('input[name="aimentor_rest_nonce"]');
+
+                if ($field.length && $field.val()) {
+                    nonce = String($field.val());
+                    $container.data('restNonce', nonce);
+                }
+            }
+        }
+
+        return nonce;
+    }
+
+    function updateSavedPromptNonce(container, nonce) {
+        if (!nonce) {
+            return;
+        }
+
+        var value = String(nonce);
+        savedPromptsRestNonce = value;
+
+        if (typeof window.aimentorAjax !== 'undefined') {
+            window.aimentorAjax.restNonce = value;
+        }
+
+        var $container = container && container.jquery ? container : $(container);
+
+        if ($container && $container.length) {
+            $container.data('restNonce', value);
+            var $field = $container.find('input[name="aimentor_rest_nonce"]');
+            if ($field.length) {
+                $field.val(value);
+            }
+        }
+    }
+
+    function buildSavedPromptUrl(endpoint, path, query) {
+        var base = String(endpoint || '').replace(/\/?$/, '');
+        var suffix = path ? '/' + String(path).replace(/^\//, '') : '';
+        var queryString = '';
+
+        if (query && typeof query === 'object') {
+            queryString = $.param(query);
+            if (queryString) {
+                queryString = '?' + queryString;
+            }
+        }
+
+        return base + suffix + queryString;
+    }
+
+    function buildSavedPromptError(status, data) {
+        var error = new Error((data && data.message) ? data.message : '');
+        error.status = status || 0;
+        error.data = data || {};
+        error.code = (data && data.code) ? data.code : '';
+        return error;
+    }
+
+    function resolveSavedPromptErrorMessage(error, fallback) {
+        if (!error) {
+            return fallback;
+        }
+
+        if (error.data && typeof error.data.message === 'string' && error.data.message.trim()) {
+            return error.data.message.trim();
+        }
+
+        if (error.status === 403) {
+            return savedPromptPermissionMessage;
+        }
+
+        if (typeof error.message === 'string' && error.message.trim()) {
+            return error.message.trim();
+        }
+
+        return fallback;
+    }
+
+    function showSavedPromptNotice(container, message, type) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return;
+        }
+
+        var $notice = $container.find('.aimentor-saved-prompts__notice');
+
+        if (!$notice.length) {
+            return;
+        }
+
+        if (!message) {
+            $notice.attr('hidden', 'hidden').text('').removeClass('notice notice-success notice-error');
+            return;
+        }
+
+        var isError = type === 'error';
+        $notice.removeClass('notice-success notice-error').addClass('notice');
+        $notice.addClass(isError ? 'notice-error' : 'notice-success');
+        $notice.text(message).removeAttr('hidden');
+    }
+
+    function renderSavedPromptTable(entries, scope) {
+        var safeScope = scope === 'global' ? 'global' : 'user';
+        var rows = Array.isArray(entries) ? entries : [];
+
+        if (!rows.length) {
+            return '<p class="description aimentor-saved-prompts__empty" data-scope="' + escapeHtml(safeScope) + '">' + escapeHtml(savedPromptListEmptyMessage) + '</p>';
+        }
+
+        var html = '';
+        html += '<table class="widefat striped aimentor-saved-prompts__table" data-scope="' + escapeHtml(safeScope) + '">';
+        html += '<thead><tr>'
+            + '<th scope="col">' + escapeHtml(savedPromptColumnLabel) + '</th>'
+            + '<th scope="col">' + escapeHtml(savedPromptColumnPrompt) + '</th>'
+            + '<th scope="col" class="aimentor-saved-prompts__actions-header">' + escapeHtml(savedPromptColumnActions) + '</th>'
+            + '</tr></thead>';
+        html += '<tbody>';
+
+        rows.forEach(function(entry) {
+            if (!entry) {
+                return;
+            }
+
+            var id = escapeHtml(String(entry.id || ''));
+            var label = escapeHtml(String(entry.label || ''));
+            var excerptSource = String(entry.prompt || '');
+            var excerpt = excerptSource;
+
+            if (excerpt.length > 0) {
+                excerpt = excerpt.replace(/\s+/g, ' ');
+                if (excerpt.length > 180) {
+                    excerpt = excerpt.substring(0, 177) + '…';
+                }
+            }
+
+            html += '<tr data-id="' + id + '" data-scope="' + escapeHtml(entry.scope === 'global' ? 'global' : 'user') + '">';
+            html += '<td><strong>' + label + '</strong></td>';
+            html += '<td><div class="aimentor-saved-prompts__excerpt"><span>' + escapeHtml(excerpt) + '</span></div></td>';
+            html += '<td class="aimentor-saved-prompts__actions">'
+                + '<button type="button" class="button button-link-delete aimentor-saved-prompts__delete" data-id="' + id + '" data-scope="' + escapeHtml(entry.scope === 'global' ? 'global' : 'user') + '" data-label="' + label + '">' + escapeHtml(savedPromptDeleteLabel) + '</button>'
+                + '</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        return html;
+    }
+
+    function updateSavedPromptLists(container) {
+        var $containers;
+
+        if (container && container.jquery) {
+            $containers = container;
+        } else if (container) {
+            $containers = $(container);
+        }
+
+        if (!$containers || !$containers.length) {
+            $containers = $('.aimentor-saved-prompts');
+        }
+
+        if (!$containers.length) {
+            return;
+        }
+
+        $containers.each(function() {
+            var $root = $(this);
+            var $userList = $root.find('.aimentor-saved-prompts__list[data-scope="user"]');
+            var $globalList = $root.find('.aimentor-saved-prompts__list[data-scope="global"]');
+
+            if ($userList.length) {
+                $userList.html(renderSavedPromptTable(savedPromptsStore.user, 'user'));
+            }
+
+            if ($globalList.length) {
+                $globalList.html(renderSavedPromptTable(savedPromptsStore.global, 'global'));
+            }
+
+            $root.data('initialPrompts', cloneSavedPromptsStore());
+        });
+    }
+
+    function performSavedPromptRequest(container, method, path, body, query) {
+        var $container = container && container.jquery ? container : $(container);
+        var endpoint = resolveSavedPromptEndpoint($container);
+        var nonce = resolveSavedPromptNonce($container);
+
+        if (!endpoint || !nonce) {
+            return $.Deferred().reject(buildSavedPromptError(0, { message: savedPromptCreateErrorMessage })).promise();
+        }
+
+        var url = buildSavedPromptUrl(endpoint, path, query);
+        var headers = {
+            'X-WP-Nonce': nonce,
+            'Accept': 'application/json'
+        };
+        var supportsFetch = typeof window.fetch === 'function';
+
+        if (supportsFetch) {
+            var fetchOptions = {
+                method: method,
+                headers: headers,
+                credentials: 'same-origin'
+            };
+
+            if (body && method !== 'DELETE') {
+                fetchOptions.headers['Content-Type'] = 'application/json';
+                fetchOptions.body = JSON.stringify(body);
+            }
+
+            return window.fetch(url, fetchOptions).then(function(response) {
+                var newNonce = response && response.headers ? response.headers.get('X-WP-Nonce') : null;
+
+                if (newNonce) {
+                    updateSavedPromptNonce($container, newNonce);
+                }
+
+                return response.json().catch(function() {
+                    return {};
+                }).then(function(data) {
+                    if (!response.ok) {
+                        throw buildSavedPromptError(response.status, data);
+                    }
+                    return data;
+                });
+            });
+        }
+
+        var ajaxOptions = {
+            url: url,
+            method: method,
+            headers: headers,
+            dataType: 'json',
+            xhrFields: {
+                withCredentials: true
+            }
+        };
+
+        if (body && method !== 'DELETE') {
+            ajaxOptions.data = JSON.stringify(body);
+            ajaxOptions.processData = false;
+            ajaxOptions.contentType = 'application/json';
+        } else {
+            ajaxOptions.processData = false;
+        }
+
+        var deferred = $.Deferred();
+
+        $.ajax(ajaxOptions).done(function(data, textStatus, jqXHR) {
+            var newNonce = jqXHR.getResponseHeader('X-WP-Nonce');
+
+            if (newNonce) {
+                updateSavedPromptNonce($container, newNonce);
+            }
+
+            deferred.resolve(data || {});
+        }).fail(function(jqXHR) {
+            var responseJSON = jqXHR && jqXHR.responseJSON ? jqXHR.responseJSON : {};
+            deferred.reject(buildSavedPromptError(jqXHR ? jqXHR.status : 0, responseJSON));
+        });
+
+        return deferred.promise();
+    }
+
+    function initializeSavedPrompts(context) {
+        var $context = resolveContext(context);
+        var $containers = ($context && $context.length) ? $context.find('.aimentor-saved-prompts') : $('.aimentor-saved-prompts');
+
+        if (!$containers.length) {
+            return;
+        }
+
+        $containers.each(function() {
+            var $container = $(this);
+            var containerEndpoint = $container.data('restEndpoint');
+            var containerNonce = $container.data('restNonce');
+            var initialPrompts = $container.data('initialPrompts');
+
+            if (containerEndpoint) {
+                savedPromptsEndpoint = String(containerEndpoint);
+            }
+
+            if (containerNonce) {
+                savedPromptsRestNonce = String(containerNonce);
+            } else {
+                savedPromptsRestNonce = resolveSavedPromptNonce($container);
+            }
+
+            if (initialPrompts) {
+                if (typeof initialPrompts === 'string') {
+                    try {
+                        initialPrompts = JSON.parse(initialPrompts);
+                    } catch (error) {
+                        initialPrompts = null;
+                    }
+                }
+
+                if (initialPrompts) {
+                    setSavedPromptsStore(initialPrompts, { silent: true });
+                }
+            }
+
+            updateSavedPromptNonce($container, savedPromptsRestNonce);
+            updateSavedPromptLists($container);
+        });
+    }
+
     function initializeDynamicContent(context) {
         var $context = resolveContext(context);
 
@@ -346,6 +784,7 @@ jQuery(document).ready(function($) {
         initializeUsageMetricsInContext($context);
         syncLegacyModelInputs($context);
         initializeLogNonce($context);
+        initializeSavedPrompts($context);
     }
 
     $(document)
@@ -369,6 +808,137 @@ jQuery(document).ready(function($) {
         .on('change' + EVENT_NAMESPACE, '.aimentor-context-model', function() {
             syncLegacyModelInputs();
         });
+
+    $(document)
+        .off('submit' + EVENT_NAMESPACE, '.aimentor-saved-prompts__form')
+        .on('submit' + EVENT_NAMESPACE, '.aimentor-saved-prompts__form', function(event) {
+            event.preventDefault();
+
+            var $form = $(this);
+            var $container = $form.closest('.aimentor-saved-prompts');
+
+            if (!$container.length) {
+                return;
+            }
+
+            var labelValue = $.trim($form.find('input[name="label"]').val() || '');
+            var promptValue = $.trim($form.find('textarea[name="prompt"]').val() || '');
+            var scopeValue = String($form.find('[name="scope"]').val() || 'user');
+
+            if (!promptValue) {
+                showSavedPromptNotice($container, getString('promptRequired', 'Please enter a prompt!'), 'error');
+                $form.find('textarea[name="prompt"]').focus();
+                return;
+            }
+
+            var $submit = $form.find('button[type="submit"]');
+            var wasDisabled = $submit.prop('disabled');
+            $submit.prop('disabled', true).addClass('is-busy');
+            showSavedPromptNotice($container, '', '');
+
+            var request = performSavedPromptRequest($container, 'POST', '', {
+                label: labelValue,
+                prompt: promptValue,
+                scope: scopeValue
+            });
+
+            if (!request || typeof request.then !== 'function') {
+                showSavedPromptNotice($container, savedPromptCreateErrorMessage, 'error');
+                $submit.prop('disabled', wasDisabled).removeClass('is-busy');
+                return;
+            }
+
+            request.then(function(response) {
+                if (response && response.prompts) {
+                    setSavedPromptsStore(response.prompts);
+                    updateSavedPromptLists($container);
+                }
+
+                showSavedPromptNotice($container, savedPromptCreateSuccessMessage, 'success');
+                if ($form.length && $form[0] && typeof $form[0].reset === 'function') {
+                    $form[0].reset();
+                }
+
+                if ($form.find('[name="scope"]').is('select')) {
+                    $form.find('[name="scope"]').val(scopeValue);
+                }
+            }, function(error) {
+                var message = resolveSavedPromptErrorMessage(error, savedPromptCreateErrorMessage);
+                showSavedPromptNotice($container, message, 'error');
+            }).then(function() {
+                $submit.prop('disabled', wasDisabled).removeClass('is-busy');
+            }, function() {
+                $submit.prop('disabled', wasDisabled).removeClass('is-busy');
+            });
+        });
+
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '.aimentor-saved-prompts__delete')
+        .on('click' + EVENT_NAMESPACE, '.aimentor-saved-prompts__delete', function(event) {
+            event.preventDefault();
+
+            var $button = $(this);
+            var $container = $button.closest('.aimentor-saved-prompts');
+
+            if (!$container.length) {
+                return;
+            }
+
+            var id = String($button.data('id') || '').trim();
+            var scope = String($button.data('scope') || 'user');
+            var label = String($button.data('label') || '');
+
+            if (!id) {
+                return;
+            }
+
+            var confirmMessage = savedPromptDeleteConfirmMessage;
+
+            if (confirmMessage.indexOf('%s') !== -1) {
+                confirmMessage = confirmMessage.replace('%s', label || savedPromptColumnLabel);
+            } else if (label) {
+                confirmMessage = confirmMessage + ' ' + label;
+            }
+
+            if (!window.confirm(confirmMessage)) {
+                return;
+            }
+
+            var wasDisabled = $button.prop('disabled');
+            $button.prop('disabled', true).addClass('is-busy');
+            showSavedPromptNotice($container, '', '');
+
+            var request = performSavedPromptRequest($container, 'DELETE', encodeURIComponent(id), null, { scope: scope });
+
+            if (!request || typeof request.then !== 'function') {
+                showSavedPromptNotice($container, savedPromptDeleteErrorMessage, 'error');
+                $button.prop('disabled', wasDisabled).removeClass('is-busy');
+                return;
+            }
+
+            request.then(function(response) {
+                if (response && response.prompts) {
+                    setSavedPromptsStore(response.prompts);
+                    updateSavedPromptLists($container);
+                }
+
+                showSavedPromptNotice($container, savedPromptDeleteSuccessMessage, 'success');
+            }, function(error) {
+                var message = resolveSavedPromptErrorMessage(error, savedPromptDeleteErrorMessage);
+                showSavedPromptNotice($container, message, 'error');
+            }).then(function() {
+                $button.prop('disabled', wasDisabled).removeClass('is-busy');
+            }, function() {
+                $button.prop('disabled', wasDisabled).removeClass('is-busy');
+            });
+        });
+
+    $(document).on('aimentor:saved-prompts-refreshed' + EVENT_NAMESPACE, function(event, payload) {
+        if (payload && payload.prompts) {
+            setSavedPromptsStore(payload.prompts, { silent: true });
+            updateSavedPromptLists();
+        }
+    });
 
     function setActiveTabState(tabSlug) {
         var slug = String(tabSlug || '');

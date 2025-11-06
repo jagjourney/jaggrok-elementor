@@ -1,6 +1,6 @@
 <?php
 // ============================================================================
-// AiMentor SETTINGS PAGE v1.3.17 (PROVIDER TEST METRICS)
+// AiMentor SETTINGS PAGE v1.3.18 (PROVIDER TEST METRICS)
 // ============================================================================
 
 function aimentor_get_provider_model_defaults() {
@@ -3820,6 +3820,11 @@ function aimentor_get_settings_tabs() {
                         'callback'   => 'aimentor_render_settings_tab_brand',
                         'capability' => 'manage_options',
                 ],
+                'saved-prompts'    => [
+                        'label'      => __( 'Saved Prompts', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_saved_prompts',
+                        'capability' => 'manage_options',
+                ],
                 'logs'             => [
                         'label'      => __( 'Logs', 'aimentor' ),
                         'callback'   => 'aimentor_render_settings_tab_logs',
@@ -3881,6 +3886,20 @@ function aimentor_render_settings_tab_brand() {
         ob_start();
         extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
         include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-brand.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_saved_prompts() {
+        $view_model              = aimentor_get_settings_view_model();
+        $support_sections        = aimentor_get_settings_support_resources();
+        $saved_prompts_payload   = aimentor_get_saved_prompts_payload();
+        $saved_prompts_rest_nonce = wp_create_nonce( 'wp_rest' );
+        $saved_prompts_nonce     = wp_create_nonce( 'aimentor_saved_prompts' );
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-saved-prompts.php';
 
         return (string) ob_get_clean();
 }
@@ -4117,7 +4136,7 @@ function aimentor_get_usage_metrics_ajax() {
 add_action( 'wp_ajax_aimentor_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 add_action( 'wp_ajax_jaggrok_get_usage_metrics', 'aimentor_get_usage_metrics_ajax' );
 
-// AJAX Test API (v1.3.17 - PROVIDER TEST METRICS)
+// AJAX Test API (v1.3.18 - PROVIDER TEST METRICS)
 function aimentor_execute_provider_test( $provider_key, $api_key, $args = [] ) {
         $args = wp_parse_args(
                 $args,
@@ -4686,7 +4705,7 @@ function aimentor_run_scheduled_provider_checks() {
         update_option( 'aimentor_provider_health_failures', $state );
 }
 
-// ERROR LOGGING FUNCTION (v1.3.17)
+// ERROR LOGGING FUNCTION (v1.3.18)
 function aimentor_log_error( $message, $context = [] ) {
         if ( function_exists( 'aimentor_get_error_log_path' ) ) {
                 $log_file = aimentor_get_error_log_path();

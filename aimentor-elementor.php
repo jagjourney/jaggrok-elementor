@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.3.17
+ * Version: 1.3.18
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
-       define( 'AIMENTOR_PLUGIN_VERSION', '1.3.17' );
+       define( 'AIMENTOR_PLUGIN_VERSION', '1.3.18' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -552,6 +552,18 @@ function aimentor_get_ajax_payload() {
                         'savedPromptEmpty'        => __( 'No saved prompts found.', 'aimentor' ),
                         'savedPromptGroupUser'    => __( 'My Prompts', 'aimentor' ),
                         'savedPromptGroupGlobal'  => __( 'Shared Prompts', 'aimentor' ),
+                        'savedPromptColumnLabel'  => __( 'Label', 'aimentor' ),
+                        'savedPromptColumnPrompt' => __( 'Prompt', 'aimentor' ),
+                        'savedPromptColumnActions' => __( 'Actions', 'aimentor' ),
+                        'savedPromptDeleteLabel'  => __( 'Delete', 'aimentor' ),
+                        'savedPromptListEmpty'    => __( 'No prompts saved yet.', 'aimentor' ),
+                        'savedPromptCreateSuccess' => __( 'Prompt saved.', 'aimentor' ),
+                        'savedPromptCreateError'   => __( 'Unable to save the prompt. Please try again.', 'aimentor' ),
+                        /* translators: %s: Saved prompt label. */
+                        'savedPromptDeleteConfirm' => __( 'Delete "%s"? This cannot be undone.', 'aimentor' ),
+                        'savedPromptDeleteSuccess' => __( 'Prompt deleted.', 'aimentor' ),
+                        'savedPromptDeleteError'   => __( 'Unable to delete the prompt. Please try again.', 'aimentor' ),
+                        'savedPromptPermissionError' => __( 'You do not have permission to manage saved prompts.', 'aimentor' ),
                         /* translators: %s: Human readable duration. */
                         'rateLimitCooldown'       => __( 'Please wait %s before trying again.', 'aimentor' ),
                         'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
