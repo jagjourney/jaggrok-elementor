@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.3.18
+ * Version: 1.5.0
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
-       define( 'AIMENTOR_PLUGIN_VERSION', '1.3.18' );
+ define( 'AIMENTOR_PLUGIN_VERSION', '1.5.0' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -288,7 +288,7 @@ function aimentor_register_ai_layout_post_type() {
                         'show_in_admin_bar'   => $show_ui,
                         'show_in_nav_menus'   => false,
                         'show_in_rest'        => false,
-                        'supports'            => array( 'title', 'editor', 'excerpt' ),
+                        'supports'            => array( 'title', 'editor', 'excerpt', 'thumbnail' ),
                         'menu_icon'           => 'dashicons-layout',
                         'capability_type'     => 'post',
                         'map_meta_cap'        => true,
@@ -376,8 +376,128 @@ function aimentor_register_ai_layout_post_type() {
                         'show_in_rest'      => false,
                 )
         );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_frame_enabled',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'aimentor_sanitize_frame_toggle_meta',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_frame_summary',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'sanitize_textarea_field',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_frame_sections',
+                array(
+                        'type'              => 'string',
+                        'single'            => true,
+                        'sanitize_callback' => 'aimentor_sanitize_frame_sections_meta',
+                        'show_in_rest'      => false,
+                )
+        );
+
+        register_post_meta(
+                'ai_layout',
+                '_aimentor_frame_preview_id',
+                array(
+                        'type'              => 'integer',
+                        'single'            => true,
+                        'sanitize_callback' => 'absint',
+                        'show_in_rest'      => false,
+                )
+        );
 }
 add_action( 'init', 'aimentor_register_ai_layout_post_type', 5 );
+
+if ( ! function_exists( 'aimentor_sanitize_frame_toggle_meta' ) ) {
+        /**
+         * Sanitize the frame toggle meta value.
+         *
+         * @param mixed $value Raw meta value.
+         * @return string
+         */
+        function aimentor_sanitize_frame_toggle_meta( $value ) {
+                return 'yes' === $value ? 'yes' : '';
+        }
+}
+
+if ( ! function_exists( 'aimentor_normalize_frame_sections' ) ) {
+        /**
+         * Normalize a list of frame section labels into a clean array.
+         *
+         * @param mixed $value Raw input value.
+         * @return array
+         */
+        function aimentor_normalize_frame_sections( $value ) {
+                if ( is_string( $value ) ) {
+                        $value = wp_unslash( $value );
+                        $decoded = json_decode( $value, true );
+
+                        if ( is_array( $decoded ) ) {
+                                $value = $decoded;
+                        }
+                }
+
+                if ( ! is_array( $value ) ) {
+                        $parts = preg_split( '/[\r\n,]+/', (string) $value );
+                        $value = is_array( $parts ) ? $parts : [];
+                }
+
+                $sections = [];
+
+                foreach ( $value as $section ) {
+                        if ( is_array( $section ) ) {
+                                $section = isset( $section['label'] ) ? $section['label'] : implode( ' ', $section );
+                        }
+
+                        $section = sanitize_text_field( (string) $section );
+
+                        if ( '' === $section ) {
+                                continue;
+                        }
+
+                        $sections[] = $section;
+                }
+
+                if ( empty( $sections ) ) {
+                        return [];
+                }
+
+                return array_values( array_unique( $sections ) );
+        }
+}
+
+if ( ! function_exists( 'aimentor_sanitize_frame_sections_meta' ) ) {
+        /**
+         * Sanitize the stored frame section list meta value.
+         *
+         * @param mixed $value Raw meta value.
+         * @return string
+         */
+        function aimentor_sanitize_frame_sections_meta( $value ) {
+                $sections = aimentor_normalize_frame_sections( $value );
+
+                if ( empty( $sections ) ) {
+                        return '';
+                }
+
+                return wp_json_encode( $sections );
+        }
+}
 
 /**
  * Output the Elementor dependency notice.
@@ -574,6 +694,19 @@ function aimentor_get_ajax_payload() {
                         'recentLayoutsPreviewMissing' => __( 'Preview unavailable for this layout.', 'aimentor' ),
                         'recentLayoutsTimestamp'   => __( 'Generated %s', 'aimentor' ),
                         'recentLayoutsMetaSeparator' => _x( ' • ', 'separator between layout details', 'aimentor' ),
+                        'frameLibraryHeading'      => __( 'Frame Library', 'aimentor' ),
+                        'frameLibraryEmpty'        => __( 'No frames have been curated yet. Promote archived layouts from the Frame Library tab in AiMentor settings.', 'aimentor' ),
+                        'frameLibraryInsert'       => __( 'Insert frame', 'aimentor' ),
+                        'frameLibrarySeed'         => __( 'Seed prompt', 'aimentor' ),
+                        'frameLibrarySectionsLabel' => __( 'Suggested sections', 'aimentor' ),
+                        'frameLibraryPromptLabel'  => __( 'Starter prompt', 'aimentor' ),
+                        'frameLibraryProviderLabel' => __( 'Source', 'aimentor' ),
+                        'frameLibraryLoading'      => __( 'Loading curated frames…', 'aimentor' ),
+                        'frameLibraryError'        => __( 'Unable to load frames. Refresh the panel or try again later.', 'aimentor' ),
+                        'frameLibraryUpdated'      => __( 'Updated %s', 'aimentor' ),
+                        'frameLibrarySelectImage'  => __( 'Choose preview', 'aimentor' ),
+                        'frameLibraryUseImage'     => __( 'Use preview', 'aimentor' ),
+                        'frameLibraryPreviewPending' => __( 'Preview pending', 'aimentor' ),
                 ),
                 'providerLabels'    => $provider_labels,
                 'providerSummaries' => $provider_summaries,
@@ -589,10 +722,13 @@ function aimentor_get_ajax_payload() {
                 'modelPresets'      => aimentor_get_model_presets(),
                 'modelLabels'       => aimentor_get_model_labels(),
                 'promptPresets'     => function_exists( 'aimentor_get_prompt_preset_catalog' ) ? aimentor_get_prompt_preset_catalog() : [],
+                'framePresets'      => function_exists( 'aimentor_get_frame_prompt_presets' ) ? aimentor_get_frame_prompt_presets() : [],
                 'isProActive'       => aimentor_is_pro_active(),
                 'savedPrompts'      => $saved_prompts,
                 'canvasHistory'     => $canvas_history,
                 'canvasHistoryMax'  => function_exists( 'aimentor_get_canvas_history_max_items' ) ? aimentor_get_canvas_history_max_items() : 0,
+                'frameLibraryEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/frames' ) ),
+                'frameLibrary'      => function_exists( 'aimentor_get_frame_library_items' ) ? aimentor_get_frame_library_items( [ 'posts_per_page' => 50 ] ) : [],
         );
 }
 
@@ -620,6 +756,9 @@ function aimentor_enqueue_assets( $hook ) {
 
         if ( $is_settings_screen ) {
                 wp_enqueue_style( 'aimentor-admin-settings' );
+                if ( function_exists( 'wp_enqueue_media' ) ) {
+                        wp_enqueue_media();
+                }
         }
 
         wp_enqueue_script( 'aimentor-admin-settings' );

@@ -1,5 +1,5 @@
 // ============================================================================
-// AiMentor ADMIN SETTINGS JS v1.3.18
+// AiMentor ADMIN SETTINGS JS v1.5.0
 // ============================================================================
 
 (function(window) {
@@ -775,6 +775,150 @@ jQuery(document).ready(function($) {
         });
     }
 
+    function initializeFrameLibrary(context) {
+        var $context = resolveContext(context);
+        var $forms = ($context && $context.length) ? $context.find('.aimentor-frame-library__form') : $('.aimentor-frame-library__form');
+
+        if (!$forms.length) {
+            return;
+        }
+
+        function updatePreview($item, url) {
+            if (!$item || !$item.length) {
+                return;
+            }
+
+            var $preview = $item.find('.aimentor-frame-library__preview');
+
+            if (!$preview.length) {
+                return;
+            }
+
+            var placeholderText = String($preview.data('placeholder') || getString('frameLibraryPreviewPending', 'Preview pending'));
+            var $placeholder = $preview.find('.aimentor-frame-library__preview-placeholder');
+            var $image = $preview.find('img');
+
+            if (url) {
+                if ($image.length) {
+                    $image.attr('src', url);
+                } else {
+                    $image = $('<img>', { src: url, alt: '' });
+                    $preview.prepend($image);
+                }
+
+                $placeholder.remove();
+                return;
+            }
+
+            $image.remove();
+
+            if ($placeholder.length) {
+                $placeholder.text(placeholderText);
+            } else {
+                $placeholder = $('<span class="aimentor-frame-library__preview-placeholder"></span>').text(placeholderText);
+                $preview.prepend($placeholder);
+            }
+        }
+
+        $forms.each(function() {
+            var $form = $(this);
+
+            if ($form.data('frameLibraryInit')) {
+                return;
+            }
+
+            $form.data('frameLibraryInit', true);
+
+            var mediaFrame = null;
+
+            $form.on('click' + EVENT_NAMESPACE, '.aimentor-frame-library__select-preview', function(event) {
+                event.preventDefault();
+
+                if (!window.wp || !wp.media) {
+                    return;
+                }
+
+                var $button = $(this);
+                var targetName = String($button.data('target') || '');
+
+                if (!targetName) {
+                    return;
+                }
+
+                var $input = $form.find('input[name="' + targetName.replace(/"/g, '\\"') + '"]');
+                var $item = $button.closest('.aimentor-frame-library__item');
+
+                if (!$input.length) {
+                    return;
+                }
+
+                if (!mediaFrame) {
+                    mediaFrame = wp.media({
+                        title: getString('frameLibrarySelectImage', 'Choose preview'),
+                        button: { text: getString('frameLibraryUseImage', 'Use preview') },
+                        multiple: false
+                    });
+                }
+
+                mediaFrame.off('select').on('select', function() {
+                    var selection = mediaFrame.state().get('selection');
+
+                    if (!selection || !selection.first) {
+                        return;
+                    }
+
+                    var attachment = selection.first();
+
+                    if (!attachment) {
+                        return;
+                    }
+
+                    var id = attachment.get('id');
+                    var display = '';
+                    var sizes = attachment.get('sizes') || {};
+
+                    if (sizes.medium && sizes.medium.url) {
+                        display = sizes.medium.url;
+                    } else if (sizes.full && sizes.full.url) {
+                        display = sizes.full.url;
+                    } else if (attachment.get('url')) {
+                        display = attachment.get('url');
+                    }
+
+                    if (id) {
+                        $input.val(id).trigger('change');
+                    }
+
+                    if (display) {
+                        updatePreview($item, display);
+                    }
+                });
+
+                mediaFrame.open();
+            });
+
+            $form.on('click' + EVENT_NAMESPACE, '.aimentor-frame-library__clear-preview', function(event) {
+                event.preventDefault();
+
+                var $button = $(this);
+                var targetName = String($button.data('target') || '');
+
+                if (!targetName) {
+                    return;
+                }
+
+                var $input = $form.find('input[name="' + targetName.replace(/"/g, '\\"') + '"]');
+                var $item = $button.closest('.aimentor-frame-library__item');
+
+                if ($input.length) {
+                    $input.val('').trigger('change');
+                }
+
+                updatePreview($item, '');
+            });
+        });
+    }
+
     function initializeDynamicContent(context) {
         var $context = resolveContext(context);
 
@@ -785,6 +929,7 @@ jQuery(document).ready(function($) {
         syncLegacyModelInputs($context);
         initializeLogNonce($context);
         initializeSavedPrompts($context);
+        initializeFrameLibrary($context);
     }
 
     $(document)

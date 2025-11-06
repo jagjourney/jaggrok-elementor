@@ -11,6 +11,34 @@
         document.head.appendChild(style);
     }
 
+    function ensureFrameLibraryStyles() {
+        if (document.getElementById('aimentor-frame-library-style')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'aimentor-frame-library-style';
+        style.textContent = '' +
+            '.aimentor-frame-library{margin-top:16px;padding-top:16px;border-top:1px solid #dcdcdc;display:flex;flex-direction:column;gap:12px;}' +
+            '.aimentor-frame-library__header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;}' +
+            '.aimentor-frame-library__title{margin:0;font-size:15px;font-weight:600;}' +
+            '.aimentor-frame-library__description{margin:0;font-size:12px;color:#4b5563;}' +
+            '.aimentor-frame-library__loading,.aimentor-frame-library__error,.aimentor-frame-library__empty,.aimentor-frame-library__updated{font-size:12px;color:#6b7280;margin:0;}' +
+            '.aimentor-frame-library__error{color:#b91c1c;}' +
+            '.aimentor-frame-library__list{display:grid;gap:12px;}' +
+            '.aimentor-frame-library__card{display:flex;gap:12px;align-items:flex-start;border:1px solid #dcdcde;border-radius:6px;padding:12px;background:#fff;}' +
+            '.aimentor-frame-library__preview{width:120px;flex:0 0 120px;aspect-ratio:4/3;background:#f7f7f7;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;}' +
+            '.aimentor-frame-library__preview img{width:100%;height:100%;object-fit:cover;display:block;}' +
+            '.aimentor-frame-library__preview-placeholder{font-size:12px;color:#6b7280;text-align:center;padding:8px;}' +
+            '.aimentor-frame-library__content{flex:1;display:flex;flex-direction:column;gap:8px;}' +
+            '.aimentor-frame-library__summary{margin:0;font-size:13px;color:#374151;}' +
+            '.aimentor-frame-library__sections{margin:0;padding-left:18px;font-size:12px;color:#374151;}' +
+            '.aimentor-frame-library__sections li{margin:0 0 4px;}' +
+            '.aimentor-frame-library__meta{margin:0;font-size:12px;color:#6b7280;}' +
+            '.aimentor-frame-library__actions{display:flex;gap:8px;flex-wrap:wrap;}' +
+            '.aimentor-frame-library__actions .button-link{padding-left:0;padding-right:0;}';
+        document.head.appendChild(style);
+    }
+
     function escapeHtml(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
@@ -90,6 +118,8 @@
         var savedPromptCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
         var defaultLayoutSummary = strings.recentLayoutsPreviewMissing || 'Preview unavailable for this layout.';
         var canvasHistoryStore = createCanvasHistoryStore(aimentorData.canvasHistory || [], parseInt(aimentorData.canvasHistoryMax, 10) || 0);
+        var frameLibraryEndpoint = typeof aimentorData.frameLibraryEndpoint === 'string' ? aimentorData.frameLibraryEndpoint : '';
+        var frameLibraryStore = createFrameLibraryStore(aimentorData.frameLibrary || []);
 
         function computeCooldownSeconds(rateLimit) {
             if (!rateLimit || typeof rateLimit !== 'object') {
@@ -341,6 +371,120 @@
             };
         }
 
+        function sanitizeFrameItem(item) {
+            if (!item || typeof item !== 'object') {
+                return null;
+            }
+
+            var id = item.id;
+
+            if (typeof id !== 'string' && typeof id !== 'number') {
+                return null;
+            }
+
+            var frame = {
+                id: String(id),
+                title: String(item.title || ''),
+                summary: String(item.summary || ''),
+                provider: String(item.provider || ''),
+                model: String(item.model || ''),
+                prompt: String(item.prompt || ''),
+                task: String(item.task || ''),
+                tier: String(item.tier || ''),
+                sections: [],
+                preview: '',
+                layout: '',
+                modified: String(item.modified || '')
+            };
+
+            if (Array.isArray(item.sections)) {
+                frame.sections = item.sections.map(function(section) {
+                    return String(section || '').trim();
+                }).filter(function(section) {
+                    return section.length > 0;
+                });
+            }
+
+            if (item.preview && typeof item.preview === 'object' && item.preview.url) {
+                frame.preview = String(item.preview.url);
+            }
+
+            if (item.layout && typeof item.layout === 'string') {
+                try {
+                    var parsed = JSON.parse(item.layout);
+                    if (parsed && typeof parsed === 'object') {
+                        frame.layout = JSON.stringify(parsed);
+                    }
+                } catch (error) {
+                    frame.layout = '';
+                }
+            } else if (item.layout && typeof item.layout === 'object') {
+                try {
+                    frame.layout = JSON.stringify(item.layout);
+                } catch (error) {
+                    frame.layout = '';
+                }
+            }
+
+            return frame;
+        }
+
+        function sanitizeFrameList(list) {
+            if (!Array.isArray(list)) {
+                return [];
+            }
+
+            return list.map(sanitizeFrameItem).filter(Boolean);
+        }
+
+        function createFrameLibraryStore(initialItems) {
+            var items = sanitizeFrameList(initialItems);
+            var listeners = [];
+
+            function syncGlobalFrames() {
+                window.aimentorAjax = window.aimentorAjax || {};
+                window.aimentorAjax.frameLibrary = items.slice();
+            }
+
+            function notify() {
+                syncGlobalFrames();
+                var snapshot = items.slice();
+                listeners.slice().forEach(function(listener) {
+                    if (typeof listener === 'function') {
+                        try {
+                            listener(snapshot);
+                        } catch (error) {
+                            // Swallow listener errors to avoid breaking others.
+                        }
+                    }
+                });
+            }
+
+            return {
+                get: function() {
+                    return items.slice();
+                },
+                set: function(list) {
+                    items = sanitizeFrameList(list);
+                    notify();
+                },
+                subscribe: function(listener) {
+                    if (typeof listener !== 'function') {
+                        return function() {};
+                    }
+
+                    listeners.push(listener);
+                    listener(items.slice());
+
+                    return function() {
+                        listeners = listeners.filter(function(existing) {
+                            return existing !== listener;
+                        });
+                    };
+                }
+            };
+        }
+
         function persistCanvasHistory(responseData, summaryText) {
             if (!responseData || !responseData.canvas_json) {
                 return;
@@ -576,7 +720,268 @@
             });
         }
 
+        function attachFrameLibrary($scope) {
+            if (!$scope || !$scope.length) {
+                return;
+            }
+
+            var $container = $scope.find('.aimentor-frame-library');
+
+            if (!$container.length || $container.data('aimentorFrameInit')) {
+                return;
+            }
+
+            $container.data('aimentorFrameInit', true);
+
+            ensureFrameLibraryStyles();
+
+            var $list = $container.find('.aimentor-frame-library__list');
+            var $empty = $container.find('.aimentor-frame-library__empty');
+            var $error = $container.find('.aimentor-frame-library__error');
+            var $loading = $container.find('.aimentor-frame-library__loading');
+            var $updated = $container.find('.aimentor-frame-library__updated');
+            var emptyText = $container.data('emptyText') || ($empty.text() || strings.frameLibraryEmpty || '');
+
+            function findFrameById(frameId) {
+                var frames = frameLibraryStore.get();
+
+                for (var i = 0; i < frames.length; i++) {
+                    if (frames[i] && frames[i].id === frameId) {
+                        return frames[i];
+                    }
+                }
+
+                return null;
+            }
+
+            function parseFrameLayout(frame) {
+                if (!frame || !frame.layout) {
+                    return null;
+                }
+
+                try {
+                    var parsed = JSON.parse(frame.layout);
+                    if (parsed && typeof parsed === 'object') {
+                        return parsed;
+                    }
+                } catch (error) {
+                    return null;
+                }
+
+                return null;
+            }
+
+            function formatUpdatedLabel(value) {
+                if (!value) {
+                    return '';
+                }
+
+                var date = new Date(value);
+
+                if (isNaN(date.getTime())) {
+                    var timestamp = parseInt(value, 10);
+                    if (isFinite(timestamp)) {
+                        date = new Date(timestamp * 1000);
+                    }
+                }
+
+                if (isNaN(date.getTime())) {
+                    return '';
+                }
+
+                var formatted = date.toLocaleString();
+
+                if (strings.frameLibraryUpdated) {
+                    return strings.frameLibraryUpdated.replace('%s', formatted);
+                }
+
+                return 'Updated ' + formatted;
+            }
+
+            function buildFrameCard(frame) {
+                var title = frame.title || strings.frameLibraryHeading || 'Frame';
+                var summary = frame.summary || '';
+                var sections = Array.isArray(frame.sections) ? frame.sections : [];
+                var metaParts = [];
+                var providerName = providerLabels[frame.provider] || frame.provider || '';
+
+                if (providerName) {
+                    metaParts.push(providerName);
+                }
+
+                if (frame.model) {
+                    metaParts.push(frame.model);
+                }
+
+                if (frame.tier) {
+                    metaParts.push(frame.tier);
+                }
+
+                var metaText = metaParts.join(strings.recentLayoutsMetaSeparator || strings.summarySeparator || ' • ');
+                var previewHtml = '';
+
+                if (frame.preview) {
+                    previewHtml = '<div class="aimentor-frame-library__preview"><img src="' + escapeHtml(frame.preview) + '" alt="" /></div>';
+                } else {
+                    var placeholder = strings.frameLibraryPreviewPending || strings.recentLayoutsPreviewMissing || 'Preview unavailable';
+                    previewHtml = '<div class="aimentor-frame-library__preview"><span class="aimentor-frame-library__preview-placeholder">' + escapeHtml(placeholder) + '</span></div>';
+                }
+
+                var sectionsHtml = '';
+
+                if (sections.length) {
+                    var sectionsLabel = strings.frameLibrarySectionsLabel || 'Suggested sections';
+                    sectionsHtml = '<div class="aimentor-frame-library__sections-wrapper"><strong>' + escapeHtml(sectionsLabel) + '</strong><ul class="aimentor-frame-library__sections">' + sections.map(function(section) {
+                        return '<li>' + escapeHtml(section) + '</li>';
+                    }).join('') + '</ul></div>';
+                }
+
+                var actionsHtml = '<div class="aimentor-frame-library__actions">' +
+                    '<button type="button" class="button button-secondary aimentor-frame-library__insert">' + escapeHtml(strings.frameLibraryInsert || 'Insert frame') + '</button>';
+
+                if (frame.prompt) {
+                    actionsHtml += '<button type="button" class="button button-link aimentor-frame-library__seed">' + escapeHtml(strings.frameLibrarySeed || 'Seed prompt') + '</button>';
+                }
+
+                actionsHtml += '</div>';
+
+                return '<article class="aimentor-frame-library__card" data-frame-id="' + escapeHtml(frame.id) + '">' +
+                    previewHtml +
+                    '<div class="aimentor-frame-library__content">' +
+                    '<h4 class="aimentor-frame-library__title">' + escapeHtml(title) + '</h4>' +
+                    (summary ? '<p class="aimentor-frame-library__summary">' + escapeHtml(summary) + '</p>' : '') +
+                    sectionsHtml +
+                    (metaText ? '<p class="aimentor-frame-library__meta">' + escapeHtml(metaText) + '</p>' : '') +
+                    actionsHtml +
+                    '</div></article>';
+            }
+
+            function render(items) {
+                items = Array.isArray(items) ? items : [];
+
+                if (!items.length) {
+                    $list.empty();
+                    if (emptyText) {
+                        $empty.text(emptyText).show();
+                    } else {
+                        $empty.show();
+                    }
+                    $error.hide();
+                    if ($updated.length) {
+                        $updated.hide();
+                    }
+                    return;
+                }
+
+                $empty.hide();
+
+                var html = items.map(buildFrameCard).join('');
+                $list.html(html);
+                $error.hide();
+
+                if ($updated.length) {
+                    var updatedLabel = formatUpdatedLabel(items[0] && items[0].modified ? items[0].modified : '');
+
+                    if (updatedLabel) {
+                        $updated.text(updatedLabel).show();
+                    } else {
+                        $updated.hide();
+                    }
+                }
+            }
+
+            var unsubscribe = frameLibraryStore.subscribe(render);
+
+            $container.on('remove.aimentorFrame', function() {
+                if (typeof unsubscribe === 'function') {
+                    unsubscribe();
+                }
+            });
+
+            if (frameLibraryEndpoint && window.fetch) {
+                if ($loading.length) {
+                    $loading.show();
+                }
+
+                var requestOptions = {
+                    credentials: 'same-origin'
+                };
+
+                if (aimentorData.restNonce) {
+                    requestOptions.headers = { 'X-WP-Nonce': aimentorData.restNonce };
+                }
+
+                window.fetch(frameLibraryEndpoint, requestOptions).then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load frames');
+                    }
+                    return response.json();
+                }).then(function(payload) {
+                    var items = payload && Array.isArray(payload.items) ? payload.items : [];
+                    frameLibraryStore.set(items);
+
+                    if (items.length && $updated.length) {
+                        var updatedLabel = formatUpdatedLabel(items[0].modified || '');
+
+                        if (updatedLabel) {
+                            $updated.text(updatedLabel).show();
+                        } else {
+                            $updated.hide();
+                        }
+                    }
+
+                    $error.hide();
+                }).catch(function() {
+                    if (!$list.children().length && $error.length) {
+                        $error.show();
+                    }
+                }).finally(function() {
+                    if ($loading.length) {
+                        $loading.hide();
+                    }
+                });
+            } else if ($loading.length) {
+                $loading.hide();
+            }
+
+            $container.on('click', '.aimentor-frame-library__insert', function(event) {
+                event.preventDefault();
+
+                var $card = $(this).closest('.aimentor-frame-library__card');
+                var frameId = $card.data('frame-id');
+                var frame = findFrameById(frameId);
+
+                if (!frame) {
+                    return;
+                }
+
+                var layoutObject = parseFrameLayout(frame);
+
+                if (!layoutObject || !window.elementorFrontend || !elementorFrontend.elementsHandler || typeof elementorFrontend.elementsHandler.addElements !== 'function') {
+                    return;
+                }
+
+                elementorFrontend.elementsHandler.addElements(layoutObject);
+            });
+
+            $container.on('click', '.aimentor-frame-library__seed', function(event) {
+                event.preventDefault();
+
+                var $card = $(this).closest('.aimentor-frame-library__card');
+                var frameId = $card.data('frame-id');
+                var frame = findFrameById(frameId);
+
+                if (!frame || !frame.prompt) {
+                    return;
+                }
+
+                var $promptField = $scope.find('textarea[data-setting="aimentor_prompt_text"]');
+                mergePromptText($promptField, frame.prompt);
+            });
+        }
+
         ensureBadgeStyles();
+        ensureFrameLibraryStyles();
 
         function normalizeSavedPromptEntry(entry, scope) {
             if (!entry || typeof entry !== 'object') {
@@ -1603,12 +2008,14 @@
             ['aimentor-ai-generator', 'jaggrok-ai-generator'].forEach(function(slug) {
                 elementorFrontend.hooks.addAction('frontend/element_ready/' + slug + '.default', function($scope) {
                     attachHistoryCarousel($scope);
+                    attachFrameLibrary($scope);
                 });
             });
         }
 
         $('.elementor-widget-aimentor-ai-generator, .elementor-widget-jaggrok-ai-generator').each(function() {
             attachHistoryCarousel($(this));
+            attachFrameLibrary($(this));
         });
 
         function buildPromptPresetData(catalog) {

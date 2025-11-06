@@ -527,6 +527,44 @@ function aimentor_get_prompt_preset_catalog() {
                                         ],
                                 ],
                         ],
+                        'layout_frames'    => [
+                                'label'       => __( 'Canvas Frames', 'aimentor' ),
+                                'description' => __( 'Reusable layout prompts curated for Elementor canvas generation.', 'aimentor' ),
+                                'presets'     => [
+                                        'conversion_landing_frame' => [
+                                                'label'       => __( 'Conversion Landing Page Frame', 'aimentor' ),
+                                                'description' => __( 'High-impact hero, benefits, proof, and CTA scaffolding tuned for multi-provider reuse.', 'aimentor' ),
+                                                'prompt'      => __( 'You are an award-winning UX copy architect. Produce Elementor canvas JSON for a conversion landing page with the following sections: sticky navigation, hero with bold headline and supporting media slot, credibility bar, benefits grid, solution explainer with side-by-side imagery, social proof carousel, pricing/plan comparison, FAQ accordion, and closing CTA banner. Emphasize flexible container spacing and responsive column groupings so editors can quickly swap copy and imagery without breaking the frame.', 'aimentor' ),
+                                                'task'        => 'canvas',
+                                                'type'        => 'frame',
+                                                'sections'    => [
+                                                        __( 'Hero & Credibility', 'aimentor' ),
+                                                        __( 'Benefits Grid', 'aimentor' ),
+                                                        __( 'Solution Explainer', 'aimentor' ),
+                                                        __( 'Testimonials Carousel', 'aimentor' ),
+                                                        __( 'Pricing Table', 'aimentor' ),
+                                                        __( 'FAQ', 'aimentor' ),
+                                                        __( 'Closing CTA', 'aimentor' ),
+                                                ],
+                                        ],
+                                        'services_showcase_frame' => [
+                                                'label'       => __( 'Services Showcase Frame', 'aimentor' ),
+                                                'description' => __( 'Modular services overview designed for fast duplication across industries.', 'aimentor' ),
+                                                'prompt'      => __( 'Act as a productized services strategist. Output Elementor canvas JSON that scaffolds a services overview page with: intro hero featuring optional background media, quick-hit differentiators strip, alternating service feature rows (image + copy) for three services, testimonial + proof row, process timeline with 4 steps, resource download/lead capture, and final CTA block. Use nested containers sparingly so editors can swap widgets without rebuilding structure.', 'aimentor' ),
+                                                'task'        => 'canvas',
+                                                'type'        => 'frame',
+                                                'sections'    => [
+                                                        __( 'Hero Intro', 'aimentor' ),
+                                                        __( 'Differentiators Strip', 'aimentor' ),
+                                                        __( 'Service Feature Rows', 'aimentor' ),
+                                                        __( 'Testimonial Highlight', 'aimentor' ),
+                                                        __( 'Process Timeline', 'aimentor' ),
+                                                        __( 'Lead Capture', 'aimentor' ),
+                                                        __( 'CTA Banner', 'aimentor' ),
+                                                ],
+                                        ],
+                                ],
+                        ],
                 ],
                 'openai' => [
                         'website_copy'        => [
@@ -565,8 +603,85 @@ function aimentor_get_prompt_preset_catalog() {
                                         ],
                                 ],
                         ],
+                        'layout_frames'       => [
+                                'label'       => __( 'AI Frames', 'aimentor' ),
+                                'description' => __( 'Curated layout scaffolds optimized for OpenAI canvas output.', 'aimentor' ),
+                                'presets'     => [
+                                        'thought_leadership_frame' => [
+                                                'label'       => __( 'Thought Leadership Frame', 'aimentor' ),
+                                                'description' => __( 'Editorial hub layout ideal for webinars, articles, and expert positioning.', 'aimentor' ),
+                                                'prompt'      => __( 'You are an editorial experience designer. Return Elementor canvas JSON for a thought leadership hub with: marquee hero featuring video slot and key takeaways, dual-column featured content area (article plus podcast/webinar), resource library grid with category filters, quote spotlight, upcoming events timeline, newsletter signup, and final CTA linking to consultation. Keep column widths balanced for desktop while stacking elegantly on mobile.', 'aimentor' ),
+                                                'task'        => 'canvas',
+                                                'type'        => 'frame',
+                                                'sections'    => [
+                                                        __( 'Hero with Media', 'aimentor' ),
+                                                        __( 'Featured Insights', 'aimentor' ),
+                                                        __( 'Resource Library', 'aimentor' ),
+                                                        __( 'Quote Spotlight', 'aimentor' ),
+                                                        __( 'Events Timeline', 'aimentor' ),
+                                                        __( 'Newsletter Signup', 'aimentor' ),
+                                                        __( 'Consultation CTA', 'aimentor' ),
+                                                ],
+                                        ],
+                                        'course_sales_frame' => [
+                                                'label'       => __( 'Course Sales Frame', 'aimentor' ),
+                                                'description' => __( 'High-converting education layout with curriculum and instructor storytelling.', 'aimentor' ),
+                                                'prompt'      => __( 'Act as a course marketing producer. Build Elementor canvas JSON for a digital course sales page with: hero featuring enrollment CTA, credibility strip, course outcomes grid, instructor story block with image, curriculum module accordion, bonus and inclusion highlights, testimonial slider, pricing stack with guarantee, FAQ, and final CTA. Prioritize reusable containers that accept Elementor native widgets.', 'aimentor' ),
+                                                'task'        => 'canvas',
+                                                'type'        => 'frame',
+                                                'sections'    => [
+                                                        __( 'Hero & Enrollment CTA', 'aimentor' ),
+                                                        __( 'Credibility Strip', 'aimentor' ),
+                                                        __( 'Outcomes Grid', 'aimentor' ),
+                                                        __( 'Instructor Story', 'aimentor' ),
+                                                        __( 'Curriculum Accordion', 'aimentor' ),
+                                                        __( 'Bonuses Highlight', 'aimentor' ),
+                                                        __( 'Testimonials', 'aimentor' ),
+                                                        __( 'Pricing & Guarantee', 'aimentor' ),
+                                                        __( 'FAQ', 'aimentor' ),
+                                                        __( 'Final CTA', 'aimentor' ),
+                                                ],
+                                        ],
+                                ],
+                        ],
                 ],
         ];
+}
+
+function aimentor_get_frame_prompt_presets() {
+        $catalog = aimentor_get_prompt_preset_catalog();
+        $frames  = [];
+
+        foreach ( $catalog as $provider_key => $categories ) {
+                if ( ! is_array( $categories ) ) {
+                        continue;
+                }
+
+                foreach ( $categories as $category_key => $category_meta ) {
+                        if ( ! isset( $category_meta['presets'] ) || ! is_array( $category_meta['presets'] ) ) {
+                                continue;
+                        }
+
+                        foreach ( $category_meta['presets'] as $preset_key => $preset_meta ) {
+                                if ( ! is_array( $preset_meta ) ) {
+                                        continue;
+                                }
+
+                                if ( isset( $preset_meta['type'] ) && 'frame' === $preset_meta['type'] ) {
+                                        $frames[ $provider_key . '::' . $category_key . '::' . $preset_key ] = array_merge(
+                                                $preset_meta,
+                                                [
+                                                        'provider' => $provider_key,
+                                                        'category' => $category_key,
+                                                        'key'      => $preset_key,
+                                                ]
+                                        );
+                                }
+                        }
+                }
+        }
+
+        return $frames;
 }
 
 function aimentor_get_usage_transient_key() {
@@ -1293,6 +1408,194 @@ function aimentor_get_canvas_history() {
 
         return $normalized;
 }
+
+function aimentor_get_frame_sections( $post_id ) {
+        $raw = get_post_meta( $post_id, '_aimentor_frame_sections', true );
+
+        if ( is_string( $raw ) && '' !== $raw ) {
+                $decoded = json_decode( $raw, true );
+
+                if ( is_array( $decoded ) ) {
+                        return array_values( array_filter( array_map( 'sanitize_text_field', $decoded ) ) );
+                }
+        }
+
+        if ( is_array( $raw ) ) {
+                return array_values( array_filter( array_map( 'sanitize_text_field', $raw ) ) );
+        }
+
+        if ( is_string( $raw ) && '' === $raw ) {
+                return [];
+        }
+
+        return [];
+}
+
+function aimentor_prepare_frame_library_item( $post ) {
+        $post = get_post( $post );
+
+        if ( ! $post || 'ai_layout' !== $post->post_type ) {
+                return null;
+        }
+
+        $is_enabled = get_post_meta( $post->ID, '_aimentor_frame_enabled', true );
+
+        if ( 'yes' !== $is_enabled ) {
+                return null;
+        }
+
+        $layout_raw = $post->post_content;
+        $layout     = [];
+
+        if ( is_string( $layout_raw ) && '' !== $layout_raw ) {
+                $decoded = json_decode( $layout_raw, true );
+
+                if ( is_array( $decoded ) ) {
+                        $layout = $decoded;
+                }
+        }
+
+        $layout_json = $layout ? wp_json_encode( $layout ) : '';
+
+        $summary_meta = get_post_meta( $post->ID, '_aimentor_frame_summary', true );
+        $summary      = $summary_meta ? sanitize_textarea_field( $summary_meta ) : sanitize_text_field( $post->post_excerpt );
+        $provider     = sanitize_key( get_post_meta( $post->ID, '_aimentor_provider', true ) );
+        $model        = sanitize_text_field( get_post_meta( $post->ID, '_aimentor_model', true ) );
+        $prompt       = sanitize_textarea_field( get_post_meta( $post->ID, '_aimentor_prompt', true ) );
+        $task         = sanitize_key( get_post_meta( $post->ID, '_aimentor_task', true ) );
+        $tier         = sanitize_key( get_post_meta( $post->ID, '_aimentor_tier', true ) );
+        $sections     = aimentor_get_frame_sections( $post->ID );
+        $preview_id   = absint( get_post_meta( $post->ID, '_aimentor_frame_preview_id', true ) );
+
+        if ( ! $preview_id ) {
+                $preview_id = absint( get_post_thumbnail_id( $post->ID ) );
+        }
+
+        $preview_url = $preview_id ? wp_get_attachment_image_url( $preview_id, 'medium' ) : '';
+
+        return [
+                'id'        => $post->ID,
+                'title'     => get_the_title( $post ),
+                'summary'   => $summary,
+                'provider'  => $provider,
+                'model'     => $model,
+                'prompt'    => $prompt,
+                'task'      => $task,
+                'tier'      => $tier,
+                'layout'    => $layout_json,
+                'sections'  => $sections,
+                'preview'   => $preview_url ? [
+                        'id'  => $preview_id,
+                        'url' => esc_url_raw( $preview_url ),
+                ] : null,
+                'modified'  => mysql2date( 'c', $post->post_modified_gmt, false ),
+        ];
+}
+
+function aimentor_get_frame_library_items( $args = [] ) {
+        if ( ! post_type_exists( 'ai_layout' ) ) {
+                return [];
+        }
+
+        $defaults = [
+                'post_type'      => 'ai_layout',
+                'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
+                'posts_per_page' => 50,
+                'orderby'        => 'modified',
+                'order'          => 'DESC',
+                'meta_key'       => '_aimentor_frame_enabled',
+                'meta_value'     => 'yes',
+        ];
+
+        $query_args = wp_parse_args( $args, $defaults );
+        $query_args['no_found_rows'] = true;
+
+        $posts = get_posts( $query_args );
+
+        if ( empty( $posts ) ) {
+                return [];
+        }
+
+        $items = [];
+
+        foreach ( $posts as $post ) {
+                $prepared = aimentor_prepare_frame_library_item( $post );
+
+                if ( ! $prepared ) {
+                        continue;
+                }
+
+                $items[] = $prepared;
+        }
+
+        return $items;
+}
+
+function aimentor_get_frame_library_candidates( $args = [] ) {
+        if ( ! post_type_exists( 'ai_layout' ) ) {
+                return [];
+        }
+
+        $defaults = [
+                'post_type'      => 'ai_layout',
+                'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
+                'posts_per_page' => 20,
+                'orderby'        => 'modified',
+                'order'          => 'DESC',
+        ];
+
+        $query_args = wp_parse_args( $args, $defaults );
+        $query_args['no_found_rows'] = true;
+
+        return get_posts( $query_args );
+}
+
+function aimentor_frame_library_permissions_check( WP_REST_Request $request ) {
+        return current_user_can( 'edit_posts' );
+}
+
+function aimentor_rest_get_frames( WP_REST_Request $request ) {
+        $limit = absint( $request->get_param( 'per_page' ) );
+
+        if ( $limit <= 0 || $limit > 100 ) {
+                $limit = 50;
+        }
+
+        $items = aimentor_get_frame_library_items(
+                [
+                        'posts_per_page' => $limit,
+                ]
+        );
+
+        return new WP_REST_Response(
+                [
+                        'items' => $items,
+                ]
+        );
+}
+
+function aimentor_register_frame_library_route() {
+        register_rest_route(
+                'aimentor/v1',
+                '/frames',
+                [
+                        [
+                                'methods'             => WP_REST_Server::READABLE,
+                                'callback'            => 'aimentor_rest_get_frames',
+                                'permission_callback' => 'aimentor_frame_library_permissions_check',
+                                'args'                => [
+                                        'per_page' => [
+                                                'type'              => 'integer',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'absint',
+                                                'default'           => 50,
+                                        ],
+                                ],
+                        ],
+                ]
+        );
+}
+add_action( 'rest_api_init', 'aimentor_register_frame_library_route' );
 
 function aimentor_store_canvas_history_entry( $layout, $meta ) {
         if ( is_string( $layout ) ) {
@@ -3820,6 +4123,11 @@ function aimentor_get_settings_tabs() {
                         'callback'   => 'aimentor_render_settings_tab_brand',
                         'capability' => 'manage_options',
                 ],
+                'frame-library'    => [
+                        'label'      => __( 'Frame Library', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_frame_library',
+                        'capability' => 'manage_options',
+                ],
                 'saved-prompts'    => [
                         'label'      => __( 'Saved Prompts', 'aimentor' ),
                         'callback'   => 'aimentor_render_settings_tab_saved_prompts',
@@ -3890,6 +4198,83 @@ function aimentor_render_settings_tab_brand() {
         return (string) ob_get_clean();
 }
 
+function aimentor_render_settings_tab_frame_library() {
+        $provider_labels = aimentor_get_provider_labels();
+        $posts           = aimentor_get_frame_library_candidates(
+                [
+                        'posts_per_page' => 40,
+                ]
+        );
+        $items           = [];
+
+        foreach ( $posts as $post ) {
+                $post_id      = $post->ID;
+                $enabled      = 'yes' === get_post_meta( $post_id, '_aimentor_frame_enabled', true );
+                $summary_meta = get_post_meta( $post_id, '_aimentor_frame_summary', true );
+                $summary      = $summary_meta ? sanitize_textarea_field( $summary_meta ) : sanitize_text_field( $post->post_excerpt );
+                $sections     = aimentor_get_frame_sections( $post_id );
+                $sections_str = implode( "\n", $sections );
+                $provider     = sanitize_key( get_post_meta( $post_id, '_aimentor_provider', true ) );
+                $model        = sanitize_text_field( get_post_meta( $post_id, '_aimentor_model', true ) );
+                $task         = sanitize_key( get_post_meta( $post_id, '_aimentor_task', true ) );
+                $tier         = sanitize_key( get_post_meta( $post_id, '_aimentor_tier', true ) );
+                $prompt       = sanitize_textarea_field( get_post_meta( $post_id, '_aimentor_prompt', true ) );
+                $preview_id   = absint( get_post_meta( $post_id, '_aimentor_frame_preview_id', true ) );
+
+                if ( ! $preview_id ) {
+                        $preview_id = absint( get_post_thumbnail_id( $post_id ) );
+                }
+
+                $preview_url = $preview_id ? wp_get_attachment_image_url( $preview_id, 'medium' ) : '';
+                $modified    = mysql2date( 'U', $post->post_modified_gmt ? $post->post_modified_gmt : $post->post_modified, false );
+                $modified_h  = $modified ? human_time_diff( $modified, current_time( 'timestamp' ) ) : '';
+
+                $items[] = [
+                        'id'            => $post_id,
+                        'title'         => get_the_title( $post ),
+                        'enabled'       => $enabled,
+                        'status'        => $post->post_status,
+                        'summary'       => $summary,
+                        'sections'      => $sections,
+                        'sections_text' => $sections_str,
+                        'provider'      => $provider,
+                        'provider_label' => isset( $provider_labels[ $provider ] ) ? $provider_labels[ $provider ] : strtoupper( $provider ),
+                        'model'         => $model,
+                        'task'          => $task,
+                        'tier'          => $tier,
+                        'prompt'        => $prompt,
+                        'preview_id'    => $preview_id,
+                        'preview_url'   => $preview_url,
+                        'modified'      => $modified,
+                        'modified_human' => $modified_h,
+                        'edit_link'     => get_edit_post_link( $post_id, '' ),
+                ];
+        }
+
+        $status_flag = isset( $_GET['aimentor_frame_status'] ) ? sanitize_key( wp_unslash( $_GET['aimentor_frame_status'] ) ) : '';
+        $status_msg  = '';
+        $status_type = '';
+
+        if ( 'updated' === $status_flag ) {
+                $status_type = 'updated';
+                $status_msg  = __( 'Frame selections saved.', 'aimentor' );
+        } elseif ( 'error' === $status_flag ) {
+                $status_type = 'error';
+                $status_msg  = __( 'Unable to update the frame library. Please try again.', 'aimentor' );
+        }
+
+        $archive_enabled = aimentor_is_layout_archival_enabled();
+
+        $frame_library_endpoint = esc_url( rest_url( 'aimentor/v1/frames' ) );
+        $rest_nonce             = wp_create_nonce( 'wp_rest' );
+        $frame_presets          = function_exists( 'aimentor_get_frame_prompt_presets' ) ? aimentor_get_frame_prompt_presets() : [];
+
+        ob_start();
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-frame-library.php';
+
+        return (string) ob_get_clean();
+}
+
 function aimentor_render_settings_tab_saved_prompts() {
         $view_model              = aimentor_get_settings_view_model();
         $support_sections        = aimentor_get_settings_support_resources();
@@ -3942,6 +4327,103 @@ function aimentor_render_settings_tab_logs() {
 
         return (string) ob_get_clean();
 }
+
+function aimentor_handle_frame_library_form() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( esc_html__( 'You do not have permission to manage frames.', 'aimentor' ) );
+        }
+
+        check_admin_referer( 'aimentor_save_frame_library', 'aimentor_frame_library_nonce' );
+
+        $layouts = isset( $_POST['layouts'] ) && is_array( $_POST['layouts'] ) ? $_POST['layouts'] : [];
+
+        foreach ( $layouts as $post_id => $fields ) {
+                $post_id = absint( $post_id );
+
+                if ( ! $post_id || 'ai_layout' !== get_post_type( $post_id ) ) {
+                        continue;
+                }
+
+                $enabled = isset( $fields['enabled'] ) && 'yes' === $fields['enabled'] ? 'yes' : '';
+                update_post_meta( $post_id, '_aimentor_frame_enabled', $enabled );
+
+                $summary = isset( $fields['summary'] ) ? sanitize_textarea_field( wp_unslash( $fields['summary'] ) ) : '';
+
+                if ( '' === $summary ) {
+                        delete_post_meta( $post_id, '_aimentor_frame_summary' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_frame_summary', $summary );
+                }
+
+                $sections_input = isset( $fields['sections'] ) ? $fields['sections'] : '';
+                $sections       = aimentor_normalize_frame_sections( $sections_input );
+
+                if ( empty( $sections ) ) {
+                        delete_post_meta( $post_id, '_aimentor_frame_sections' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_frame_sections', wp_json_encode( $sections ) );
+                }
+
+                $provider = isset( $fields['provider'] ) ? sanitize_key( $fields['provider'] ) : '';
+                $model    = isset( $fields['model'] ) ? sanitize_text_field( wp_unslash( $fields['model'] ) ) : '';
+                $task     = isset( $fields['task'] ) ? sanitize_key( $fields['task'] ) : '';
+                $tier     = isset( $fields['tier'] ) ? sanitize_key( $fields['tier'] ) : '';
+                $prompt   = isset( $fields['prompt'] ) ? sanitize_textarea_field( wp_unslash( $fields['prompt'] ) ) : '';
+
+                if ( '' === $provider ) {
+                        delete_post_meta( $post_id, '_aimentor_provider' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_provider', $provider );
+                }
+
+                if ( '' === $model ) {
+                        delete_post_meta( $post_id, '_aimentor_model' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_model', $model );
+                }
+
+                if ( '' === $task ) {
+                        delete_post_meta( $post_id, '_aimentor_task' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_task', $task );
+                }
+
+                if ( '' === $tier ) {
+                        delete_post_meta( $post_id, '_aimentor_tier' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_tier', $tier );
+                }
+
+                if ( '' === $prompt ) {
+                        delete_post_meta( $post_id, '_aimentor_prompt' );
+                } else {
+                        update_post_meta( $post_id, '_aimentor_prompt', $prompt );
+                }
+
+                $preview_id = isset( $fields['preview_id'] ) ? absint( $fields['preview_id'] ) : 0;
+
+                if ( $preview_id ) {
+                        update_post_meta( $post_id, '_aimentor_frame_preview_id', $preview_id );
+                        set_post_thumbnail( $post_id, $preview_id );
+                } else {
+                        delete_post_meta( $post_id, '_aimentor_frame_preview_id' );
+                        delete_post_thumbnail( $post_id );
+                }
+        }
+
+        $redirect = add_query_arg(
+                [
+                        'page'                  => 'aimentor-settings',
+                        'tab'                   => 'frame-library',
+                        'aimentor_frame_status' => 'updated',
+                ],
+                admin_url( 'options-general.php' )
+        );
+
+        wp_safe_redirect( $redirect );
+        exit;
+}
+add_action( 'admin_post_aimentor_save_frame_library', 'aimentor_handle_frame_library_form' );
 
 function aimentor_settings_page_callback() {
         $tabs = aimentor_get_settings_tabs();
