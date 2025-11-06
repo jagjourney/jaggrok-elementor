@@ -65,11 +65,8 @@ jQuery(document).ready(function($) {
     var logClearConfirmMessage = '';
     var logClearSuccessMessage = '';
     var logClearErrorMessage = '';
-    var $logForm = null;
-    var $logFeedback = null;
-    var $logActions = null;
-    var $logDownloadButton = null;
-    var $logClearButton = null;
+    var tabAction = (typeof aimentorAjax !== 'undefined' && aimentorAjax.tabAction) ? aimentorAjax.tabAction : 'aimentor_load_settings_tab';
+    var tabNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.tabNonce) ? aimentorAjax.tabNonce : '';
 
     function getString(key, fallback) {
         if (strings && Object.prototype.hasOwnProperty.call(strings, key) && strings[key]) {
@@ -84,6 +81,8 @@ jQuery(document).ready(function($) {
     logClearConfirmMessage = getString('logClearConfirm', 'Are you sure you want to clear the error log? This cannot be undone.');
     logClearSuccessMessage = getString('logClearSuccess', 'Error log cleared.');
     logClearErrorMessage = getString('logClearError', 'Unable to clear the error log. Please try again.');
+    var tabLoadingMessage = getString('tabLoading', 'Loading…');
+    var tabErrorMessage = getString('tabLoadError', 'Unable to load tab content. Please try again.');
 
     function buildClassList() {
         return statusStates.map(function(state) {
@@ -93,6 +92,440 @@ jQuery(document).ready(function($) {
 
     var badgeClassList = buildClassList();
     var wpAjax = (typeof window.wp !== 'undefined' && window.wp.ajax && typeof window.wp.ajax.post === 'function') ? window.wp.ajax : null;
+    var $tabsRoot = $('.aimentor-settings-tabs');
+    var $tabContainer = $('#aimentor-settings-tab-content');
+    var $tabFallback = $('#aimentor-settings-tab-fallback');
+    var $tabButtons = $('.aimentor-settings-tabs__tab');
+    var loadedTabs = {};
+    var activeTab = $tabContainer.length ? String($tabContainer.data('active-tab') || '') : '';
+    var rootDefaultTab = '';
+
+    if ($tabsRoot.length) {
+        if (typeof $tabsRoot.data('defaultTab') !== 'undefined') {
+            rootDefaultTab = $tabsRoot.data('defaultTab');
+        } else if (typeof $tabsRoot.data('default-tab') !== 'undefined') {
+            rootDefaultTab = $tabsRoot.data('default-tab');
+        }
+    }
+
+    var defaultTab = rootDefaultTab ? String(rootDefaultTab) : activeTab;
+    var suppressHashChange = false;
+
+    if ($tabsRoot.length) {
+        var dataAction = $tabsRoot.data('tabAction');
+        var dataNonce = $tabsRoot.data('tabNonce');
+
+        if (dataAction) {
+            tabAction = String(dataAction);
+        }
+
+        if (dataNonce) {
+            tabNonce = String(dataNonce);
+        }
+    }
+
+    function escapeHtml(value) {
+        return $('<div>').text(value || '').html();
+    }
+
+    function renderTabLoading() {
+        return '<div class="aimentor-settings-tab-loading" role="status" aria-live="polite">'
+            + '<span class="aimentor-settings-tab-loading__spinner" aria-hidden="true"></span>'
+            + '<span>' + escapeHtml(tabLoadingMessage) + '</span>'
+            + '</div>';
+    }
+
+    function renderTabError(message) {
+        var text = message ? escapeHtml(message) : escapeHtml(tabErrorMessage);
+        return '<div class="aimentor-settings-error" role="alert">' + text + '</div>';
+    }
+
+    function fetchTabContent(tabSlug) {
+        if (!adminAjaxUrl) {
+            return $.Deferred().reject().promise();
+        }
+
+        return $.ajax({
+            url: adminAjaxUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: tabAction,
+                tab: tabSlug,
+                nonce: tabNonce
+            }
+        });
+    }
+
+    function getTabFromHash() {
+        var hash = window.location.hash || '';
+        var prefix = '#aimentor-tab=';
+
+        if (hash.indexOf(prefix) === 0) {
+            return hash.substring(prefix.length);
+        }
+
+        return '';
+    }
+
+    function updateTabHash(tabSlug) {
+        if (!tabSlug) {
+            return;
+        }
+
+        var hash = '#aimentor-tab=' + tabSlug;
+
+        if (window.location.hash === hash) {
+            return;
+        }
+
+        suppressHashChange = true;
+        window.location.hash = hash;
+        window.setTimeout(function() {
+            suppressHashChange = false;
+        }, 0);
+    }
+
+    function toggleProviderSections(provider) {
+        var key = String(provider || '');
+        $('.aimentor-provider-group, .jaggrok-provider-group').each(function() {
+            var $group = $(this);
+            var groupProvider = String($group.data('provider') || '');
+            var isMatch = !groupProvider || groupProvider === key;
+            $group.toggle(isMatch).attr('aria-hidden', isMatch ? 'false' : 'true');
+        });
+
+        $('.aimentor-provider-help, .jaggrok-provider-help').each(function() {
+            var $help = $(this);
+            var helpProvider = String($help.data('provider') || '');
+            var isMatch = !helpProvider || helpProvider === key;
+            $help.toggle(isMatch).attr('aria-hidden', isMatch ? 'false' : 'true');
+        });
+    }
+
+    function updateContextRow($row) {
+        if (!$row || !$row.length) {
+            return;
+        }
+
+        var $provider = $row.find('.aimentor-context-provider');
+        var $model = $row.find('.aimentor-context-model');
+
+        if (!$provider.length || !$model.length) {
+            return;
+        }
+
+        var providerValue = String($provider.val() || '');
+        var $options = $model.find('option[data-provider]');
+        var hasEnabled = false;
+
+        $options.each(function() {
+            var $option = $(this);
+            var optionProvider = String($option.data('provider') || '');
+            var isMatch = !providerValue || optionProvider === providerValue;
+            $option.prop('disabled', !isMatch);
+            if (isMatch) {
+                hasEnabled = true;
+            }
+        });
+
+        var $selected = $model.find('option:selected');
+
+        if (!$selected.length || $selected.prop('disabled')) {
+            var $replacement = $options.filter(function() {
+                return String($(this).data('provider') || '') === providerValue;
+            }).first();
+
+            if ($replacement.length) {
+                $model.val($replacement.val());
+            } else if (hasEnabled) {
+                var $fallback = $options.filter(function() {
+                    return !$(this).prop('disabled');
+                }).first();
+
+                if ($fallback.length) {
+                    $model.val($fallback.val());
+                }
+            } else {
+                $model.val('');
+            }
+        }
+    }
+
+    function initializeProviderControls($context) {
+        var $inputs = ($context && $context.length) ? $context.find('input[name="aimentor_provider"]') : $('input[name="aimentor_provider"]');
+
+        if (!$inputs.length) {
+            return;
+        }
+
+        var $checked = $inputs.filter(':checked').first();
+        var provider = $checked.length ? String($checked.val()) : String($inputs.first().val() || '');
+        toggleProviderSections(provider);
+    }
+
+    function initializeContextControls($context) {
+        var $providers = ($context && $context.length) ? $context.find('.aimentor-context-provider') : $('.aimentor-context-provider');
+
+        if (!$providers.length) {
+            return;
+        }
+
+        $providers.each(function() {
+            updateContextRow($(this).closest('tr'));
+        });
+    }
+
+    function initializeUsageMetricsInContext($context) {
+        var $metrics = ($context && $context.length) ? $context.find('#aimentor-usage-metrics') : $('#aimentor-usage-metrics');
+
+        if (!$metrics.length || !usageNonce) {
+            return;
+        }
+
+        refreshUsageMetrics();
+        scheduleUsageRefresh();
+    }
+
+    function syncLegacyModelInputs($context) {
+        var $grokSelect = ($context && $context.length) ? $context.find('#aimentor_provider_models_grok') : $('#aimentor_provider_models_grok');
+        var $anthropicSelect = ($context && $context.length) ? $context.find('#aimentor_provider_models_anthropic') : $('#aimentor_provider_models_anthropic');
+        var $openaiSelect = ($context && $context.length) ? $context.find('#aimentor_provider_models_openai') : $('#aimentor_provider_models_openai');
+
+        if ($grokSelect.length) {
+            $('#aimentor_model_legacy').val($grokSelect.val());
+        }
+
+        if ($anthropicSelect.length) {
+            $('#aimentor_anthropic_model_legacy').val($anthropicSelect.val());
+        }
+
+        if ($openaiSelect.length) {
+            $('#aimentor_openai_model_legacy').val($openaiSelect.val());
+        }
+    }
+
+    function initializeLogNonce($context) {
+        var $form = ($context && $context.length) ? $context.find('#aimentor-error-log-form') : $('#aimentor-error-log-form');
+
+        if ($form.length) {
+            var formNonce = $form.data('nonce');
+
+            if (formNonce) {
+                logNonce = String(formNonce);
+            }
+        }
+    }
+
+    function initializeDynamicContent($context) {
+        initializeStatusMetrics();
+        initializeProviderControls($context);
+        initializeContextControls($context);
+        initializeUsageMetricsInContext($context);
+        syncLegacyModelInputs($context);
+        initializeLogNonce($context);
+    }
+
+    function setActiveTabState(tabSlug) {
+        var slug = String(tabSlug || '');
+
+        var labelledBy = '';
+
+        $tabButtons.each(function() {
+            var $button = $(this);
+            var buttonSlug = String($button.data('tab') || '');
+            var isActive = buttonSlug === slug;
+            $button.toggleClass('nav-tab-active', isActive)
+                .attr('aria-selected', isActive ? 'true' : 'false')
+                .attr('tabindex', isActive ? '0' : '-1');
+
+            if (isActive && !labelledBy) {
+                labelledBy = $button.attr('id') || '';
+            }
+        });
+
+        if ($tabContainer.length) {
+            $tabContainer.attr('data-active-tab', slug);
+            if (labelledBy) {
+                $tabContainer.attr('aria-labelledby', labelledBy);
+            }
+        }
+
+        activeTab = slug;
+    }
+
+    function activateTab(tabSlug, options) {
+        var settings = $.extend({ updateHash: false, focus: false, force: false }, options);
+        var targetSlug = String(tabSlug || '');
+
+        if (!targetSlug) {
+            targetSlug = defaultTab || ($tabButtons.length ? String($tabButtons.first().data('tab') || '') : '');
+        }
+
+        if (!targetSlug) {
+            return;
+        }
+
+        var $button = $tabButtons.filter('[data-tab="' + targetSlug + '"]');
+
+        if (!$button.length && defaultTab && targetSlug !== defaultTab) {
+            targetSlug = defaultTab;
+            $button = $tabButtons.filter('[data-tab="' + targetSlug + '"]');
+        }
+
+        if (!$button.length && $tabButtons.length) {
+            $button = $tabButtons.first();
+            targetSlug = String($button.data('tab') || targetSlug);
+        }
+
+        if (!settings.force && activeTab === targetSlug && loadedTabs.hasOwnProperty(targetSlug)) {
+            if (settings.updateHash) {
+                updateTabHash(targetSlug);
+            }
+            return;
+        }
+
+        setActiveTabState(targetSlug);
+
+        if (settings.updateHash) {
+            updateTabHash(targetSlug);
+        }
+
+        if (loadedTabs.hasOwnProperty(targetSlug)) {
+            if ($tabContainer.length) {
+                $tabContainer.attr('aria-busy', 'false').html(loadedTabs[targetSlug]);
+                initializeDynamicContent($tabContainer);
+                if (settings.focus) {
+                    $tabContainer.attr('tabindex', '0').focus();
+                }
+            }
+            return;
+        }
+
+        if ($tabContainer.length) {
+            $tabContainer.attr('aria-busy', 'true').html(renderTabLoading());
+        }
+
+        fetchTabContent(targetSlug).done(function(response) {
+            var html = '';
+
+            if (response && response.success && response.data && typeof response.data.html !== 'undefined') {
+                html = response.data.html;
+            } else if (response && response.data && typeof response.data === 'string') {
+                html = response.data;
+            } else if (response && typeof response.html === 'string') {
+                html = response.html;
+            }
+
+            if (!html) {
+                if ($tabContainer.length) {
+                    $tabContainer.attr('aria-busy', 'false').html(renderTabError());
+                }
+                return;
+            }
+
+            loadedTabs[targetSlug] = html;
+
+            if ($tabContainer.length) {
+                $tabContainer.attr('aria-busy', 'false').html(html);
+                initializeDynamicContent($tabContainer);
+
+                if (settings.focus) {
+                    $tabContainer.attr('tabindex', '0').focus();
+                }
+            }
+        }).fail(function(xhr) {
+            var message = tabErrorMessage;
+
+            if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                message = xhr.responseJSON.data.message;
+            }
+
+            if ($tabContainer.length) {
+                $tabContainer.attr('aria-busy', 'false').html(renderTabError(message));
+            }
+        });
+    }
+
+    if (!defaultTab && $tabButtons.length) {
+        defaultTab = String($tabButtons.first().data('tab') || '');
+    }
+
+    if (!activeTab) {
+        activeTab = defaultTab;
+    }
+
+    if ($tabFallback.length && $tabContainer.length && activeTab) {
+        loadedTabs[activeTab] = $tabFallback.html();
+        $tabContainer.attr('aria-busy', 'false').html(loadedTabs[activeTab]);
+        $tabFallback.remove();
+        initializeDynamicContent($tabContainer);
+    }
+
+    if (activeTab) {
+        setActiveTabState(activeTab);
+    }
+
+    var initialTab = getTabFromHash();
+
+    if (initialTab && initialTab !== activeTab) {
+        activateTab(initialTab, { updateHash: false, force: true });
+    } else {
+        if ($tabContainer.length && activeTab && !loadedTabs.hasOwnProperty(activeTab)) {
+            activateTab(activeTab, { updateHash: false, focus: false, force: true });
+        }
+
+        if (initialTab && initialTab !== defaultTab) {
+            updateTabHash(initialTab);
+        }
+    }
+
+    $tabButtons.on('click', function(event) {
+        event.preventDefault();
+        var slug = String($(this).data('tab') || '');
+        activateTab(slug, { updateHash: true, focus: true });
+    });
+
+    $tabButtons.on('keydown', function(event) {
+        var key = event.key || event.which;
+        var index = $tabButtons.index(this);
+
+        if (key === 'ArrowRight' || key === 'ArrowDown' || key === 39 || key === 40) {
+            event.preventDefault();
+            var nextIndex = (index + 1) % $tabButtons.length;
+            $tabButtons.eq(nextIndex).trigger('focus');
+            return;
+        }
+
+        if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 37 || key === 38) {
+            event.preventDefault();
+            var prevIndex = (index - 1 + $tabButtons.length) % $tabButtons.length;
+            $tabButtons.eq(prevIndex).trigger('focus');
+            return;
+        }
+
+        if (key === 'Home') {
+            event.preventDefault();
+            $tabButtons.eq(0).trigger('focus');
+        }
+
+        if (key === 'End') {
+            event.preventDefault();
+            $tabButtons.eq($tabButtons.length - 1).trigger('focus');
+        }
+    });
+
+    $(window).on('hashchange', function() {
+        if (suppressHashChange) {
+            return;
+        }
+
+        var slug = getTabFromHash();
+
+        if (slug && slug !== activeTab) {
+            activateTab(slug, { updateHash: false });
+        }
+    });
 
     function formatNumber(value) {
         if (typeof window.Intl !== 'undefined' && typeof Intl.NumberFormat === 'function') {
@@ -603,46 +1036,52 @@ jQuery(document).ready(function($) {
 
         logNonce = String(newNonce);
 
-        if ($logForm && $logForm.length) {
-            $logForm.attr('data-nonce', logNonce);
+        var $form = $('#aimentor-error-log-form');
+
+        if ($form.length) {
+            $form.attr('data-nonce', logNonce);
         }
     }
 
     function setLogFeedback(message, state) {
-        if (!$logFeedback || !$logFeedback.length) {
+        var $feedback = $('#aimentor-error-log-feedback');
+
+        if (!$feedback.length) {
             return;
         }
 
-        $logFeedback.removeClass('is-success is-error');
+        $feedback.removeClass('is-success is-error');
 
         if (!message) {
-            $logFeedback.attr('hidden', 'hidden');
-            $logFeedback.text('');
+            $feedback.attr('hidden', 'hidden');
+            $feedback.text('');
             return;
         }
 
         if (state === 'success') {
-            $logFeedback.addClass('is-success');
+            $feedback.addClass('is-success');
         } else if (state === 'error') {
-            $logFeedback.addClass('is-error');
+            $feedback.addClass('is-error');
         }
 
-        $logFeedback.text(message);
-        $logFeedback.removeAttr('hidden');
+        $feedback.text(message);
+        $feedback.removeAttr('hidden');
     }
 
     function toggleLogActionsBusy(isBusy) {
-        if (!$logActions || !$logActions.length) {
+        var $actions = $('.aimentor-error-log-actions');
+
+        if (!$actions.length) {
             return;
         }
 
-        var $buttons = $logActions.find('button');
+        var $buttons = $actions.find('button');
 
         if ($buttons.length) {
             $buttons.prop('disabled', !!isBusy);
         }
 
-        $logActions.toggleClass('is-busy', !!isBusy);
+        $actions.toggleClass('is-busy', !!isBusy);
     }
 
     function parseDispositionFilename(disposition) {
@@ -670,17 +1109,19 @@ jQuery(document).ready(function($) {
     }
 
     function setLogLoading(isLoading) {
-        if (!$logForm || !$logForm.length) {
+        var $form = $('#aimentor-error-log-form');
+
+        if (!$form.length) {
             return;
         }
 
-        var $submit = $logForm.find('button[type="submit"]');
+        var $submit = $form.find('button[type="submit"]');
 
         if ($submit.length) {
             $submit.prop('disabled', !!isLoading);
         }
 
-        $logForm.toggleClass('is-loading', !!isLoading);
+        $form.toggleClass('is-loading', !!isLoading);
     }
 
     function updateProviderStatus(provider, data) {
@@ -711,7 +1152,7 @@ jQuery(document).ready(function($) {
 
     initializeStatusMetrics();
 
-    $('.aimentor-test-provider').on('click', function() {
+    $(document).on('click', '.aimentor-test-provider', function() {
         var $button = $(this);
         var provider = String($button.data('provider') || '');
 
@@ -845,106 +1286,109 @@ jQuery(document).ready(function($) {
         });
     });
 
-    $logForm = $('#aimentor-error-log-form');
-    $logActions = $('.aimentor-error-log-actions');
-    $logFeedback = $('#aimentor-error-log-feedback');
-    $logDownloadButton = $('#aimentor-download-log');
-    $logClearButton = $('#aimentor-clear-log');
+    $(document).on('submit', '#aimentor-error-log-form', function(event) {
+        event.preventDefault();
 
-    if ($logForm.length) {
+        var $form = $(this);
+
         if (!logNonce) {
-            var formNonce = $logForm.data('nonce');
+            var existingNonce = $form.data('nonce');
 
-            if (formNonce) {
-                logNonce = String(formNonce);
+            if (existingNonce) {
+                logNonce = String(existingNonce);
             }
         }
 
-        $logForm.on('submit', function(event) {
-            event.preventDefault();
+        setLogFeedback('');
 
-            setLogFeedback('');
+        if (!logNonce) {
+            renderLogError();
+            return;
+        }
 
-            if (!logNonce) {
-                renderLogError();
-                return;
-            }
+        var provider = $.trim($form.find('[name="provider"]').val() || '');
+        var keyword = $.trim($form.find('[name="keyword"]').val() || '');
+        var payload = {
+            nonce: logNonce,
+            provider: provider,
+            keyword: keyword
+        };
+        var request;
 
-            var provider = $.trim($logForm.find('[name="provider"]').val() || '');
-            var keyword = $.trim($logForm.find('[name="keyword"]').val() || '');
-            var payload = {
-                nonce: logNonce,
-                provider: provider,
-                keyword: keyword
-            };
-            var request;
+        setLogLoading(true);
 
-            setLogLoading(true);
+        if (wpAjax) {
+            request = wpAjax.post(logAction, payload);
+        } else if (adminAjaxUrl) {
+            request = $.post(adminAjaxUrl, $.extend({ action: logAction }, payload));
+        } else {
+            setLogLoading(false);
+            renderLogError();
+            return;
+        }
 
-            if (wpAjax) {
-                request = wpAjax.post(logAction, payload);
-            } else if (adminAjaxUrl) {
-                request = $.post(adminAjaxUrl, $.extend({ action: logAction }, payload));
-            } else {
-                setLogLoading(false);
-                renderLogError();
-                return;
-            }
+        request.done(function(response) {
+            if (response && response.success && response.data && typeof response.data.rows !== 'undefined') {
+                renderLogRows(response.data.rows);
 
-            request.done(function(response) {
-                if (response && response.success && response.data && typeof response.data.rows !== 'undefined') {
-                    renderLogRows(response.data.rows);
-
-                    if (response.data.nonce) {
-                        updateLogNonce(response.data.nonce);
-                    }
-
-                    return;
-                }
-
-                var message = '';
-
-                if (response && response.data && response.data.message) {
-                    message = response.data.message;
-                }
-
-                if (response && response.data && response.data.nonce) {
+                if (response.data.nonce) {
                     updateLogNonce(response.data.nonce);
                 }
 
-                renderLogError(message);
-            }).fail(function(xhr) {
-                var message = '';
-
-                if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
-                    message = xhr.responseJSON.data.message;
-                }
-
-                if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.nonce) {
-                    updateLogNonce(xhr.responseJSON.data.nonce);
-                }
-
-                renderLogError(message);
-            }).always(function() {
-                setLogLoading(false);
-            });
-        });
-    }
-
-    if ($logDownloadButton && $logDownloadButton.length && adminAjaxUrl) {
-        $logDownloadButton.on('click', function(event) {
-            event.preventDefault();
-
-            if (!logNonce) {
-                setLogFeedback(logDownloadErrorMessage, 'error');
                 return;
             }
 
-            setLogFeedback('');
-            toggleLogActionsBusy(true);
+            var message = '';
 
-            $.ajax({
-                url: adminAjaxUrl,
+            if (response && response.data && response.data.message) {
+                message = response.data.message;
+            }
+
+            if (response && response.data && response.data.nonce) {
+                updateLogNonce(response.data.nonce);
+            }
+
+            renderLogError(message);
+        }).fail(function(xhr) {
+            var message = '';
+
+            if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                message = xhr.responseJSON.data.message;
+            }
+
+            if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.nonce) {
+                updateLogNonce(xhr.responseJSON.data.nonce);
+            }
+
+            renderLogError(message);
+        }).always(function() {
+            setLogLoading(false);
+        });
+    });
+
+    $(document).on('click', '#aimentor-download-log', function(event) {
+        event.preventDefault();
+
+        var $form = $('#aimentor-error-log-form');
+
+        if (!logNonce && $form.length) {
+            var existingNonce = $form.data('nonce');
+
+            if (existingNonce) {
+                logNonce = String(existingNonce);
+            }
+        }
+
+        if (!logNonce) {
+            setLogFeedback(logDownloadErrorMessage, 'error');
+            return;
+        }
+
+        setLogFeedback('');
+        toggleLogActionsBusy(true);
+
+        $.ajax({
+            url: adminAjaxUrl,
                 method: 'POST',
                 data: {
                     action: logDownloadAction,
@@ -1044,16 +1488,25 @@ jQuery(document).ready(function($) {
                 toggleLogActionsBusy(false);
             });
         });
-    }
+    });
 
-    if ($logClearButton && $logClearButton.length) {
-        $logClearButton.on('click', function(event) {
-            event.preventDefault();
+    $(document).on('click', '#aimentor-clear-log', function(event) {
+        event.preventDefault();
 
-            if (!logNonce) {
-                setLogFeedback(logClearErrorMessage, 'error');
-                return;
+        var $form = $('#aimentor-error-log-form');
+
+        if (!logNonce && $form.length) {
+            var existingNonce = $form.data('nonce');
+
+            if (existingNonce) {
+                logNonce = String(existingNonce);
             }
+        }
+
+        if (!logNonce) {
+            setLogFeedback(logClearErrorMessage, 'error');
+            return;
+        }
 
             if (typeof window.confirm === 'function' && !window.confirm(logClearConfirmMessage)) {
                 return;
@@ -1075,55 +1528,52 @@ jQuery(document).ready(function($) {
                 return;
             }
 
-            request.done(function(response) {
-                if (response && response.success) {
-                    if (response.data && response.data.nonce) {
-                        updateLogNonce(response.data.nonce);
-                    }
-
-                    var successMessage = (response.data && response.data.message) ? response.data.message : logClearSuccessMessage;
-
-                    setLogFeedback(successMessage, 'success');
-
-                    if ($logForm && $logForm.length) {
-                        $logForm.trigger('submit');
-                    }
-
-                    return;
+        request.done(function(response) {
+            if (response && response.success) {
+                if (response.data && response.data.nonce) {
+                    updateLogNonce(response.data.nonce);
                 }
 
-                var message = logClearErrorMessage;
+                var successMessage = (response.data && response.data.message) ? response.data.message : logClearSuccessMessage;
 
-                if (response && response.data) {
-                    if (response.data.message) {
-                        message = response.data.message;
-                    }
+                setLogFeedback(successMessage, 'success');
 
-                    if (response.data.nonce) {
-                        updateLogNonce(response.data.nonce);
-                    }
+                $('#aimentor-error-log-form').trigger('submit');
+
+                return;
+            }
+
+            var message = logClearErrorMessage;
+
+            if (response && response.data) {
+                if (response.data.message) {
+                    message = response.data.message;
                 }
 
-                setLogFeedback(message, 'error');
-            }).fail(function(xhr) {
-                var message = logClearErrorMessage;
+                if (response.data.nonce) {
+                    updateLogNonce(response.data.nonce);
+                }
+            }
 
-                if (xhr && xhr.responseJSON && xhr.responseJSON.data) {
-                    if (xhr.responseJSON.data.message) {
-                        message = xhr.responseJSON.data.message;
-                    }
+            setLogFeedback(message, 'error');
+        }).fail(function(xhr) {
+            var message = logClearErrorMessage;
 
-                    if (xhr.responseJSON.data.nonce) {
-                        updateLogNonce(xhr.responseJSON.data.nonce);
-                    }
+            if (xhr && xhr.responseJSON && xhr.responseJSON.data) {
+                if (xhr.responseJSON.data.message) {
+                    message = xhr.responseJSON.data.message;
                 }
 
-                setLogFeedback(message, 'error');
-            }).always(function() {
-                toggleLogActionsBusy(false);
-            });
+                if (xhr.responseJSON.data.nonce) {
+                    updateLogNonce(xhr.responseJSON.data.nonce);
+                }
+            }
+
+            setLogFeedback(message, 'error');
+        }).always(function() {
+            toggleLogActionsBusy(false);
         });
-    }
+    });
 
     if ($('#aimentor-usage-metrics').length && usageNonce) {
         refreshUsageMetrics();
