@@ -1,0 +1,42 @@
+/*
+ * RTL overrides for AiMentor Admin Settings styles.
+ */
+
+.aimentor-provider-badge,
+.jaggrok-provider-badge {
+    margin-left: 0;
+    margin-right: 6px;
+}
+
+.aimentor-onboarding-card {
+    padding-right: 0;
+    padding-left: 40px;
+    padding-inline-end: 0;
+    padding-inline-start: 40px;
+}
+
+.aimentor-provider-name,
+.jaggrok-provider-name {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+.aimentor-provider-summary,
+.jaggrok-provider-summary {
+    margin-left: 0;
+    margin-right: 26px;
+    margin-inline-start: 0;
+    margin-inline-end: 26px;
+}
+
+.aimentor-history-provider-label {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+.aimentor-advanced-settings summary::after {
+    right: auto;
+    left: 16px;
+    inset-inline-end: auto;
+    inset-inline-start: 16px;
+}
