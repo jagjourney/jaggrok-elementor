@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.18
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,14 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 * **API key visibility controls:** Reveal or mask keys instantly with the built-in eye toggle so only trusted teammates can view sensitive credentials.
 * **Connection status badges:** Test each provider and get immediate success, pending, or error badges that confirm when an integration is ready for production.
 * **Built-in error log viewer:** Inspect the most recent API issues without leaving WordPress; the underlying log file lives at `wp-content/uploads/aimentor/aimentor-errors.log` (with automatic fallbacks if that path is unavailable).
+
+== Frame Workflow ==
+1. **Generate** layouts inside Elementor using AiMentor canvas requests. Each run can be archived with its provider, model, and prompt metadata for later reuse.
+2. **Archive** winning layouts so they appear under the private `AI Layouts` post type. Archival keeps historical prompts alongside the JSON canvas payload.
+3. **Promote to frame** from **Settings → Frame Library**. Administrators can toggle curated layouts, upload fresh preview thumbnails, refine summaries, and confirm suggested sections that editors will see.
+4. **Reuse** frames in Elementor. The AiMentor widget now surfaces a Frame Library panel that lists approved layouts with one-click insertion or prompt seeding to jumpstart new generations.
+
+Tip: periodically retire stale frames or swap preview imagery to keep the gallery current. A small rotation—removing unused layouts and promoting fresh winners—keeps the experience fast for editors.
 
 == Compatibility ==
 AiMentor requires the free version of Elementor to be active for its widget, settings, and copy workflows to load. When Elementor Pro is detected, advanced experiences—including canvas JSON generation and the in-dashboard **Pro Features** toggle—automatically light up. If Elementor Pro is not available, AiMentor gracefully downgrades canvas requests to copy output while keeping all text generation flows first-class for free users, so teams can still ship content without compromise.
@@ -95,6 +103,12 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.5.0 =
+* Added a dedicated Frame Library admin tab so curators can approve archived AI Layouts, manage thumbnails, and tune copy before exposing frames to editors.
+* Extended the Elementor widget with a Frame Library panel that loads curated frames, previews metadata, and supports one-click insertion or prompt seeding.
+* Published frame-aware REST responses and AJAX payload metadata so the editor, presets, and history views can reuse approved layouts consistently.
+* Documented the generate → archive → promote → reuse workflow and refreshed the update manifest to announce version 1.5.0 via the GitHub-based updater.
+
 = 1.3.18 =
 * Added a Saved Prompts settings tab with personal and shared tables, inline creation form, and secure REST-backed delete controls.
 * Wired the new Saved Prompts UI to the existing REST endpoints so updates apply instantly and stay protected by WordPress nonces.
