@@ -685,6 +685,8 @@
 }
 
 .aimentor-settings-tab-loading__spinner {
+    display: inline-block;
+    flex-shrink: 0;
     animation: aimentor-spin 1s linear infinite;
     border: 2px solid #dcdcdc;
     border-top-color: #2271b1;

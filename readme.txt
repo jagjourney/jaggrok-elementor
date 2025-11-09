@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,9 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.5.1 =
+* Ensured the settings tab loading spinner uses block-level dimensions so it renders consistently during AJAX fetches.
+
 = 1.5.0 =
 * Added a dedicated Frame Library admin tab so curators can approve archived AI Layouts, manage thumbnails, and tune copy before exposing frames to editors.
 * Extended the Elementor widget with a Frame Library panel that loads curated frames, previews metadata, and supports one-click insertion or prompt seeding.
