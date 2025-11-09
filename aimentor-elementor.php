@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.6.0
+ * Version: 1.6.1
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
- define( 'AIMENTOR_PLUGIN_VERSION', '1.6.0' );
+ define( 'AIMENTOR_PLUGIN_VERSION', '1.6.1' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -689,12 +689,16 @@ function aimentor_get_ajax_payload() {
                         'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
                         'rateLimitSecondsFallback' => __( '%d seconds', 'aimentor' ),
                         'recentLayoutsHeading'     => __( 'Recent layouts', 'aimentor' ),
+                        'recentLayoutsBrowse'      => __( 'Browse recent layouts', 'aimentor' ),
+                        'recentLayoutsPrev'        => __( 'Show previous layout', 'aimentor' ),
+                        'recentLayoutsNext'        => __( 'Show next layout', 'aimentor' ),
                         'recentLayoutsEmpty'       => __( 'Generate a layout to see it here after your next run.', 'aimentor' ),
                         'recentLayoutsUse'         => __( 'Insert layout', 'aimentor' ),
                         'recentLayoutsPreviewMissing' => __( 'Preview unavailable for this layout.', 'aimentor' ),
                         'recentLayoutsTimestamp'   => __( 'Generated %s', 'aimentor' ),
                         'recentLayoutsMetaSeparator' => _x( ' • ', 'separator between layout details', 'aimentor' ),
                         'frameLibraryHeading'      => __( 'Frame Library', 'aimentor' ),
+                        'frameLibraryDescription'  => __( 'Insert curated layouts or pull their prompts into the generator to start faster.', 'aimentor' ),
                         'frameLibraryEmpty'        => __( 'No frames have been curated yet. Promote archived layouts from the Frame Library tab in AiMentor settings.', 'aimentor' ),
                         'frameLibraryInsert'       => __( 'Insert frame', 'aimentor' ),
                         'frameLibrarySeed'         => __( 'Seed prompt', 'aimentor' ),
@@ -707,6 +711,7 @@ function aimentor_get_ajax_payload() {
                         'frameLibrarySelectImage'  => __( 'Choose preview', 'aimentor' ),
                         'frameLibraryUseImage'     => __( 'Use preview', 'aimentor' ),
                         'frameLibraryPreviewPending' => __( 'Preview pending', 'aimentor' ),
+                        'modalAsideLabel'          => __( 'Explore saved layouts and frames', 'aimentor' ),
                         'canvasVariationsHeading'    => __( 'Choose a layout style', 'aimentor' ),
                         'canvasVariationLabel'       => __( 'Variation %d', 'aimentor' ),
                         'canvasVariationsDescription' => __( 'AiMentor generated multiple layouts. Select your favorite to insert it into Elementor.', 'aimentor' ),

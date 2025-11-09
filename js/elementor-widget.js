@@ -18,19 +18,37 @@
         var style = document.createElement('style');
         style.id = 'aimentor-frame-library-style';
         style.textContent = '' +
-            '.aimentor-frame-library{margin-top:16px;padding-top:16px;border-top:1px solid #dcdcdc;display:flex;flex-direction:column;gap:12px;}' +
-            '.aimentor-frame-library__header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;}' +
-            '.aimentor-frame-library__title{margin:0;font-size:15px;font-weight:600;}' +
+            '.aimentor-modal__aside{display:flex;flex-direction:column;gap:12px;min-width:0;}' +
+            '.aimentor-modal__aside-tabs{display:flex;gap:6px;}' +
+            '.aimentor-modal__aside-tab{flex:1;padding:8px 12px;border-radius:6px;border:1px solid #dcdcde;background:#eef1f5;font-size:12px;font-weight:600;color:#4b5563;cursor:pointer;transition:background-color 0.2s ease,color 0.2s ease,box-shadow 0.2s ease;}' +
+            '.aimentor-modal__aside-tab:focus{outline:2px solid #5b9dd9;outline-offset:1px;}' +
+            '.aimentor-modal__aside-tab.is-active{background:#ffffff;color:#111827;box-shadow:0 1px 2px rgba(15,23,42,0.12);border-color:#c7c9cc;}' +
+            '.aimentor-modal__panel{display:none;border:1px solid #dcdcde;border-radius:8px;background:#ffffff;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,0.08);max-height:360px;overflow:auto;}' +
+            '.aimentor-modal__panel.is-active{display:block;}' +
+            '.aimentor-layout-history{display:flex;flex-direction:column;gap:12px;}' +
+            '.aimentor-layout-history__header{display:flex;align-items:center;gap:8px;}' +
+            '.aimentor-layout-history__title{margin:0;font-size:14px;font-weight:600;color:#111827;}' +
+            '.aimentor-layout-history__nav{margin-left:auto;display:flex;gap:6px;}' +
+            '.aimentor-layout-history__nav-button{border:1px solid #dcdcde;background:#f3f4f6;color:#111827;border-radius:4px;padding:4px 8px;line-height:1;font-size:12px;cursor:pointer;}' +
+            '.aimentor-layout-history__nav-button[disabled]{opacity:0.5;cursor:not-allowed;}' +
+            '.aimentor-layout-history__viewport{display:flex;flex-direction:column;gap:8px;}' +
+            '.aimentor-layout-history__item{display:flex;flex-direction:column;gap:8px;border:1px solid #e5e7eb;border-radius:6px;padding:12px;background:#f9fafb;}' +
+            '.aimentor-layout-history__preview{font-size:13px;color:#1f2937;line-height:1.5;}' +
+            '.aimentor-layout-history__meta{margin:0;font-size:12px;color:#6b7280;}' +
+            '.aimentor-layout-history__empty{margin:0;font-size:12px;color:#6b7280;}' +
+            '.aimentor-frame-library{display:flex;flex-direction:column;gap:12px;}' +
+            '.aimentor-frame-library__header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}' +
+            '.aimentor-frame-library__title{margin:0;font-size:14px;font-weight:600;color:#111827;}' +
             '.aimentor-frame-library__description{margin:0;font-size:12px;color:#4b5563;}' +
             '.aimentor-frame-library__loading,.aimentor-frame-library__error,.aimentor-frame-library__empty,.aimentor-frame-library__updated{font-size:12px;color:#6b7280;margin:0;}' +
             '.aimentor-frame-library__error{color:#b91c1c;}' +
             '.aimentor-frame-library__list{display:grid;gap:12px;}' +
-            '.aimentor-frame-library__card{display:flex;gap:12px;align-items:flex-start;border:1px solid #dcdcde;border-radius:6px;padding:12px;background:#fff;}' +
-            '.aimentor-frame-library__preview{width:120px;flex:0 0 120px;aspect-ratio:4/3;background:#f7f7f7;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;}' +
+            '.aimentor-frame-library__card{display:flex;gap:12px;align-items:flex-start;border:1px solid #e5e7eb;border-radius:6px;padding:12px;background:#f9fafb;}' +
+            '.aimentor-frame-library__preview{width:120px;flex:0 0 120px;aspect-ratio:4/3;background:#f3f4f6;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;}' +
             '.aimentor-frame-library__preview img{width:100%;height:100%;object-fit:cover;display:block;}' +
             '.aimentor-frame-library__preview-placeholder{font-size:12px;color:#6b7280;text-align:center;padding:8px;}' +
             '.aimentor-frame-library__content{flex:1;display:flex;flex-direction:column;gap:8px;}' +
-            '.aimentor-frame-library__summary{margin:0;font-size:13px;color:#374151;}' +
+            '.aimentor-frame-library__summary{margin:0;font-size:13px;color:#1f2937;line-height:1.5;}' +
             '.aimentor-frame-library__sections{margin:0;padding-left:18px;font-size:12px;color:#374151;}' +
             '.aimentor-frame-library__sections li{margin:0 0 4px;}' +
             '.aimentor-frame-library__meta{margin:0;font-size:12px;color:#6b7280;}' +
@@ -980,19 +998,42 @@
                 return;
             }
 
-            var $button = $scope.find('.aimentor-editor-placeholder__button');
+            var $aside = $scope.find('.aimentor-modal__aside');
 
-            if (!$button.length) {
+            if (!$aside.length || $aside.data('aimentorAsideInit')) {
                 return;
             }
 
-            $button.off('click.aimentor').on('click.aimentor', function(event) {
-                event.preventDefault();
+            $aside.data('aimentorAsideInit', true);
 
-                if (typeof api.openModal === 'function') {
-                    api.openModal();
+            var $tabs = $aside.find('.aimentor-modal__aside-tab');
+            var $panels = $aside.find('.aimentor-modal__panel');
+
+            function activate(panelName) {
+                if (!panelName) {
+                    panelName = 'history';
                 }
+
+                $tabs.each(function() {
+                    var $tab = $(this);
+                    var isTarget = $tab.data('panel') === panelName;
+                    $tab.toggleClass('is-active', isTarget).attr('aria-selected', isTarget ? 'true' : 'false');
+                });
+
+                $panels.each(function() {
+                    var $panel = $(this);
+                    var isTarget = $panel.data('panel') === panelName;
+                    $panel.toggleClass('is-active', isTarget).attr('aria-hidden', isTarget ? 'false' : 'true');
+                });
+            }
+
+            $tabs.off('click.aimentorTabs').on('click.aimentorTabs', function(event) {
+                event.preventDefault();
+                activate($(this).data('panel'));
             });
+
+            var initialPanel = $tabs.filter('.is-active').first().data('panel') || 'history';
+            activate(initialPanel);
         }
 
         function attachFrameLibrary($scope) {
@@ -2052,42 +2093,89 @@
                 var headingText = escapeHtml(strings.writeWith ? strings.writeWith.replace('%s', headingMeta.label || defaultProvider) : 'Write with ' + (headingMeta.label || defaultProvider));
                 var closeLabel = escapeHtml(strings.closeModal || 'Close modal');
                 var askLabel = escapeHtml(strings.askAiMentor || 'Ask AiMentor');
+                var historyHeading = escapeHtml(strings.recentLayoutsHeading || 'Recent layouts');
+                var historyNavLabel = escapeHtml(strings.recentLayoutsBrowse || 'Browse recent layouts');
+                var historyPrevLabel = escapeHtml(strings.recentLayoutsPrev || 'Show previous layout');
+                var historyNextLabel = escapeHtml(strings.recentLayoutsNext || 'Show next layout');
+                var historyEmpty = escapeHtml(strings.recentLayoutsEmpty || 'Generate a layout to see it here after your next run.');
+                var frameHeading = escapeHtml(strings.frameLibraryHeading || 'Frame Library');
+                var frameDescription = escapeHtml(strings.frameLibraryDescription || 'Insert curated layouts or pull their prompts into the generator to start faster.');
+                var frameEmpty = escapeHtml(strings.frameLibraryEmpty || 'No frames have been curated yet. Promote frames from AiMentor settings.');
+                var frameLoading = escapeHtml(strings.frameLibraryLoading || 'Loading curated frames…');
+                var frameError = escapeHtml(strings.frameLibraryError || 'Unable to load frames. Refresh the panel or try again later.');
+                var asideLabel = escapeHtml(strings.modalAsideLabel || 'Explore saved layouts and frames');
+                var historyPanelId = 'aimentor-panel-history';
+                var libraryPanelId = 'aimentor-panel-library';
+
+                ensureFrameLibraryStyles();
 
                 var modalHtml = '' +
                     '<div id="aimentor-modal" class="aimentor-modal" role="dialog" aria-modal="true" aria-labelledby="aimentor-modal-heading-text" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;">' +
-                    '  <div class="aimentor-modal__content" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:520px;background:white;border-radius:8px;box-shadow:0 5px 18px rgba(0,0,0,0.25);overflow:hidden;">' +
+                    '  <div class="aimentor-modal__content" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:900px;background:white;border-radius:8px;box-shadow:0 5px 18px rgba(0,0,0,0.25);overflow:hidden;">' +
                     '    <div class="aimentor-modal__header" style="padding:20px;border-bottom:1px solid #e2e4e7;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
                     '      <h3 id="aimentor-modal-heading-text" class="aimentor-modal__title" style="margin:0;display:flex;align-items:center;gap:8px;"><span class="dashicons dashicons-art" aria-hidden="true"></span><span>' + headingText + '</span></h3>' +
                     '      <button type="button" id="aimentor-modal-close" class="aimentor-modal__close" aria-label="' + closeLabel + '" style="background:none;border:none;font-size:24px;line-height:1;color:#6b7280;cursor:pointer;">&times;</button>' +
                     '    </div>' +
-                    '    <div class="aimentor-modal__body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">' +
-                    '      <div class="aimentor-modal__providers" role="radiogroup" aria-label="' + escapeHtml(strings.chooseProvider || 'Choose provider') + '">' + providerOptions + '</div>' +
-                    '      <div class="aimentor-provider-active" style="display:flex;align-items:center;gap:8px;">' +
-                    '        <span id="aimentor-provider-active-icon" aria-hidden="true"></span>' +
-                    '        <strong id="aimentor-provider-active-label"></strong>' +
-                    '        <span id="aimentor-provider-active-badge" class="aimentor-provider-badge"></span>' +
+                    '    <div class="aimentor-modal__body" style="padding:20px;display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;max-height:80vh;overflow-y:auto;">' +
+                    '      <div class="aimentor-modal__form" style="flex:1;min-width:320px;display:flex;flex-direction:column;gap:16px;">' +
+                    '        <div class="aimentor-modal__providers" role="radiogroup" aria-label="' + escapeHtml(strings.chooseProvider || 'Choose provider') + '">' + providerOptions + '</div>' +
+                    '        <div class="aimentor-provider-active" style="display:flex;align-items:center;gap:8px;">' +
+                    '          <span id="aimentor-provider-active-icon" aria-hidden="true"></span>' +
+                    '          <strong id="aimentor-provider-active-label"></strong>' +
+                    '          <span id="aimentor-provider-active-badge" class="aimentor-provider-badge"></span>' +
+                    '        </div>' +
+                    '        <p id="aimentor-provider-summary" class="aimentor-provider-description" style="margin:0;font-size:13px;color:#4b5563;"></p>' +
+                    '        <label for="aimentor-modal-task" class="aimentor-modal__label">' + generationLabel + '</label>' +
+                    '        <select id="aimentor-modal-task" class="aimentor-modal__select"' + (allowCanvas ? '' : ' disabled') + '>' +
+                    '          <option value="content">' + pageCopyLabel + '</option>' +
+                    '          <option value="canvas"' + (allowCanvas ? '' : ' disabled') + '>' + pageLayoutLabel + '</option>' +
+                    '        </select>' +
+                    '        <label for="aimentor-modal-tier" class="aimentor-modal__label">' + performanceLabel + '</label>' +
+                    '        <select id="aimentor-modal-tier" class="aimentor-modal__select">' +
+                    '          <option value="fast">' + fastLabel + '</option>' +
+                    '          <option value="quality">' + qualityLabel + '</option>' +
+                    '        </select>' +
+                    '        <p id="aimentor-modal-summary" class="aimentor-context-summary" aria-live="polite" style="margin:0;font-weight:600;color:#111827;"></p>' +
+                    '        <label for="aimentor-saved-prompts" class="aimentor-modal__label">' + savedPromptLabel + '</label>' +
+                    '        <select id="aimentor-saved-prompts" class="aimentor-modal__select">' +
+                    '          <option value="">' + savedPromptPlaceholder + '</option>' +
+                    '        </select>' +
+                    '        <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
+                    '        <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
+                    '        <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
+                    '        <p id="aimentor-cooldown-notice" class="aimentor-cooldown-notice" aria-live="polite" style="display:none;margin:8px 0 0;font-size:12px;color:#b45309;"></p>' +
+                    '        <div id="aimentor-result" style="min-height:38px;padding:12px;background:#f3f4f6;border-radius:6px;color:#111827;"></div>' +
                     '      </div>' +
-                    '      <p id="aimentor-provider-summary" class="aimentor-provider-description" style="margin:0;font-size:13px;color:#4b5563;"></p>' +
-                    '      <label for="aimentor-modal-task" class="aimentor-modal__label">' + generationLabel + '</label>' +
-                    '      <select id="aimentor-modal-task" class="aimentor-modal__select"' + (allowCanvas ? '' : ' disabled') + '>' +
-                    '        <option value="content">' + pageCopyLabel + '</option>' +
-                    '        <option value="canvas"' + (allowCanvas ? '' : ' disabled') + '>' + pageLayoutLabel + '</option>' +
-                    '      </select>' +
-                    '      <label for="aimentor-modal-tier" class="aimentor-modal__label">' + performanceLabel + '</label>' +
-                    '      <select id="aimentor-modal-tier" class="aimentor-modal__select">' +
-                    '        <option value="fast">' + fastLabel + '</option>' +
-                    '        <option value="quality">' + qualityLabel + '</option>' +
-                    '      </select>' +
-                    '      <p id="aimentor-modal-summary" class="aimentor-context-summary" aria-live="polite" style="margin:0;font-weight:600;color:#111827;"></p>' +
-                    '      <label for="aimentor-saved-prompts" class="aimentor-modal__label">' + savedPromptLabel + '</label>' +
-                    '      <select id="aimentor-saved-prompts" class="aimentor-modal__select">' +
-                    '        <option value="">' + savedPromptPlaceholder + '</option>' +
-                    '      </select>' +
-                    '      <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
-                    '      <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
-                    '      <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
-                    '      <p id="aimentor-cooldown-notice" class="aimentor-cooldown-notice" aria-live="polite" style="display:none;margin:8px 0 0;font-size:12px;color:#b45309;"></p>' +
-                    '      <div id="aimentor-result" style="min-height:38px;padding:12px;background:#f3f4f6;border-radius:6px;color:#111827;"></div>' +
+                    '      <aside class="aimentor-modal__aside" style="flex:0 0 280px;display:flex;flex-direction:column;gap:12px;">' +
+                    '        <div class="aimentor-modal__aside-tabs" role="tablist" aria-label="' + asideLabel + '">' +
+                    '          <button type="button" class="aimentor-modal__aside-tab is-active" id="aimentor-tab-history" role="tab" aria-selected="true" aria-controls="' + historyPanelId + '" data-panel="history">' + historyHeading + '</button>' +
+                    '          <button type="button" class="aimentor-modal__aside-tab" id="aimentor-tab-library" role="tab" aria-selected="false" aria-controls="' + libraryPanelId + '" data-panel="library">' + frameHeading + '</button>' +
+                    '        </div>' +
+                    '        <div class="aimentor-modal__aside-panels" style="display:flex;flex-direction:column;gap:12px;">' +
+                    '          <section class="aimentor-modal__panel aimentor-layout-history is-active" id="' + historyPanelId + '" role="tabpanel" aria-labelledby="aimentor-tab-history" data-panel="history" aria-live="polite" data-empty-text="' + historyEmpty + '">' +
+                    '            <div class="aimentor-layout-history__header">' +
+                    '              <strong class="aimentor-layout-history__title">' + historyHeading + '</strong>' +
+                    '              <div class="aimentor-layout-history__nav" role="group" aria-label="' + historyNavLabel + '">' +
+                    '                <button type="button" class="aimentor-layout-history__nav-button aimentor-layout-history__nav-button--prev" aria-label="' + historyPrevLabel + '" disabled>&lsaquo;</button>' +
+                    '                <button type="button" class="aimentor-layout-history__nav-button aimentor-layout-history__nav-button--next" aria-label="' + historyNextLabel + '" disabled>&rsaquo;</button>' +
+                    '              </div>' +
+                    '            </div>' +
+                    '            <div class="aimentor-layout-history__viewport" role="listbox" aria-label="' + historyHeading + '"></div>' +
+                    '            <p class="aimentor-layout-history__empty">' + historyEmpty + '</p>' +
+                    '          </section>' +
+                    '          <section class="aimentor-modal__panel aimentor-frame-library" id="' + libraryPanelId + '" role="tabpanel" aria-labelledby="aimentor-tab-library" data-panel="library" aria-live="polite" aria-hidden="true" data-empty-text="' + frameEmpty + '">' +
+                    '            <div class="aimentor-frame-library__header">' +
+                    '              <strong class="aimentor-frame-library__title">' + frameHeading + '</strong>' +
+                    '              <p class="aimentor-frame-library__updated" style="display:none;"></p>' +
+                    '            </div>' +
+                    '            <p class="aimentor-frame-library__description">' + frameDescription + '</p>' +
+                    '            <div class="aimentor-frame-library__loading" style="display:none;">' + frameLoading + '</div>' +
+                    '            <div class="aimentor-frame-library__error" style="display:none;">' + frameError + '</div>' +
+                    '            <div class="aimentor-frame-library__list" role="list"></div>' +
+                    '            <p class="aimentor-frame-library__empty">' + frameEmpty + '</p>' +
+                    '          </section>' +
+                    '        </div>' +
+                    '      </aside>' +
                     '    </div>' +
                     '  </div>' +
                     '</div>';
@@ -2113,6 +2201,10 @@
                 button: $generate,
                 heading: $('#aimentor-modal-heading-text span').last()
             };
+
+            attachHistoryCarousel($modal);
+            attachFrameLibrary($modal);
+            attachPlaceholderTriggers($modal);
 
             $modal.show();
             $close.off('click.aimentor').on('click.aimentor', function() {
@@ -2327,20 +2419,11 @@
             });
         }
 
-        if (window.elementorFrontend && elementorFrontend.hooks && typeof elementorFrontend.hooks.addAction === 'function') {
-            ['aimentor-ai-generator', 'jaggrok-ai-generator'].forEach(function(slug) {
-                elementorFrontend.hooks.addAction('frontend/element_ready/' + slug + '.default', function($scope) {
-                    attachHistoryCarousel($scope);
-                    attachFrameLibrary($scope);
-                    attachPlaceholderTriggers($scope);
-                });
-            });
-        }
-
-        $('.elementor-widget-aimentor-ai-generator, .elementor-widget-jaggrok-ai-generator').each(function() {
-            attachHistoryCarousel($(this));
-            attachFrameLibrary($(this));
-            attachPlaceholderTriggers($(this));
+        $(document).off('click.aimentorOpenModal').on('click.aimentorOpenModal', '.aimentor-modal-trigger', function(event) {
+            event.preventDefault();
+            if (typeof api.openModal === 'function') {
+                api.openModal();
+            }
         });
 
         function buildPromptPresetData(catalog) {
