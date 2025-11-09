@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.5.1
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,6 +20,7 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 
 == Features ==
 * **Provider model presets:** Ship with tuned defaults for Grok and OpenAI so each provider loads with recommended models, temperature, and safety guardrails tailored to their API capabilities.
+* **Multi-style canvas cards:** Review multiple layout variations per run, insert the favorite option, and log the chosen design in the canvas history automatically.
 * **Auto-Insert toggle:** Decide if generated layouts land directly in the Elementor canvas or wait for manual placement—perfect for teams that want review checkpoints.
 * **Theme styling controls:** Keep generated sections on-brand by toggling AiMentor's theme-aware styling helpers on or off per site.
 * **Token limit management:** Configure per-provider token ceilings to prevent runaway prompts and stay inside your contract limits.
@@ -103,6 +104,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.6.0 =
+* Added multi-variation canvas support across providers with a new selection UI in the Elementor modal.
+* Persisted variation selections in the canvas history and tuned rate-limit messaging for multi-option runs.
+* Documented the variation workflow with updated screenshots and localization strings.
+
 = 1.5.1 =
 * Ensured the settings tab loading spinner uses block-level dimensions so it renders consistently during AJAX fetches.
 

@@ -12,7 +12,7 @@ interface AiMentor_Provider_Interface {
      * Build the HTTP request configuration for the provider.
      *
      * @param string $prompt Prompt provided by the user.
-     * @param array  $args   Additional arguments (e.g. api_key, model, is_canvas).
+     * @param array  $args   Additional arguments (e.g. api_key, model, is_canvas, variations).
      *
      * @return array|WP_Error Request data containing `url` and `args` keys or WP_Error on failure.
      */
@@ -22,7 +22,7 @@ interface AiMentor_Provider_Interface {
      * Execute the remote request using the built configuration and return the provider response.
      *
      * @param string $prompt Prompt provided by the user.
-     * @param array  $args   Additional arguments.
+     * @param array  $args   Additional arguments (e.g. model, api_key, variations).
      *
      * @return array|WP_Error Normalized response payload or WP_Error on failure.
      */
