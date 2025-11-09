@@ -10,6 +10,10 @@ $aimentor_test_option_sources  = [];
 $aimentor_test_capabilities    = [];
 $aimentor_test_nonce_results   = [];
 
+if ( ! defined( 'WP_CONTENT_DIR' ) ) {
+        define( 'WP_CONTENT_DIR', sys_get_temp_dir() );
+}
+
 if ( ! function_exists( 'aimentor_test_reset_options' ) ) {
         function aimentor_test_reset_options( array $seed = [] ) {
                 global $aimentor_test_options;
@@ -122,6 +126,12 @@ if ( ! function_exists( 'esc_attr' ) ) {
         }
 }
 
+if ( ! function_exists( 'wp_kses_post' ) ) {
+        function wp_kses_post( $content ) {
+                return strip_tags( (string) $content, '<a><b><br><em><i><strong><p><span>' );
+        }
+}
+
 if ( ! function_exists( 'esc_textarea' ) ) {
         function esc_textarea( $text ) {
                 return $text;
@@ -226,6 +236,14 @@ if ( ! function_exists( 'apply_filters' ) ) {
         }
 }
 
+if ( ! function_exists( 'trailingslashit' ) ) {
+        function trailingslashit( $string ) {
+                $string = (string) $string;
+
+                return rtrim( $string, "/\\" ) . '/';
+        }
+}
+
 if ( ! function_exists( 'register_setting' ) ) {
         function register_setting( ...$args ) {
                 return null;
@@ -258,9 +276,52 @@ if ( ! function_exists( 'wp_create_nonce' ) ) {
         }
 }
 
+if ( ! function_exists( 'register_uninstall_hook' ) ) {
+        function register_uninstall_hook( $file, $callback ) {
+                return null;
+        }
+}
+
+if ( ! function_exists( 'register_activation_hook' ) ) {
+        function register_activation_hook( $file, $callback ) {
+                return null;
+        }
+}
+
+if ( ! function_exists( 'register_deactivation_hook' ) ) {
+        function register_deactivation_hook( $file, $callback ) {
+                return null;
+        }
+}
+
 if ( ! function_exists( 'admin_url' ) ) {
         function admin_url( $path = '' ) {
                 return $path;
+        }
+}
+
+if ( ! function_exists( 'plugin_basename' ) ) {
+        function plugin_basename( $file ) {
+                return basename( $file );
+        }
+}
+
+if ( ! function_exists( 'plugin_dir_url' ) ) {
+        function plugin_dir_url( $file ) {
+                $dir = dirname( $file );
+                $basename = trim( basename( $dir ), '/' );
+
+                if ( '' === $basename ) {
+                        return 'https://example.com/';
+                }
+
+                return 'https://example.com/' . $basename . '/';
+        }
+}
+
+if ( ! function_exists( 'load_plugin_textdomain' ) ) {
+        function load_plugin_textdomain( ...$args ) {
+                return null;
         }
 }
 
@@ -489,6 +550,24 @@ if ( ! function_exists( 'submit_button' ) ) {
         }
 }
 
+if ( ! function_exists( 'wp_register_style' ) ) {
+        function wp_register_style( ...$args ) {
+                return null;
+        }
+}
+
+if ( ! function_exists( 'wp_style_add_data' ) ) {
+        function wp_style_add_data( ...$args ) {
+                return null;
+        }
+}
+
+if ( ! function_exists( 'wp_register_script' ) ) {
+        function wp_register_script( ...$args ) {
+                return null;
+        }
+}
+
 if ( ! function_exists( 'wp_enqueue_script' ) ) {
         function wp_enqueue_script( ...$args ) {
                 return null;
@@ -531,8 +610,56 @@ if ( ! function_exists( 'wp_normalize_path' ) ) {
         }
 }
 
-if ( ! interface_exists( 'AiMentor_Provider_Interface' ) ) {
-        interface AiMentor_Provider_Interface {
-                public function request( $prompt, $args = [] );
+if ( ! class_exists( 'WP_Error' ) ) {
+        class WP_Error {
+                protected $errors = [];
+                protected $error_data = [];
+
+                public function __construct( $code = '', $message = '', $data = null ) {
+                        if ( '' !== $code ) {
+                                $this->add( $code, $message, $data );
+                        }
+                }
+
+                public function add( $code, $message, $data = null ) {
+                        $this->errors[ $code ][] = $message;
+
+                        if ( null !== $data ) {
+                                $this->error_data[ $code ] = $data;
+                        }
+                }
+
+                public function get_error_message( $code = '' ) {
+                        if ( '' !== $code ) {
+                                return $this->errors[ $code ][0] ?? '';
+                        }
+
+                        $messages = [];
+
+                        foreach ( $this->errors as $error_messages ) {
+                                $messages = array_merge( $messages, $error_messages );
+                        }
+
+                        return $messages[0] ?? '';
+                }
+
+                public function get_error_data( $code = '' ) {
+                        if ( '' !== $code ) {
+                                return $this->error_data[ $code ] ?? null;
+                        }
+
+                        if ( empty( $this->error_data ) ) {
+                                return null;
+                        }
+
+                        $first = array_key_first( $this->error_data );
+
+                        return $this->error_data[ $first ];
+                }
+
+                public function __isset( $key ) {
+                        return isset( $this->errors[ $key ] );
+                }
         }
 }
+

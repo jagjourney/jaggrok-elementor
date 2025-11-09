@@ -234,6 +234,60 @@
         var canvasHistoryStore = createCanvasHistoryStore(aimentorData.canvasHistory || [], parseInt(aimentorData.canvasHistoryMax, 10) || 0);
         var frameLibraryEndpoint = typeof aimentorData.frameLibraryEndpoint === 'string' ? aimentorData.frameLibraryEndpoint : '';
         var frameLibraryStore = createFrameLibraryStore(aimentorData.frameLibrary || []);
+        var tonePresets = Array.isArray(aimentorData.tonePresets) ? aimentorData.tonePresets.slice() : [];
+        var tonePresetLookup = {};
+        var defaultTonePresetId = '';
+
+        tonePresets.forEach(function(preset) {
+            if (!preset || typeof preset.id === 'undefined') {
+                return;
+            }
+
+            var id = String(preset.id);
+            var label = typeof preset.label === 'string' ? preset.label : id;
+            var keywords = typeof preset.keywords === 'string' ? preset.keywords : '';
+            var isBrand = !!preset.is_brand;
+
+            tonePresetLookup[id] = {
+                id: id,
+                label: label,
+                keywords: keywords,
+                isBrand: isBrand
+            };
+
+            if (!defaultTonePresetId && isBrand) {
+                defaultTonePresetId = id;
+            }
+        });
+
+        if (!defaultTonePresetId && tonePresets.length) {
+            defaultTonePresetId = String(tonePresets[0].id);
+        }
+
+        var defaultToneKeywords = (defaultTonePresetId && tonePresetLookup[defaultTonePresetId]) ? tonePresetLookup[defaultTonePresetId].keywords || '' : '';
+        var lastFocusedControlElement = null;
+
+        function recordControlSelection(element) {
+            if (!element || typeof element.selectionStart !== 'number' || typeof element.selectionEnd !== 'number') {
+                return;
+            }
+
+            jQuery(element).data('aimentorSelection', {
+                start: element.selectionStart,
+                end: element.selectionEnd
+            });
+        }
+
+        jQuery(document).on('focusin.aimentorControl', '.elementor-control input, .elementor-control textarea', function() {
+            lastFocusedControlElement = this;
+            recordControlSelection(this);
+        });
+
+        jQuery(document).on('keyup.aimentorControl mouseup.aimentorControl select.aimentorControl', '.elementor-control input, .elementor-control textarea', function() {
+            if (this === lastFocusedControlElement) {
+                recordControlSelection(this);
+            }
+        });
 
         function computeCooldownSeconds(rateLimit) {
             if (!rateLimit || typeof rateLimit !== 'object') {
@@ -1860,11 +1914,15 @@
             modal: existingState.modal ? {
                 task: sanitizeTask(existingState.modal.task, isProActive),
                 tier: sanitizeTier(existingState.modal.tier),
-                provider: sanitizeProvider(existingState.modal.provider || defaultProvider)
+                provider: sanitizeProvider(existingState.modal.provider || defaultProvider),
+                tonePreset: sanitizeTonePreset(existingState.modal.tonePreset) || (defaultTonePresetId || ''),
+                toneCustom: typeof existingState.modal.toneCustom === 'string' ? existingState.modal.toneCustom : ''
             } : {
                 task: defaultTask,
                 tier: defaultTier,
-                provider: defaultProvider
+                provider: defaultProvider,
+                tonePreset: sanitizeTonePreset(defaultTonePresetId) || '',
+                toneCustom: ''
             }
         };
 
@@ -2089,10 +2147,17 @@
                 var promptPlaceholder = escapeHtml(strings.promptPlaceholder || 'Describe your page (e.g., hero with CTA)');
                 var savedPromptLabel = escapeHtml(strings.savedPromptLabel || 'Saved Prompts');
                 var savedPromptPlaceholder = escapeHtml(strings.savedPromptPlaceholder || 'Select a saved prompt…');
+                var toneLabel = escapeHtml(strings.tonePresetLabel || 'Tone');
+                var tonePlaceholder = escapeHtml(strings.tonePresetPlaceholder || 'Select a tone preset…');
+                var toneCustomOption = escapeHtml(strings.tonePresetCustomOption || 'Custom tone…');
+                var toneCustomLabel = escapeHtml(strings.tonePresetCustomLabel || 'Custom tone keywords');
+                var toneCustomPlaceholder = escapeHtml(strings.tonePresetCustomPlaceholder || 'e.g., bold, welcoming, energetic');
                 var headingMeta = getProviderMeta(defaultProvider);
                 var headingText = escapeHtml(strings.writeWith ? strings.writeWith.replace('%s', headingMeta.label || defaultProvider) : 'Write with ' + (headingMeta.label || defaultProvider));
                 var closeLabel = escapeHtml(strings.closeModal || 'Close modal');
                 var askLabel = escapeHtml(strings.askAiMentor || 'Ask AiMentor');
+                var rewriteLabelRaw = strings.rewriteButtonLabel || 'Rewrite with Tone';
+                var rewriteLabel = escapeHtml(rewriteLabelRaw);
                 var historyHeading = escapeHtml(strings.recentLayoutsHeading || 'Recent layouts');
                 var historyNavLabel = escapeHtml(strings.recentLayoutsBrowse || 'Browse recent layouts');
                 var historyPrevLabel = escapeHtml(strings.recentLayoutsPrev || 'Show previous layout');
@@ -2108,6 +2173,17 @@
                 var libraryPanelId = 'aimentor-panel-library';
 
                 ensureFrameLibraryStyles();
+
+                var toneOptions = '<option value="">' + tonePlaceholder + '</option>';
+                tonePresets.forEach(function(preset) {
+                    if (!preset || typeof preset.id === 'undefined') {
+                        return;
+                    }
+                    var id = String(preset.id);
+                    var meta = tonePresetLookup[id] || {};
+                    toneOptions += '<option value="' + escapeHtml(id) + '">' + escapeHtml(meta.label || id) + '</option>';
+                });
+                toneOptions += '<option value="custom">' + toneCustomOption + '</option>';
 
                 var modalHtml = '' +
                     '<div id="aimentor-modal" class="aimentor-modal" role="dialog" aria-modal="true" aria-labelledby="aimentor-modal-heading-text" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;">' +
@@ -2142,7 +2218,14 @@
                     '        </select>' +
                     '        <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
                     '        <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
-                    '        <button type="button" id="aimentor-generate" class="button button-primary" style="width:100%;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
+                    '        <label for="aimentor-tone-preset" class="aimentor-modal__label">' + toneLabel + '</label>' +
+                    '        <select id="aimentor-tone-preset" class="aimentor-modal__select">' + toneOptions + '</select>' +
+                    '        <label for="aimentor-tone-custom" id="aimentor-tone-custom-label" class="aimentor-modal__label" style="display:none;">' + toneCustomLabel + '</label>' +
+                    '        <input type="text" id="aimentor-tone-custom" class="aimentor-modal__input" style="display:none;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;" placeholder="' + toneCustomPlaceholder + '">' +
+                    '        <div class="aimentor-modal__actions" style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                    '          <button type="button" id="aimentor-rewrite" class="button button-secondary" style="flex:1 1 160px;font-weight:600;">' + rewriteLabel + '</button>' +
+                    '          <button type="button" id="aimentor-generate" class="button button-primary" style="flex:1 1 160px;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
+                    '        </div>' +
                     '        <p id="aimentor-cooldown-notice" class="aimentor-cooldown-notice" aria-live="polite" style="display:none;margin:8px 0 0;font-size:12px;color:#b45309;"></p>' +
                     '        <div id="aimentor-result" style="min-height:38px;padding:12px;background:#f3f4f6;border-radius:6px;color:#111827;"></div>' +
                     '      </div>' +
@@ -2193,6 +2276,10 @@
             var $result = $('#aimentor-result');
             var $cooldownNotice = $('#aimentor-cooldown-notice');
             var $savedPromptSelect = $('#aimentor-saved-prompts');
+            var $tonePreset = $('#aimentor-tone-preset');
+            var $toneCustom = $('#aimentor-tone-custom');
+            var $toneCustomLabel = $('#aimentor-tone-custom-label');
+            var $rewrite = $('#aimentor-rewrite');
             var ui = {
                 icon: $('#aimentor-provider-active-icon'),
                 label: $('#aimentor-provider-active-label'),
@@ -2215,6 +2302,196 @@
             modalState.provider = sanitizeProvider(modalState.provider || getDefaultProvider());
             modalState.task = sanitizeTask(modalState.task, allowCanvas);
             modalState.tier = sanitizeTier(modalState.tier);
+
+            function updateToneCustomVisibility(selectedPreset) {
+                var isCustom = selectedPreset === 'custom';
+                if ($toneCustomLabel.length) {
+                    $toneCustomLabel.toggle(isCustom);
+                }
+                if ($toneCustom.length) {
+                    $toneCustom.toggle(isCustom);
+                }
+            }
+
+            function getToneKeywordsForPreset(presetId) {
+                if (!presetId) {
+                    return '';
+                }
+                if (presetId === 'custom') {
+                    return ($toneCustom.val() || '').trim();
+                }
+                var presetMeta = tonePresetLookup[presetId];
+                return presetMeta && typeof presetMeta.keywords === 'string' ? presetMeta.keywords : '';
+            }
+
+            function resolveToneSelection() {
+                var selected = sanitizeTonePreset($tonePreset.val());
+                if (!selected && $tonePreset.val() === 'custom') {
+                    selected = 'custom';
+                }
+                if (!selected && modalState.tonePreset) {
+                    selected = sanitizeTonePreset(modalState.tonePreset);
+                }
+                if (!selected && defaultTonePresetId) {
+                    selected = sanitizeTonePreset(defaultTonePresetId);
+                }
+
+                var keywords = '';
+                if (selected === 'custom') {
+                    keywords = ($toneCustom.val() || '').trim();
+                } else if (selected) {
+                    keywords = getToneKeywordsForPreset(selected);
+                }
+
+                if (!keywords && selected === 'custom' && modalState.toneCustom) {
+                    keywords = modalState.toneCustom.trim();
+                }
+
+                if (!keywords && defaultToneKeywords) {
+                    keywords = defaultToneKeywords;
+                }
+
+                return {
+                    id: selected,
+                    keywords: keywords
+                };
+            }
+
+            function captureRewriteTarget() {
+                var target = null;
+
+                if (lastFocusedControlElement && document.body.contains(lastFocusedControlElement)) {
+                    var element = lastFocusedControlElement;
+                    var value = typeof element.value === 'string' ? element.value : '';
+                    var storedSelection = jQuery(element).data('aimentorSelection') || {};
+                    var start = typeof storedSelection.start === 'number' ? storedSelection.start : (typeof element.selectionStart === 'number' ? element.selectionStart : 0);
+                    var end = typeof storedSelection.end === 'number' ? storedSelection.end : (typeof element.selectionEnd === 'number' ? element.selectionEnd : value.length);
+
+                    if (!value) {
+                        start = 0;
+                        end = 0;
+                    }
+
+                    if (typeof start !== 'number' || isNaN(start) || start < 0) {
+                        start = 0;
+                    }
+
+                    if (typeof end !== 'number' || isNaN(end) || end > value.length) {
+                        end = value.length;
+                    }
+
+                    if (end < start) {
+                        end = start;
+                    }
+
+                    var selectionText = value.slice(start, end);
+                    var normalized = selectionText && selectionText.trim() ? selectionText.trim() : value.trim();
+
+                    if (normalized) {
+                        target = {
+                            type: 'control',
+                            element: element,
+                            start: selectionText && selectionText.trim() ? start : 0,
+                            end: selectionText && selectionText.trim() ? end : value.length,
+                            originalValue: value,
+                            text: normalized
+                        };
+                    }
+                }
+
+                if (!target) {
+                    var promptValue = ($prompt.val() || '').trim();
+                    if (promptValue) {
+                        target = {
+                            type: 'prompt',
+                            text: promptValue
+                        };
+                    }
+                }
+
+                if (target && target.text && target.type === 'control' && (!$prompt.val() || !$prompt.val().trim())) {
+                    $prompt.val(target.text);
+                }
+
+                modalState.rewriteTarget = target;
+            }
+
+            function resolveRewriteSource() {
+                var target = modalState.rewriteTarget || null;
+                if (target && target.text) {
+                    return { text: target.text, target: target };
+                }
+
+                var promptValue = ($prompt.val() || '').trim();
+                if (promptValue) {
+                    return { text: promptValue, target: { type: 'prompt' } };
+                }
+
+                return { text: '', target: target || { type: 'prompt' } };
+            }
+
+            function applyRewriteResult(target, rewrittenText) {
+                var applied = 'prompt';
+                if (target && target.type === 'control' && target.element && document.body.contains(target.element)) {
+                    var element = target.element;
+                    var value = typeof element.value === 'string' ? element.value : '';
+                    var start = typeof target.start === 'number' ? target.start : 0;
+                    var end = typeof target.end === 'number' ? target.end : value.length;
+
+                    if (start < 0 || start > value.length) {
+                        start = 0;
+                    }
+
+                    if (end < start || end > value.length) {
+                        end = value.length;
+                    }
+
+                    var updated = value.slice(0, start) + rewrittenText + value.slice(end);
+                    element.value = updated;
+
+                    try {
+                        if (typeof element.setSelectionRange === 'function') {
+                            element.setSelectionRange(start, start + rewrittenText.length);
+                        }
+                    } catch (error) {
+                        // Ignore selection errors for non-text inputs.
+                    }
+
+                    jQuery(element).trigger('input').trigger('change');
+                    modalState.rewriteTarget = {
+                        type: 'control',
+                        element: element,
+                        start: start,
+                        end: start + rewrittenText.length,
+                        originalValue: updated,
+                        text: rewrittenText
+                    };
+                    lastFocusedControlElement = element;
+                    recordControlSelection(element);
+                    applied = 'control';
+                } else {
+                    $prompt.val(rewrittenText);
+                    modalState.rewriteTarget = {
+                        type: 'prompt',
+                        text: rewrittenText
+                    };
+                }
+
+                return applied;
+            }
+
+            modalState.tonePreset = sanitizeTonePreset(modalState.tonePreset) || (defaultTonePresetId ? sanitizeTonePreset(defaultTonePresetId) : '');
+            modalState.toneCustom = typeof modalState.toneCustom === 'string' ? modalState.toneCustom : '';
+
+            if ($tonePreset.length) {
+                $tonePreset.val(modalState.tonePreset || '');
+            }
+
+            if ($toneCustom.length) {
+                $toneCustom.val(modalState.toneCustom);
+            }
+
+            updateToneCustomVisibility(modalState.tonePreset);
 
             $providerRadios.prop('checked', false);
             $providerRadios.filter('[value="' + modalState.provider + '"]').prop('checked', true);
@@ -2264,9 +2541,109 @@
                 updateSummaryText($summary, modalState.provider, modalState);
             });
 
-            $prompt.val('').focus();
+            if ($tonePreset.length) {
+                $tonePreset.off('change.aimentorTone').on('change.aimentorTone', function() {
+                    var value = sanitizeTonePreset($(this).val());
+                    if (!value && $(this).val() === 'custom') {
+                        value = 'custom';
+                    }
+                    if (!value && defaultTonePresetId) {
+                        value = sanitizeTonePreset(defaultTonePresetId);
+                    }
+                    modalState.tonePreset = value;
+                    if (value !== 'custom') {
+                        modalState.toneCustom = '';
+                        if ($toneCustom.length) {
+                            $toneCustom.val('');
+                        }
+                    }
+                    updateToneCustomVisibility(value);
+                });
+            }
+
+            if ($toneCustom.length) {
+                $toneCustom.off('input.aimentorTone').on('input.aimentorTone', function() {
+                    modalState.toneCustom = $(this).val();
+                });
+            }
+
+            captureRewriteTarget();
+            if (!modalState.rewriteTarget || modalState.rewriteTarget.type !== 'prompt') {
+                $prompt.val('');
+            }
+            $prompt.focus();
             $result.empty();
             updateCooldownNotice($cooldownNotice, null);
+
+            if ($rewrite.length) {
+                $rewrite.off('click.aimentorRewrite').on('click.aimentorRewrite', function() {
+                    var rewriteSource = resolveRewriteSource();
+
+                    if (!rewriteSource.text) {
+                        var missingMessage = strings.rewriteMissingSource || 'Highlight text in Elementor or enter a prompt to rewrite.';
+                        $result.html('<p style="color:#b91c1c;">' + escapeHtml(missingMessage) + '</p>');
+                        return;
+                    }
+
+                    var toneSelection = resolveToneSelection();
+                    modalState.tonePreset = toneSelection.id;
+                    if (toneSelection.id === 'custom') {
+                        modalState.toneCustom = ($toneCustom.val() || '').trim();
+                    } else {
+                        modalState.toneCustom = '';
+                    }
+
+                    var toneKeywords = toneSelection.keywords || '';
+                    if (!toneKeywords && defaultToneKeywords) {
+                        toneKeywords = defaultToneKeywords;
+                    }
+
+                    var payload = {
+                        action: 'aimentor_rewrite_content',
+                        nonce: aimentorData.rewriteNonce || aimentorData.nonce,
+                        provider: modalState.provider,
+                        tier: modalState.tier,
+                        content: rewriteSource.text,
+                        tone_keywords: toneKeywords
+                    };
+
+                    var workingMessage = strings.rewriteWorking || 'Rewriting…';
+                    $rewrite.prop('disabled', true).text(workingMessage);
+                    $result.html('<p>' + escapeHtml(workingMessage) + '</p>');
+
+                    $.post(aimentorData.ajaxurl, payload).done(function(response) {
+                        $rewrite.prop('disabled', false).text(rewriteLabelRaw);
+
+                        if (response && response.success && response.data && response.data.rewritten) {
+                            var appliedTo = applyRewriteResult(rewriteSource.target, response.data.rewritten);
+                            var successMessage = strings.rewriteSuccess || 'Copy rewritten to match the selected tone.';
+
+                            if (appliedTo === 'control' && strings.rewriteAppliedToControl) {
+                                successMessage = strings.rewriteAppliedToControl;
+                            } else if (appliedTo === 'prompt' && strings.rewriteAppliedToPrompt) {
+                                successMessage = strings.rewriteAppliedToPrompt;
+                            }
+
+                            $result.html('<p style="color:green">' + escapeHtml(successMessage) + '</p>');
+                        } else {
+                            var message = strings.rewriteError || 'Unable to rewrite the selection. Try again.';
+
+                            if (response && response.data) {
+                                var detail = response.data.message || response.data.error || '';
+                                if (detail) {
+                                    message = message + ' ' + detail;
+                                }
+                            }
+
+                            $result.html('<p style="color:#b91c1c;">' + escapeHtml(String(message)) + '</p>');
+                        }
+                    }).fail(function() {
+                        $rewrite.prop('disabled', false).text(rewriteLabelRaw);
+                        var message = strings.rewriteError || 'Unable to rewrite the selection. Try again.';
+                        $result.html('<p style="color:#b91c1c;">' + escapeHtml(message) + '</p>');
+                    });
+                });
+            }
 
             $generate.off('click.aimentor').on('click.aimentor', function() {
                 var promptValue = ($prompt.val() || '').trim();
@@ -2868,6 +3245,17 @@
         function sanitizeTier(value) {
             var valid = ['fast', 'quality'];
             return valid.indexOf(value) !== -1 ? value : valid[0];
+        }
+
+        function sanitizeTonePreset(value) {
+            var key = typeof value === 'string' ? value.trim() : '';
+            if (!key) {
+                return '';
+            }
+            if (key === 'custom') {
+                return 'custom';
+            }
+            return Object.prototype.hasOwnProperty.call(tonePresetLookup, key) ? key : '';
         }
 
         function buildProviderOptions(defaultProvider) {
