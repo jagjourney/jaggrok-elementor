@@ -720,6 +720,26 @@
             });
         }
 
+        function attachPlaceholderTriggers($scope) {
+            if (!$scope || !$scope.length) {
+                return;
+            }
+
+            var $button = $scope.find('.aimentor-editor-placeholder__button');
+
+            if (!$button.length) {
+                return;
+            }
+
+            $button.off('click.aimentor').on('click.aimentor', function(event) {
+                event.preventDefault();
+
+                if (typeof api.openModal === 'function') {
+                    api.openModal();
+                }
+            });
+        }
+
         function attachFrameLibrary($scope) {
             if (!$scope || !$scope.length) {
                 return;
@@ -2009,6 +2029,7 @@
                 elementorFrontend.hooks.addAction('frontend/element_ready/' + slug + '.default', function($scope) {
                     attachHistoryCarousel($scope);
                     attachFrameLibrary($scope);
+                    attachPlaceholderTriggers($scope);
                 });
             });
         }
@@ -2016,6 +2037,7 @@
         $('.elementor-widget-aimentor-ai-generator, .elementor-widget-jaggrok-ai-generator').each(function() {
             attachHistoryCarousel($(this));
             attachFrameLibrary($(this));
+            attachPlaceholderTriggers($(this));
         });
 
         function buildPromptPresetData(catalog) {

@@ -206,6 +206,7 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
 
         echo '<div class="aimentor-editor-placeholder">';
         echo '<p>' . esc_html__( 'Use the “Write with AiMentor” sidebar button to generate content for this widget.', 'aimentor' ) . '</p>';
+        echo '<p><button type="button" class="button button-primary aimentor-editor-placeholder__button">' . esc_html__( 'Write with AiMentor', 'aimentor' ) . '</button></p>';
         echo '<p class="aimentor-editor-cooldown" aria-live="polite" style="display:none;margin-top:8px;font-size:12px;color:#b45309;"></p>';
         echo '<div class="aimentor-layout-history" aria-live="polite" data-empty-text="' . esc_attr__( 'Generate a layout to see it here after your next run.', 'aimentor' ) . '">';
         echo '<div class="aimentor-layout-history__header">';
