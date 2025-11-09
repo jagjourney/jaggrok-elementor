@@ -204,32 +204,8 @@ class AiMentor_AI_Generator_Widget extends Widget_Base {
             return;
         }
 
-        echo '<div class="aimentor-editor-placeholder">';
-        echo '<p>' . esc_html__( 'Use the “Write with AiMentor” sidebar button to generate content for this widget.', 'aimentor' ) . '</p>';
-        echo '<p><button type="button" class="button button-primary aimentor-editor-placeholder__button">' . esc_html__( 'Write with AiMentor', 'aimentor' ) . '</button></p>';
-        echo '<p class="aimentor-editor-cooldown" aria-live="polite" style="display:none;margin-top:8px;font-size:12px;color:#b45309;"></p>';
-        echo '<div class="aimentor-layout-history" aria-live="polite" data-empty-text="' . esc_attr__( 'Generate a layout to see it here after your next run.', 'aimentor' ) . '">';
-        echo '<div class="aimentor-layout-history__header">';
-        echo '<strong class="aimentor-layout-history__title">' . esc_html__( 'Recent layouts', 'aimentor' ) . '</strong>';
-        echo '<div class="aimentor-layout-history__nav" role="group" aria-label="' . esc_attr__( 'Browse recent layouts', 'aimentor' ) . '">';
-        echo '<button type="button" class="aimentor-layout-history__nav-button aimentor-layout-history__nav-button--prev" aria-label="' . esc_attr__( 'Show previous layout', 'aimentor' ) . '" disabled>&lsaquo;</button>';
-        echo '<button type="button" class="aimentor-layout-history__nav-button aimentor-layout-history__nav-button--next" aria-label="' . esc_attr__( 'Show next layout', 'aimentor' ) . '" disabled>&rsaquo;</button>';
-        echo '</div>';
-        echo '</div>';
-        echo '<div class="aimentor-layout-history__viewport" role="listbox" aria-label="' . esc_attr__( 'Recent AiMentor layouts', 'aimentor' ) . '"></div>';
-        echo '<p class="aimentor-layout-history__empty">' . esc_html__( 'Generate a layout to see it here after your next run.', 'aimentor' ) . '</p>';
-        echo '</div>';
-        echo '<div class="aimentor-frame-library" aria-live="polite" data-empty-text="' . esc_attr__( 'No frames have been curated yet. Promote frames from AiMentor settings.', 'aimentor' ) . '">';
-        echo '<div class="aimentor-frame-library__header">';
-        echo '<strong class="aimentor-frame-library__title">' . esc_html__( 'Frame Library', 'aimentor' ) . '</strong>';
-        echo '<p class="aimentor-frame-library__updated" style="display:none;"></p>';
-        echo '</div>';
-        echo '<p class="aimentor-frame-library__description">' . esc_html__( 'Insert curated layouts or pull their prompts into the generator to start faster.', 'aimentor' ) . '</p>';
-        echo '<div class="aimentor-frame-library__loading" style="display:none;">' . esc_html__( 'Loading curated frames…', 'aimentor' ) . '</div>';
-        echo '<div class="aimentor-frame-library__error" style="display:none;">' . esc_html__( 'Unable to load frames. Refresh the panel or try again later.', 'aimentor' ) . '</div>';
-        echo '<div class="aimentor-frame-library__list" role="list"></div>';
-        echo '<p class="aimentor-frame-library__empty">' . esc_html__( 'No frames have been curated yet. Promote frames from AiMentor settings.', 'aimentor' ) . '</p>';
-        echo '</div>';
+        echo '<div class="aimentor-editor-launch">';
+        echo '<button type="button" class="button button-secondary aimentor-modal-trigger">' . esc_html__( 'Write with AiMentor', 'aimentor' ) . '</button>';
         echo '</div>';
     }
 }

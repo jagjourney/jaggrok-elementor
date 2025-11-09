@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -104,6 +104,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.6.1 =
+* Refined the Elementor widget canvas placeholder so it now renders a minimal launch button while keeping generation tools in the modal.
+* Relocated the layout history carousel and curated frame library into the generator modal with updated styling aligned to Elementor.
+* Updated modal bindings to power the new sidebar tabs and ensure history/frame data loads within the dialog.
+
 = 1.6.0 =
 * Added multi-variation canvas support across providers with a new selection UI in the Elementor modal.
 * Persisted variation selections in the canvas history and tuned rate-limit messaging for multi-option runs.
