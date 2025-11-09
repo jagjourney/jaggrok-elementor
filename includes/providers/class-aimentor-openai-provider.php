@@ -1,6 +1,7 @@
 <?php
 
 class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
+    use AiMentor_Provider_Variations_Trait;
     const PROVIDER_KEY = 'openai';
     const API_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -19,7 +20,9 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             ? $args['context']
             : [];
 
-        $context = $this->normalize_context( $context );
+        $context          = $this->normalize_context( $context );
+        $variation_count  = isset( $args['variations'] ) ? $this->sanitize_variation_count( $args['variations'] ) : 1;
+        $context['variations'] = $variation_count;
 
         $model      = ! empty( $args['model'] ) ? sanitize_text_field( $args['model'] ) : $this->get_default_model( $context );
         $max_tokens = isset( $args['max_tokens'] ) ? absint( $args['max_tokens'] ) : 2000;
@@ -35,6 +38,10 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
 
         if ( 'canvas' === $context['task'] ) {
             $body['response_format'] = [ 'type' => 'json_object' ];
+        }
+
+        if ( $context['variations'] > 1 ) {
+            $body['n'] = $context['variations'];
         }
 
         return [
@@ -122,48 +129,64 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             );
         }
 
-        $choices = isset( $body['choices'] ) && is_array( $body['choices'] ) ? $body['choices'] : [];
-        $choice  = $choices[0] ?? [];
-        $message = isset( $choice['message'] ) && is_array( $choice['message'] ) ? $choice['message'] : [];
-        $content = isset( $message['content'] ) ? trim( (string) $message['content'] ) : '';
+        $choices  = isset( $body['choices'] ) && is_array( $body['choices'] ) ? $body['choices'] : [];
+        $messages = [];
 
-        if ( '' === $content ) {
-            return new WP_Error(
-                'aimentor_empty_response',
-                __( 'The API response did not include generated content.', 'aimentor' ),
-                [
-                    'body'       => $body,
-                    'rate_limit' => $rate_limit,
-                ]
-            );
-        }
+        foreach ( $choices as $choice ) {
+            $message_content = '';
 
-        $type    = 'canvas' === $context['task'] ? 'canvas' : 'content';
-        $payload = $content;
-
-        if ( 'canvas' === $type ) {
-            $decoded = json_decode( $content, true );
-
-            if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $decoded ) ) {
-                return new WP_Error(
-                    'aimentor_invalid_canvas',
-                    __( 'The response was not valid Elementor JSON.', 'aimentor' ),
-                    [
-                        'content'    => $content,
-                        'rate_limit' => $rate_limit,
-                    ]
-                );
+            if ( isset( $choice['message'] ) && is_array( $choice['message'] ) && isset( $choice['message']['content'] ) ) {
+                $message_content = trim( (string) $choice['message']['content'] );
             }
 
-            $payload = $decoded;
+            if ( '' !== $message_content ) {
+                $messages[] = $message_content;
+            }
         }
 
-        return [
-            'type'    => $type,
-            'content' => $payload,
-            'raw'     => $body,
-            'rate_limit' => $rate_limit,
+        $type = 'canvas' === $context['task'] ? 'canvas' : 'content';
+
+        if ( 'canvas' === $type ) {
+            $variations = $this->build_canvas_variations( $messages, $rate_limit );
+
+            if ( is_wp_error( $variations ) ) {
+                return $variations;
+            }
+
+            $response_payload = [
+                'type'             => 'canvas',
+                'content'          => $variations[0]['layout'],
+                'raw'              => $body,
+                'rate_limit'       => $rate_limit,
+                'canvas_variations'=> $variations,
+            ];
+
+            if ( ! empty( $variations[0]['summary'] ) ) {
+                $response_payload['summary'] = $variations[0]['summary'];
+            }
+
+            return $response_payload;
+        }
+
+        $variations = $this->build_content_variations( $messages );
+
+        if ( is_wp_error( $variations ) ) {
+            return $variations;
+        }
+
+        $response_payload = [
+            'type'               => 'content',
+            'content'            => $variations[0]['html'],
+            'raw'                => $body,
+            'rate_limit'         => $rate_limit,
+            'content_variations' => $variations,
         ];
+
+        if ( ! empty( $variations[0]['summary'] ) ) {
+            $response_payload['summary'] = $variations[0]['summary'];
+        }
+
+        return $response_payload;
     }
 
     protected function extract_rate_limit_headers( $response ) {
@@ -311,10 +334,13 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
 
         $brand = $this->build_brand_context( $context );
 
+        $variations = isset( $context['variations'] ) ? $this->sanitize_variation_count( $context['variations'] ) : 1;
+
         return [
-            'task'  => $task,
-            'tier'  => $tier,
-            'brand' => $brand,
+            'task'       => $task,
+            'tier'       => $tier,
+            'brand'      => $brand,
+            'variations' => $variations,
         ];
     }
 

@@ -39,6 +39,37 @@
         document.head.appendChild(style);
     }
 
+    function ensureVariationStyles() {
+        if (document.getElementById('aimentor-variation-style')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'aimentor-variation-style';
+        style.textContent = '' +
+            '.aimentor-variations{display:flex;flex-direction:column;gap:12px;}' +
+            '.aimentor-variations__title{margin:0;font-size:16px;font-weight:600;color:#111827;}' +
+            '.aimentor-variations__description,.aimentor-variations__count{margin:0;font-size:12px;color:#4b5563;}' +
+            '.aimentor-variation-feedback{margin:0;font-size:12px;color:#047857;}' +
+            '.aimentor-variations__grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}' +
+            '.aimentor-variation-card{border:1px solid #dcdcde;border-radius:8px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:180px;box-shadow:0 1px 2px rgba(15,23,42,0.08);}' +
+            '.aimentor-variation-card.is-inserted{border-color:#10b981;box-shadow:0 0 0 1px rgba(16,185,129,0.4);}' +
+            '.aimentor-variation-card__header{display:flex;justify-content:space-between;align-items:center;gap:8px;}' +
+            '.aimentor-variation-card__title{margin:0;font-size:14px;font-weight:600;color:#111827;}' +
+            '.aimentor-variation-card__summary{margin:0;font-size:12px;color:#374151;line-height:1.5;}' +
+            '.aimentor-variation-card__meta{margin:0;font-size:11px;color:#6b7280;}' +
+            '.aimentor-variation-card__preview{background:#f9fafb;border:1px dashed #d1d5db;border-radius:6px;padding:12px;font-size:12px;color:#6b7280;text-align:center;min-height:80px;display:flex;align-items:center;justify-content:center;}' +
+            '.aimentor-variation-card__footer{margin-top:auto;display:flex;}' +
+            '.aimentor-variation-card__button{width:100%;font-size:13px;font-weight:600;}' +
+            '.aimentor-variation-card__button[disabled]{opacity:0.7;cursor:not-allowed;}' +
+            '.aimentor-variation-card__meta-list{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:#6b7280;}' +
+            '.aimentor-variation-card__meta-item{display:flex;align-items:center;gap:4px;}' +
+            '.aimentor-variation-card__meta-icon{font-size:12px;}' +
+            '.aimentor-variation-card__meta-text{margin:0;}' +
+            '.aimentor-variation-card__preview strong{font-weight:600;color:#111827;}' +
+            '.aimentor-variation-card__label{font-size:12px;color:#1f2937;font-weight:600;}' ;
+        document.head.appendChild(style);
+    }
+
     function escapeHtml(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
@@ -53,6 +84,71 @@
             return value;
         }
         return template.replace('%s', value);
+    }
+
+    function formatCountString(value, singularKey, pluralKey, strings) {
+        var number = parseInt(value, 10);
+        if (!number || number < 0) {
+            return '';
+        }
+        var key = number === 1 ? singularKey : pluralKey;
+        var template = strings && strings[key] ? strings[key] : '';
+        if (template && template.indexOf('%d') !== -1) {
+            return template.replace('%d', number);
+        }
+        return number + '';
+    }
+
+    function cloneLayout(layout) {
+        if (!layout) {
+            return null;
+        }
+        if (typeof layout === 'string') {
+            try {
+                return JSON.parse(layout);
+            } catch (error) {
+                return null;
+            }
+        }
+        try {
+            return JSON.parse(JSON.stringify(layout));
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function formatCanvasVariationMeta(meta, strings) {
+        if (!meta || typeof meta !== 'object') {
+            return '';
+        }
+
+        var pieces = [];
+        var separator = strings.canvasVariationMetaSeparator || strings.summarySeparator || ' • ';
+        var sectionsText = formatCountString(meta.sections, 'canvasVariationMetaSectionsSingular', 'canvasVariationMetaSections', strings);
+        var columnsText = formatCountString(meta.columns, 'canvasVariationMetaColumnsSingular', 'canvasVariationMetaColumns', strings);
+        var widgetsText = formatCountString(meta.widgets, 'canvasVariationMetaWidgetsSingular', 'canvasVariationMetaWidgets', strings);
+
+        [sectionsText, columnsText, widgetsText].forEach(function(item) {
+            if (item) {
+                pieces.push(item);
+            }
+        });
+
+        return pieces.join(separator);
+    }
+
+    function resolveVariationLabel(variation, index, strings) {
+        if (variation && typeof variation.label === 'string' && variation.label.trim()) {
+            return variation.label.trim();
+        }
+
+        var template = strings.canvasVariationLabel || '';
+
+        if (template && template.indexOf('%d') !== -1) {
+            return template.replace('%d', index + 1);
+        }
+
+        return 'Variation ' + (index + 1);
     }
 
     function recordHistoryEntry(prompt, providerKey) {
@@ -533,6 +629,165 @@
                     canvasHistoryStore.add(storeResponse.data.entry);
                 }
             });
+        }
+
+        function renderCanvasVariations($target, variations, options) {
+            ensureVariationStyles();
+
+            if (!$target || !$target.length) {
+                return;
+            }
+
+            options = options || {};
+            var localStrings = strings || {};
+
+            $target.empty();
+
+            if (!Array.isArray(variations) || !variations.length) {
+                var emptyMessage = localStrings.canvasVariationsEmpty || 'No layouts available yet. Try generating again.';
+                $target.html('<p>' + escapeHtml(emptyMessage) + '</p>');
+                return;
+            }
+
+            var wrapper = $('<div class="aimentor-variations"></div>');
+            var headingText = localStrings.canvasVariationsHeading || 'Choose a layout style';
+            wrapper.append('<h4 class="aimentor-variations__title">' + escapeHtml(headingText) + '</h4>');
+
+            if (localStrings.canvasVariationsDescription) {
+                wrapper.append('<p class="aimentor-variations__description">' + escapeHtml(localStrings.canvasVariationsDescription) + '</p>');
+            }
+
+            if (localStrings.canvasVariationsCount && localStrings.canvasVariationsCount.indexOf('%d') !== -1) {
+                wrapper.append('<p class="aimentor-variations__count">' + escapeHtml(localStrings.canvasVariationsCount.replace('%d', variations.length)) + '</p>');
+            }
+
+            var feedback = $('<p class="aimentor-variation-feedback" aria-live="polite"></p>');
+            if (options.summaryText) {
+                var successPrefix = localStrings.successPrefix ? localStrings.successPrefix + ' ' : '';
+                feedback.text(successPrefix + options.summaryText).show();
+            } else {
+                feedback.hide();
+            }
+            wrapper.append(feedback);
+
+            var grid = $('<div class="aimentor-variations__grid"></div>');
+
+            variations.forEach(function(variation, index) {
+                var label = resolveVariationLabel(variation, index, localStrings);
+                var summary = (variation && typeof variation.summary === 'string') ? variation.summary.trim() : '';
+                var metaText = formatCanvasVariationMeta(variation ? variation.meta : null, localStrings);
+                var previewText = summary || localStrings.canvasVariationPreviewPlaceholder || 'Preview not available for this layout yet.';
+                var card = $('<article class="aimentor-variation-card" role="group" aria-label="' + escapeHtml(label) + '"></article>');
+                var header = $('<div class="aimentor-variation-card__header"></div>');
+                header.append('<span class="aimentor-variation-card__label">' + escapeHtml(label) + '</span>');
+                card.append(header);
+                card.append('<div class="aimentor-variation-card__preview">' + escapeHtml(previewText) + '</div>');
+                if (summary) {
+                    card.append('<p class="aimentor-variation-card__summary">' + escapeHtml(summary) + '</p>');
+                }
+                if (metaText) {
+                    card.append('<p class="aimentor-variation-card__meta">' + escapeHtml(metaText) + '</p>');
+                }
+                var buttonLabel = localStrings.canvasVariationActionLabel || localStrings.recentLayoutsUse || 'Insert layout';
+                var button = $('<button type="button" class="button button-primary aimentor-variation-card__button">' + escapeHtml(buttonLabel) + '</button>');
+                var footer = $('<div class="aimentor-variation-card__footer"></div>').append(button);
+                card.append(footer);
+
+                button.on('click', function() {
+                    handleVariationInsert(variation, {
+                        label: label,
+                        button: button,
+                        card: card,
+                        feedback: feedback,
+                        options: options
+                    });
+                });
+
+                grid.append(card);
+            });
+
+            wrapper.append(grid);
+            $target.append(wrapper);
+        }
+
+        function handleVariationInsert(variation, context) {
+            if (!variation || !variation.layout) {
+                return;
+            }
+
+            context = context || {};
+            var button = context.button;
+
+            if (button && button.length && button.prop('disabled')) {
+                return;
+            }
+
+            if (button && button.length) {
+                button.prop('disabled', true);
+            }
+
+            var layoutForInsert = cloneLayout(variation.layout);
+            var layoutForHistory = cloneLayout(variation.layout);
+
+            if (!layoutForInsert || !layoutForHistory) {
+                if (button && button.length) {
+                    button.prop('disabled', false);
+                }
+                return;
+            }
+
+            if (window.elementorFrontend && elementorFrontend.elementsHandler && typeof elementorFrontend.elementsHandler.addElements === 'function') {
+                try {
+                    elementorFrontend.elementsHandler.addElements(layoutForInsert);
+                } catch (error) {
+                    if (button && button.length) {
+                        button.prop('disabled', false);
+                    }
+                    return;
+                }
+            }
+
+            var options = context.options || {};
+            var responseData = options.responseData || {};
+            var historySummary = '';
+
+            if (variation.summary && context.label) {
+                historySummary = context.label + ' — ' + variation.summary;
+            } else if (variation.summary) {
+                historySummary = variation.summary;
+            } else if (context.label && options.summaryText) {
+                historySummary = context.label + ' — ' + options.summaryText;
+            } else {
+                historySummary = options.summaryText || context.label || '';
+            }
+
+            persistCanvasHistory({
+                canvas_json: layoutForHistory,
+                provider: responseData.provider || options.provider || '',
+                model: responseData.model || options.model || '',
+                task: responseData.task || 'canvas',
+                tier: responseData.tier || options.tier || ''
+            }, historySummary);
+
+            if (context.card && context.card.length) {
+                context.card.addClass('is-inserted');
+            }
+
+            if (context.feedback && context.feedback.length) {
+                var message = '';
+                if (strings.canvasVariationInsertedNamed && strings.canvasVariationInsertedNamed.indexOf('%s') !== -1) {
+                    message = strings.canvasVariationInsertedNamed.replace('%s', context.label || '');
+                } else {
+                    message = strings.canvasVariationInserted || 'Layout inserted!';
+                }
+                context.feedback.text(message).show();
+            }
+
+            setTimeout(function() {
+                if (button && button.length) {
+                    button.prop('disabled', false);
+                }
+            }, 800);
         }
 
         function attachHistoryCarousel($scope) {
@@ -1704,6 +1959,13 @@
                     tier: widgetState.tier
                 };
 
+                if (widgetState.task === 'canvas') {
+                    var variationCount = parseInt(aimentorData.canvasVariationCount, 10);
+                    if (isFinite(variationCount) && variationCount > 0) {
+                        requestPayload.variations = variationCount;
+                    }
+                }
+
                 $.post(aimentorData.ajaxurl, requestPayload)
                     .done(function(response) {
                         $button.prop('disabled', false);
@@ -1720,7 +1982,20 @@
 
                         if (response && response.success) {
                             var summaryText = extractResponseSummary(response, widgetState.provider, widgetState);
-                            var hasCanvasPayload = response.data && response.data.canvas_json;
+                            var canvasVariations = [];
+                            if (response.data && Array.isArray(response.data.canvas_variations)) {
+                                canvasVariations = response.data.canvas_variations;
+                            }
+                            var hasCanvasPayload = response.data && response.data.canvas_json && !canvasVariations.length;
+
+                            if (canvasVariations.length && $output.length) {
+                                renderCanvasVariations($output, canvasVariations, {
+                                    provider: responseProvider,
+                                    tier: widgetState.tier,
+                                    summaryText: summaryText,
+                                    responseData: response.data
+                                });
+                            }
 
                             if (hasCanvasPayload && window.elementorFrontend && elementorFrontend.elementsHandler) {
                                 elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
@@ -1729,9 +2004,11 @@
                             if (hasCanvasPayload) {
                                 persistCanvasHistory(response.data, summaryText);
                             }
-                            if ($output.length) {
+
+                            if (!canvasVariations.length && $output.length) {
                                 $output.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
                             }
+
                             recordHistoryEntry(promptValue, widgetState.provider);
                         } else {
                             var message = response && response.data ? response.data : 'Unknown error';
@@ -1923,14 +2200,23 @@
                 $result.html('<p>' + escapeHtml(generatingMessage) + '</p><p>' + escapeHtml(buildSummary(providerValue, selection.task, selection.tier)) + '</p>');
                 updateCooldownNotice($cooldownNotice, null);
 
-                $.post(aimentorData.ajaxurl, {
+                var modalRequestPayload = {
                     action: 'aimentor_generate_page',
                     prompt: promptValue,
                     provider: providerValue,
                     task: selection.task,
                     tier: selection.tier,
                     nonce: aimentorData.nonce
-                }).done(function(response) {
+                };
+
+                if (selection.task === 'canvas') {
+                    var modalVariationCount = parseInt(aimentorData.canvasVariationCount, 10);
+                    if (isFinite(modalVariationCount) && modalVariationCount > 0) {
+                        modalRequestPayload.variations = modalVariationCount;
+                    }
+                }
+
+                $.post(aimentorData.ajaxurl, modalRequestPayload).done(function(response) {
                     $generate.prop('disabled', false);
                     applyProviderMeta(providerValue, ui);
 
@@ -1953,7 +2239,20 @@
 
                     if (response && response.success) {
                         var summaryText = extractResponseSummary(response, providerValue, selection);
-                        var hasCanvasPayload = response.data && response.data.canvas_json;
+                        var canvasVariations = [];
+                        if (response.data && Array.isArray(response.data.canvas_variations)) {
+                            canvasVariations = response.data.canvas_variations;
+                        }
+                        var hasCanvasPayload = response.data && response.data.canvas_json && !canvasVariations.length;
+
+                        if (canvasVariations.length) {
+                            renderCanvasVariations($result, canvasVariations, {
+                                provider: providerValue,
+                                tier: selection.tier,
+                                summaryText: summaryText,
+                                responseData: response.data
+                            });
+                        }
 
                         if (hasCanvasPayload && window.elementorFrontend && elementorFrontend.elementsHandler) {
                             elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
@@ -1962,13 +2261,17 @@
                         if (hasCanvasPayload) {
                             persistCanvasHistory(response.data, summaryText);
                         }
-                        if (response.data && response.data.html) {
-                            var snippet = response.data.html.substring(0, 160);
-                            var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet + (response.data.html.length > 160 ? '…' : '')) + '</small>' : '';
-                            $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + snippetHtml + '</p>');
-                        } else {
-                            $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
+
+                        if (!canvasVariations.length) {
+                            if (response.data && response.data.html) {
+                                var snippet = response.data.html.substring(0, 160);
+                                var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet + (response.data.html.length > 160 ? '…' : '')) + '</small>' : '';
+                                $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + snippetHtml + '</p>');
+                            } else {
+                                $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
+                            }
                         }
+
                         recordHistoryEntry(promptValue, providerValue);
                     } else {
                         var message = response && response.data ? response.data : 'Unknown error';

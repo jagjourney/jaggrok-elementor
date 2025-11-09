@@ -18,7 +18,9 @@ These smoke tests confirm the preset resolver picks the correct provider default
    - `tier: "quality"`
    - `provider: "grok"`
    - `model` value containing the `grok-4-code` preset (or the configured override).
+   - `canvas_variations` array containing decoded layout options with `summary` metadata.
 5. Verify the returned content renders as structured Elementor JSON (widgets, containers, responsive columns).
+6. Insert a variation from the UI cards and confirm the chosen layout is added to the canvas history carousel with the combined label + summary.
 
 ### 2. Copy generation (OpenAI)
 1. Switch the provider to **OpenAI** in the generator UI.

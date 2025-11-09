@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.5.1
+ * Version: 1.6.0
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
- define( 'AIMENTOR_PLUGIN_VERSION', '1.5.1' );
+ define( 'AIMENTOR_PLUGIN_VERSION', '1.6.0' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -707,6 +707,22 @@ function aimentor_get_ajax_payload() {
                         'frameLibrarySelectImage'  => __( 'Choose preview', 'aimentor' ),
                         'frameLibraryUseImage'     => __( 'Use preview', 'aimentor' ),
                         'frameLibraryPreviewPending' => __( 'Preview pending', 'aimentor' ),
+                        'canvasVariationsHeading'    => __( 'Choose a layout style', 'aimentor' ),
+                        'canvasVariationLabel'       => __( 'Variation %d', 'aimentor' ),
+                        'canvasVariationsDescription' => __( 'AiMentor generated multiple layouts. Select your favorite to insert it into Elementor.', 'aimentor' ),
+                        'canvasVariationInserted'    => __( 'Layout inserted!', 'aimentor' ),
+                        'canvasVariationInsertedNamed' => __( '%s inserted into the canvas.', 'aimentor' ),
+                        'canvasVariationPreviewPlaceholder' => __( 'Preview not available for this layout yet.', 'aimentor' ),
+                        'canvasVariationMetaSectionsSingular' => __( '%d section', 'aimentor' ),
+                        'canvasVariationMetaSections' => __( '%d sections', 'aimentor' ),
+                        'canvasVariationMetaColumnsSingular' => __( '%d column', 'aimentor' ),
+                        'canvasVariationMetaColumns' => __( '%d columns', 'aimentor' ),
+                        'canvasVariationMetaWidgetsSingular' => __( '%d widget', 'aimentor' ),
+                        'canvasVariationMetaWidgets' => __( '%d widgets', 'aimentor' ),
+                        'canvasVariationMetaSeparator' => _x( ' • ', 'separator between canvas variation meta labels', 'aimentor' ),
+                        'canvasVariationActionLabel' => __( 'Insert this layout', 'aimentor' ),
+                        'canvasVariationsCount'      => __( '%d layout styles ready', 'aimentor' ),
+                        'canvasVariationsEmpty'      => __( 'No layouts available yet. Try generating again.', 'aimentor' ),
                 ),
                 'providerLabels'    => $provider_labels,
                 'providerSummaries' => $provider_summaries,
@@ -729,6 +745,7 @@ function aimentor_get_ajax_payload() {
                 'canvasHistoryMax'  => function_exists( 'aimentor_get_canvas_history_max_items' ) ? aimentor_get_canvas_history_max_items() : 0,
                 'frameLibraryEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/frames' ) ),
                 'frameLibrary'      => function_exists( 'aimentor_get_frame_library_items' ) ? aimentor_get_frame_library_items( [ 'posts_per_page' => 50 ] ) : [],
+                'canvasVariationCount' => apply_filters( 'aimentor_canvas_variation_count', 3, $default_provider, 'canvas', $default_tier ),
         );
 }
 
@@ -843,6 +860,7 @@ function aimentor_get_provider_meta_map() {
 
 // Providers.
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-provider-interface.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/trait-aimentor-provider-variations.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-grok-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-anthropic-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-openai-provider.php';
@@ -1201,6 +1219,40 @@ function jaggrok_generate_page_ajax() {
                         break;
         }
 
+        $variation_count = 1;
+
+        if ( 'canvas' === $task ) {
+                $requested_variations = 0;
+
+                foreach ( array( 'variations', 'variation_count' ) as $variation_field ) {
+                        if ( isset( $_POST[ $variation_field ] ) ) {
+                                $requested_variations = absint( wp_unslash( $_POST[ $variation_field ] ) );
+
+                                if ( $requested_variations > 0 ) {
+                                        break;
+                                }
+                        }
+                }
+
+                if ( $requested_variations > 0 ) {
+                        $variation_count = $requested_variations;
+                } else {
+                        /**
+                         * Filter the number of canvas variations to request from the provider.
+                         *
+                         * @param int    $count        Default variation count.
+                         * @param string $provider_key Active provider key.
+                         * @param string $task         Normalized task.
+                         * @param string $tier         Normalized tier.
+                         */
+                        $variation_count = apply_filters( 'aimentor_canvas_variation_count', 3, $provider_key, $task, $tier );
+                }
+        }
+
+        if ( $variation_count < 1 ) {
+                $variation_count = 1;
+        }
+
         $result = $provider->request( $prompt, array(
                 'api_key'    => $api_key,
                 'model'      => $model,
@@ -1209,6 +1261,7 @@ function jaggrok_generate_page_ajax() {
                         'task' => $task,
                         'tier' => $tier,
                 ),
+                'variations' => $variation_count,
         ) );
 
         if ( is_wp_error( $result ) ) {
@@ -1290,6 +1343,15 @@ function jaggrok_generate_page_ajax() {
                 }
 
                 $response_payload['canvas_json'] = $result['content'];
+
+                if ( ! empty( $result['canvas_variations'] ) && is_array( $result['canvas_variations'] ) ) {
+                        $response_payload['canvas_variations'] = array_values( $result['canvas_variations'] );
+                }
+
+                if ( ! empty( $result['summary'] ) && is_string( $result['summary'] ) ) {
+                        $response_payload['summary'] = $result['summary'];
+                }
+
                 wp_send_json_success( $response_payload );
         }
 
@@ -1321,6 +1383,14 @@ function jaggrok_generate_page_ajax() {
         }
 
         $response_payload['html'] = $result['content'];
+
+        if ( ! empty( $result['content_variations'] ) && is_array( $result['content_variations'] ) ) {
+                $response_payload['content_variations'] = array_values( $result['content_variations'] );
+        }
+
+        if ( ! empty( $result['summary'] ) && is_string( $result['summary'] ) ) {
+                $response_payload['summary'] = $result['summary'];
+        }
         wp_send_json_success( $response_payload );
 }
 

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
+  <title id="title">AiMentor multi-style variation cards</title>
+  <desc id="desc">Three layout variation cards showing preview counts, summaries, metadata, and insert buttons.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f9fafb" />
+      <stop offset="100%" stop-color="#e0e7ff" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(15,23,42,0.12)" />
+    </filter>
+    <style>
+      text { font-family: 'Inter', 'Segoe UI', sans-serif; fill: #1f2937; }
+      .subtitle { fill: #4b5563; font-size: 20px; font-weight: 600; }
+      .body { fill: #4b5563; font-size: 18px; }
+      .card-title { font-size: 18px; font-weight: 700; }
+      .preview-count { font-size: 24px; font-weight: 700; }
+      .preview-meta { font-size: 16px; fill: #4b5563; }
+      .summary { font-size: 16px; fill: #374151; }
+      .meta { font-size: 14px; fill: #6b7280; }
+      .button { font-size: 16px; font-weight: 600; fill: white; }
+    </style>
+  </defs>
+  <rect width="960" height="600" fill="url(#bg)" rx="24" />
+  <text x="80" y="100" font-size="32" font-weight="700">Choose a layout style</text>
+  <text x="80" y="140" class="subtitle">Canvas layout generated with Grok — Quality tier</text>
+  <text x="80" y="172" class="body">Compare the structures below and insert the variation you prefer.</text>
+
+  <g transform="translate(80 210)" filter="url(#shadow)">
+    <rect width="240" height="320" fill="#ffffff" rx="18" />
+    <rect x="24" y="56" width="192" height="96" rx="12" fill="#f3f4f6" stroke="#cbd5f5" stroke-dasharray="8 8" stroke-width="2" />
+    <text x="24" y="40" class="card-title">Variation 1</text>
+    <text x="120" y="102" text-anchor="middle" class="preview-count">3 sections</text>
+    <text x="120" y="130" text-anchor="middle" class="preview-meta">Hero • Pricing • CTA</text>
+    <foreignObject x="24" y="170" width="192" height="72">
+      <p xmlns="http://www.w3.org/1999/xhtml" style="margin:0;font-family:Inter,Segoe UI,sans-serif;font-size:15px;color:#374151;line-height:1.4;">Wide hero with gradient background, pricing grid, and anchored CTA footer.</p>
+    </foreignObject>
+    <text x="24" y="268" class="meta">3 sections • 5 columns • 11 widgets</text>
+    <g transform="translate(24 280)">
+      <rect width="192" height="42" rx="10" fill="#0ea5e9" />
+      <text x="96" y="29" text-anchor="middle" class="button">Inserted into Elementor</text>
+    </g>
+  </g>
+
+  <g transform="translate(360 210)" filter="url(#shadow)">
+    <rect width="240" height="320" fill="#ffffff" rx="18" />
+    <rect x="24" y="56" width="192" height="96" rx="12" fill="#f9fafb" stroke="#cbd5f5" stroke-dasharray="8 8" stroke-width="2" />
+    <text x="24" y="40" class="card-title">Variation 2</text>
+    <text x="120" y="102" text-anchor="middle" class="preview-count">4 sections</text>
+    <text x="120" y="130" text-anchor="middle" class="preview-meta">Hero • Testimonials • Plans • FAQ</text>
+    <foreignObject x="24" y="170" width="192" height="72">
+      <p xmlns="http://www.w3.org/1999/xhtml" style="margin:0;font-family:Inter,Segoe UI,sans-serif;font-size:15px;color:#374151;line-height:1.4;">Split hero with spotlight image, testimonial carousel, pricing toggles, and FAQ accordion.</p>
+    </foreignObject>
+    <text x="24" y="268" class="meta">4 sections • 6 columns • 14 widgets</text>
+    <g transform="translate(24 280)">
+      <rect width="192" height="42" rx="10" fill="#4f46e5" />
+      <text x="96" y="29" text-anchor="middle" class="button">Insert this layout</text>
+    </g>
+  </g>
+
+  <g transform="translate(640 210)" filter="url(#shadow)">
+    <rect width="240" height="320" fill="#ffffff" rx="18" />
+    <rect x="24" y="56" width="192" height="96" rx="12" fill="#f9fafb" stroke="#cbd5f5" stroke-dasharray="8 8" stroke-width="2" />
+    <text x="24" y="40" class="card-title">Variation 3</text>
+    <text x="120" y="102" text-anchor="middle" class="preview-count">5 sections</text>
+    <text x="120" y="130" text-anchor="middle" class="preview-meta">Hero • Metrics • Plans • Testimonials • CTA</text>
+    <foreignObject x="24" y="170" width="192" height="72">
+      <p xmlns="http://www.w3.org/1999/xhtml" style="margin:0;font-family:Inter,Segoe UI,sans-serif;font-size:15px;color:#374151;line-height:1.4;">Minimal hero with numeric KPIs, tiered plans with toggles, customer badges, and contrasting CTA.</p>
+    </foreignObject>
+    <text x="24" y="268" class="meta">5 sections • 7 columns • 15 widgets</text>
+    <g transform="translate(24 280)">
+      <rect width="192" height="42" rx="10" fill="#4f46e5" />
+      <text x="96" y="29" text-anchor="middle" class="button">Insert this layout</text>
+    </g>
+  </g>
+</svg>

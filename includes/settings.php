@@ -1924,6 +1924,7 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                         'max_tokens'    => null,
                         'store_history' => true,
                         'user_id'       => get_current_user_id(),
+                        'variations'    => null,
                 ]
         );
 
@@ -1988,6 +1989,26 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
         $tier  = $resolution['tier'];
         $model = $resolution['model'];
 
+        $variation_count = absint( $args['variations'] );
+
+        if ( 'canvas' === $task ) {
+                if ( $variation_count < 1 ) {
+                        /**
+                         * Filter the number of canvas variations requested via the REST helper.
+                         *
+                         * @param int    $count        Default variation count.
+                         * @param string $provider_key Active provider key.
+                         * @param string $task         Normalized task.
+                         * @param string $tier         Normalized tier.
+                         */
+                        $variation_count = apply_filters( 'aimentor_canvas_variation_count', 3, $provider_key, $task, $tier );
+                }
+        }
+
+        if ( $variation_count < 1 ) {
+                $variation_count = 1;
+        }
+
         switch ( $provider_key ) {
                 case 'openai':
                         $api_key = get_option( 'aimentor_openai_api_key' );
@@ -2021,6 +2042,7 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                         'model'      => $model,
                         'max_tokens' => $max_tokens,
                         'context'    => $context,
+                        'variations' => $variation_count,
                 ]
         );
 
@@ -2140,8 +2162,18 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
 
         if ( 'canvas' === $payload['type'] ) {
                 $payload['canvas_json'] = $result['content'];
+                if ( ! empty( $result['canvas_variations'] ) && is_array( $result['canvas_variations'] ) ) {
+                        $payload['canvas_variations'] = array_values( $result['canvas_variations'] );
+                }
         } else {
                 $payload['html'] = (string) $result['content'];
+                if ( ! empty( $result['content_variations'] ) && is_array( $result['content_variations'] ) ) {
+                        $payload['content_variations'] = array_values( $result['content_variations'] );
+                }
+        }
+
+        if ( ! empty( $result['summary'] ) && is_string( $result['summary'] ) ) {
+                $payload['summary'] = $result['summary'];
         }
 
         return $payload;
