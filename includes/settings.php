@@ -3008,6 +3008,85 @@ function aimentor_get_brand_preferences() {
         ];
 }
 
+function aimentor_get_tone_presets() {
+        $brand_preferences = aimentor_get_brand_preferences();
+        $brand_tone        = isset( $brand_preferences['tone_keywords'] ) ? aimentor_sanitize_tone_keywords( $brand_preferences['tone_keywords'] ) : '';
+
+        $presets = [];
+
+        $brand_label = __( 'Brand tone', 'aimentor' );
+
+        if ( '' !== $brand_tone ) {
+                /* translators: %s: Tone keywords string. */
+                $brand_label = sprintf( __( 'Brand tone — %s', 'aimentor' ), $brand_tone );
+        }
+
+        $presets[] = [
+                'id'        => 'brand',
+                'label'     => $brand_label,
+                'keywords'  => $brand_tone,
+                'is_brand'  => true,
+        ];
+
+        $presets = array_merge(
+                $presets,
+                [
+                        [
+                                'id'       => 'friendly_supportive',
+                                'label'    => __( 'Friendly & Supportive', 'aimentor' ),
+                                'keywords' => 'friendly, supportive, encouraging',
+                        ],
+                        [
+                                'id'       => 'professional_confident',
+                                'label'    => __( 'Professional & Confident', 'aimentor' ),
+                                'keywords' => 'professional, confident, authoritative',
+                        ],
+                        [
+                                'id'       => 'playful_bold',
+                                'label'    => __( 'Playful & Bold', 'aimentor' ),
+                                'keywords' => 'playful, bold, upbeat',
+                        ],
+                ]
+        );
+
+        /**
+         * Filter the tone presets available in the Elementor modal.
+         *
+         * @param array $presets           Default preset definitions.
+         * @param array $brand_preferences Current brand preference payload.
+         */
+        $presets = apply_filters( 'aimentor_tone_presets', $presets, $brand_preferences );
+
+        $normalized = [];
+        $seen       = [];
+
+        foreach ( $presets as $preset ) {
+                if ( ! is_array( $preset ) ) {
+                        continue;
+                }
+
+                $id = isset( $preset['id'] ) ? sanitize_key( $preset['id'] ) : '';
+
+                if ( '' === $id || isset( $seen[ $id ] ) ) {
+                        continue;
+                }
+
+                $label    = isset( $preset['label'] ) ? sanitize_text_field( $preset['label'] ) : $id;
+                $keywords = isset( $preset['keywords'] ) ? aimentor_sanitize_tone_keywords( $preset['keywords'] ) : '';
+
+                $normalized[] = [
+                        'id'        => $id,
+                        'label'     => $label,
+                        'keywords'  => $keywords,
+                        'is_brand'  => ! empty( $preset['is_brand'] ),
+                ];
+
+                $seen[ $id ] = true;
+        }
+
+        return $normalized;
+}
+
 function aimentor_sanitize_generation_type( $value ) {
         $value   = sanitize_key( $value );
         $allowed = [ 'content', 'canvas' ];

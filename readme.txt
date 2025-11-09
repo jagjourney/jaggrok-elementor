@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.6.1
+Stable tag: 1.6.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -27,6 +27,7 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 * **API key visibility controls:** Reveal or mask keys instantly with the built-in eye toggle so only trusted teammates can view sensitive credentials.
 * **Connection status badges:** Test each provider and get immediate success, pending, or error badges that confirm when an integration is ready for production.
 * **Built-in error log viewer:** Inspect the most recent API issues without leaving WordPress; the underlying log file lives at `wp-content/uploads/aimentor/aimentor-errors.log` (with automatic fallbacks if that path is unavailable).
+* **Tone-aware rewrites:** Highlight Elementor copy and apply the “Rewrite with Tone” action to instantly align language with the saved brand keywords or preset voices.
 
 == Frame Workflow ==
 1. **Generate** layouts inside Elementor using AiMentor canvas requests. Each run can be archived with its provider, model, and prompt metadata for later reuse.
@@ -44,6 +45,8 @@ We're exploring deeper Pro-aware enhancements such as exporting full template ki
 
 == Elementor Widget Experience ==
 AiMentor's widget mirrors the native Elementor workflow: pick your provider from the branded badge selector, drop a prompt into the focused input field, and trigger generation without losing context. Provider-colored badges keep the active model obvious, while the same connection health indicators used in the settings surface directly in the widget so editors know when it's safe to launch a run.
+
+Need to adjust existing copy? Select any text within the Elementor editor or reuse the prompt field, choose a tone preset in the AiMentor modal, and click **Rewrite with Tone**. The widget posts your selection to WordPress, rewrites it through the active AI provider, and swaps the response directly into the targeted control while logging the tone that was applied. Status messaging in the modal confirms when the rewrite completes or if additional input is required.
 
 == Operational Tooling ==
 * **Error log access:** Every request writes structured context to `wp-content/uploads/aimentor/aimentor-errors.log`, and the settings screen renders the last 10 entries with timestamps and provider names for fast triage.
@@ -104,6 +107,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.6.2 =
+* Added a “Rewrite with Tone” workflow inside the Elementor modal that validates capabilities, honors stored brand tone keywords, and rewrites copy via the selected provider.
+* Surfaced preset tone selectors alongside rewrite status messaging so editors can preview and apply voices before sending requests.
+* Localized new UI strings, updated documentation, and expanded test coverage around tone sanitization and rewrite prompt construction.
+
 = 1.6.1 =
 * Refined the Elementor widget canvas placeholder so it now renders a minimal launch button while keeping generation tools in the modal.
 * Relocated the layout history carousel and curated frame library into the generator modal with updated styling aligned to Elementor.

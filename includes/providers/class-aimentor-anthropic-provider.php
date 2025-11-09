@@ -337,8 +337,9 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
             $context = [];
         }
 
-        $task = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : 'content';
-        $tier = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : 'fast';
+        $task   = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : 'content';
+        $tier   = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : 'fast';
+        $intent = isset( $context['intent'] ) ? sanitize_key( $context['intent'] ) : 'generate';
 
         if ( ! in_array( $task, [ 'canvas', 'content' ], true ) ) {
             $task = 'content';
@@ -346,6 +347,10 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
 
         if ( ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
             $tier = 'fast';
+        }
+
+        if ( ! in_array( $intent, [ 'generate', 'rewrite' ], true ) ) {
+            $intent = 'generate';
         }
 
         $brand = $this->build_brand_context( $context );
@@ -357,6 +362,7 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
             'tier'       => $tier,
             'brand'      => $brand,
             'variations' => $variations,
+            'intent'     => $intent,
         ];
     }
 
@@ -475,9 +481,18 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
     }
 
     protected function get_prompt_suffix( $context ) {
-        $brand = $context['brand'];
+        $brand  = $context['brand'];
+        $intent = isset( $context['intent'] ) ? $context['intent'] : 'generate';
 
         $suffix_parts = [];
+
+        if ( 'rewrite' === $intent ) {
+            $suffix_parts[] = __( 'Return only the rewritten copy ready to paste into Elementor while preserving any existing HTML tags, shortcodes, or dynamic placeholders.', 'aimentor' );
+        } elseif ( 'canvas' === $context['task'] ) {
+            $suffix_parts[] = __( 'Respond using structured Elementor JSON suitable for direct canvas insertion.', 'aimentor' );
+        } else {
+            $suffix_parts[] = __( 'Respond with concise Elementor-ready HTML blocks.', 'aimentor' );
+        }
 
         if ( '' !== $brand['primary_color'] ) {
             $suffix_parts[] = sprintf(

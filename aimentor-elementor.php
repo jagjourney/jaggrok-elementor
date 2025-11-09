@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.6.1
+ * Version: 1.6.2
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
- define( 'AIMENTOR_PLUGIN_VERSION', '1.6.1' );
+ define( 'AIMENTOR_PLUGIN_VERSION', '1.6.2' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -602,10 +602,12 @@ function aimentor_get_ajax_payload() {
                 'user'   => [],
         ];
         $canvas_history        = function_exists( 'aimentor_get_canvas_history' ) ? aimentor_get_canvas_history() : [];
+        $tone_presets          = function_exists( 'aimentor_get_tone_presets' ) ? aimentor_get_tone_presets() : [];
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
                 'nonce'             => wp_create_nonce( 'aimentor_test' ),
+                'rewriteNonce'      => wp_create_nonce( 'aimentor_rewrite' ),
                 'savedPromptNonce'  => wp_create_nonce( 'aimentor_saved_prompts' ),
                 'dismissNonce'      => wp_create_nonce( 'aimentor_onboarding' ),
                 'usageNonce'        => wp_create_nonce( 'aimentor_usage_metrics' ),
@@ -666,6 +668,18 @@ function aimentor_get_ajax_payload() {
                         'summarySeparator'   => _x( ' • ', 'separator between task and tier', 'aimentor' ),
                         'promptLabel'        => __( 'Prompt', 'aimentor' ),
                         'promptPlaceholder'  => __( 'Describe your page (e.g., hero with CTA)', 'aimentor' ),
+                        'tonePresetLabel'    => __( 'Tone', 'aimentor' ),
+                        'tonePresetPlaceholder' => __( 'Select a tone preset…', 'aimentor' ),
+                        'tonePresetCustomOption' => __( 'Custom tone…', 'aimentor' ),
+                        'tonePresetCustomLabel' => __( 'Custom tone keywords', 'aimentor' ),
+                        'tonePresetCustomPlaceholder' => __( 'e.g., bold, welcoming, energetic', 'aimentor' ),
+                        'rewriteButtonLabel' => __( 'Rewrite with Tone', 'aimentor' ),
+                        'rewriteWorking'     => __( 'Rewriting…', 'aimentor' ),
+                        'rewriteSuccess'     => __( 'Copy rewritten to match the selected tone.', 'aimentor' ),
+                        'rewriteError'       => __( 'Unable to rewrite the selection. Try again.', 'aimentor' ),
+                        'rewriteMissingSource' => __( 'Highlight text in Elementor or enter a prompt to rewrite.', 'aimentor' ),
+                        'rewriteAppliedToControl' => __( 'Updated the selected Elementor control with rewritten copy.', 'aimentor' ),
+                        'rewriteAppliedToPrompt'  => __( 'Prompt updated with rewritten copy.', 'aimentor' ),
                         'missingConfig'      => __( 'AiMentor AJAX configuration is missing. Please ensure the plugin assets are enqueued properly.', 'aimentor' ),
                         'savedPromptLabel'        => __( 'Saved Prompts', 'aimentor' ),
                         'savedPromptPlaceholder'  => __( 'Select a saved prompt…', 'aimentor' ),
@@ -747,11 +761,60 @@ function aimentor_get_ajax_payload() {
                 'isProActive'       => aimentor_is_pro_active(),
                 'savedPrompts'      => $saved_prompts,
                 'canvasHistory'     => $canvas_history,
+                'tonePresets'       => $tone_presets,
                 'canvasHistoryMax'  => function_exists( 'aimentor_get_canvas_history_max_items' ) ? aimentor_get_canvas_history_max_items() : 0,
                 'frameLibraryEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/frames' ) ),
                 'frameLibrary'      => function_exists( 'aimentor_get_frame_library_items' ) ? aimentor_get_frame_library_items( [ 'posts_per_page' => 50 ] ) : [],
                 'canvasVariationCount' => apply_filters( 'aimentor_canvas_variation_count', 3, $default_provider, 'canvas', $default_tier ),
         );
+}
+
+/**
+ * Build the provider prompt used for rewrite operations.
+ *
+ * @param string $source         Original copy selected for rewriting.
+ * @param string $tone_keywords  Tone keywords requested by the editor.
+ * @param array  $args           Optional arguments.
+ *
+ * @return string
+ */
+function aimentor_build_rewrite_prompt( $source, $tone_keywords, $args = array() ) {
+        $source        = trim( (string) $source );
+        $tone_keywords = isset( $tone_keywords ) ? aimentor_sanitize_tone_keywords( $tone_keywords ) : '';
+
+        $instructions = array(
+                __( 'You are rewriting on-brand Elementor copy for a WordPress site.', 'aimentor' ),
+                __( 'Preserve the original meaning, structure, and any shortcodes or dynamic placeholders.', 'aimentor' ),
+        );
+
+        if ( '' !== $tone_keywords ) {
+                $instructions[] = sprintf(
+                        /* translators: %s: Tone keywords list. */
+                        __( 'Match this tone: %s.', 'aimentor' ),
+                        $tone_keywords
+                );
+        }
+
+        $instructions[] = __( 'Return only the rewritten copy without commentary, markdown fences, or surrounding narrative.', 'aimentor' );
+
+        $prompt_sections = array(
+                implode( ' ', $instructions ),
+                __( 'Source copy:', 'aimentor' ),
+                $source,
+                __( 'Rewritten copy:', 'aimentor' ),
+        );
+
+        $prompt = implode( "\n\n", $prompt_sections );
+
+        /**
+         * Filter the rewrite prompt before sending it to the provider.
+         *
+         * @param string $prompt        Final prompt string.
+         * @param string $source        Original source copy.
+         * @param string $tone_keywords Sanitized tone keywords.
+         * @param array  $args          Additional context arguments.
+         */
+        return apply_filters( 'aimentor_rewrite_prompt', $prompt, $source, $tone_keywords, $args );
 }
 
 /**
@@ -1106,8 +1169,233 @@ if ( ! function_exists( 'aimentor_resolve_generation_preset' ) ) {
         }
 }
 
+add_action( 'wp_ajax_aimentor_rewrite_content', 'jaggrok_rewrite_content_ajax' );
+add_action( 'wp_ajax_jaggrok_rewrite_content', 'jaggrok_rewrite_content_ajax' );
 add_action( 'wp_ajax_aimentor_generate_page', 'jaggrok_generate_page_ajax' );
 add_action( 'wp_ajax_jaggrok_generate_page', 'jaggrok_generate_page_ajax' );
+/**
+ * Handle AJAX rewrite requests for Elementor controls.
+ */
+function jaggrok_rewrite_content_ajax() {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+
+        if ( ! wp_verify_nonce( $nonce, 'aimentor_rewrite' ) && ! wp_verify_nonce( $nonce, 'aimentor_test' ) ) {
+                wp_send_json_error(
+                        array(
+                                'message' => __( 'Security check failed.', 'aimentor' ),
+                                'code'    => 'aimentor_invalid_nonce',
+                        ),
+                        403
+                );
+        }
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+                wp_send_json_error(
+                        array(
+                                'message' => __( 'Insufficient permissions to rewrite content.', 'aimentor' ),
+                                'code'    => 'aimentor_insufficient_permissions',
+                        ),
+                        403
+                );
+        }
+
+        $raw_source = isset( $_POST['content'] ) ? wp_unslash( $_POST['content'] ) : '';
+        $source     = is_string( $raw_source ) ? wp_kses_post( $raw_source ) : '';
+        $source     = trim( $source );
+
+        if ( '' === $source ) {
+                wp_send_json_error(
+                        array(
+                                'message' => __( 'Provide content to rewrite.', 'aimentor' ),
+                                'code'    => 'aimentor_missing_source',
+                        ),
+                        400
+                );
+        }
+
+        $tone_keywords = isset( $_POST['tone_keywords'] ) ? wp_unslash( $_POST['tone_keywords'] ) : '';
+        $tone_keywords = aimentor_sanitize_tone_keywords( $tone_keywords );
+
+        $brand_preferences = aimentor_get_brand_preferences();
+        $brand_tone        = isset( $brand_preferences['tone_keywords'] ) ? $brand_preferences['tone_keywords'] : '';
+
+        if ( '' === $tone_keywords ) {
+                $tone_keywords = $brand_tone;
+        }
+
+        $provider_labels = aimentor_get_provider_labels();
+        $provider_key    = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : get_option( 'aimentor_provider', 'grok' );
+
+        if ( ! array_key_exists( $provider_key, $provider_labels ) ) {
+                $provider_key = get_option( 'aimentor_provider', 'grok' );
+        }
+
+        $provider = jaggrok_get_active_provider( $provider_key );
+
+        if ( ! $provider instanceof AiMentor_Provider_Interface ) {
+                aimentor_log_error(
+                        'Invalid provider configuration for rewrite.',
+                        array(
+                                'provider' => $provider_key,
+                                'user_id'  => get_current_user_id(),
+                                'origin'   => 'rewrite',
+                        )
+                );
+
+                wp_send_json_error( __( 'Provider configuration error.', 'aimentor' ) );
+        }
+
+        $requested_tier = isset( $_POST['tier'] ) ? sanitize_text_field( wp_unslash( $_POST['tier'] ) ) : 'quality';
+
+        if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
+                $requested_tier = aimentor_sanitize_performance_tier( $requested_tier );
+        } else {
+                $requested_tier = jaggrok_normalize_performance_tier( $requested_tier );
+        }
+
+        $is_pro          = aimentor_is_pro_active();
+        $supports_canvas = $provider->supports_canvas();
+        $resolution      = jaggrok_resolve_generation_preset( $provider_key, 'content', $requested_tier, $supports_canvas, $is_pro );
+        $tier            = $resolution['tier'];
+        $model           = $resolution['model'];
+
+        switch ( $provider_key ) {
+                case 'openai':
+                        $api_key = get_option( 'aimentor_openai_api_key' );
+                        break;
+                case 'anthropic':
+                        $api_key = get_option( 'aimentor_anthropic_api_key' );
+                        break;
+                case 'grok':
+                default:
+                        $api_key = get_option( 'aimentor_xai_api_key' );
+                        break;
+        }
+
+        if ( is_array( $brand_preferences ) ) {
+                $brand_preferences['tone_keywords'] = $tone_keywords;
+        } else {
+                $brand_preferences = array(
+                        'tone_keywords' => $tone_keywords,
+                );
+        }
+
+        $prompt = aimentor_build_rewrite_prompt(
+                $source,
+                $tone_keywords,
+                array(
+                        'provider' => $provider_key,
+                        'model'    => $model,
+                        'tier'     => $tier,
+                )
+        );
+
+        $result = $provider->request(
+                $prompt,
+                array(
+                        'api_key'    => $api_key,
+                        'model'      => $model,
+                        'max_tokens' => get_option( 'aimentor_max_tokens', 2000 ),
+                        'context'    => array(
+                                'task'   => 'content',
+                                'tier'   => $tier,
+                                'brand'  => $brand_preferences,
+                                'intent' => 'rewrite',
+                        ),
+                )
+        );
+
+        if ( is_wp_error( $result ) ) {
+                $error_message = $result->get_error_message();
+
+                if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                        aimentor_record_provider_usage(
+                                $provider_key,
+                                'error',
+                                array(
+                                        'model'  => $model,
+                                        'task'   => 'content',
+                                        'tier'   => $tier,
+                                        'origin' => 'rewrite',
+                                )
+                        );
+                }
+
+                aimentor_log_error(
+                        $error_message . ' | Details: ' . wp_json_encode( $result->get_error_data() ),
+                        array(
+                                'provider' => $provider_key,
+                                'model'    => $model,
+                                'task'     => 'content',
+                                'tier'     => $tier,
+                                'origin'   => 'rewrite',
+                                'user_id'  => get_current_user_id(),
+                        )
+                );
+
+                $error_data = $result->get_error_data();
+
+                if ( ! is_array( $error_data ) ) {
+                        $error_data = array();
+                }
+
+                $error_data['message'] = $error_message;
+
+                wp_send_json_error( $error_data );
+        }
+
+        $rewritten = '';
+
+        if ( isset( $result['content'] ) && is_string( $result['content'] ) ) {
+                $rewritten = trim( $result['content'] );
+        } elseif ( ! empty( $result['content_variations'][0]['html'] ) ) {
+                $rewritten = trim( (string) $result['content_variations'][0]['html'] );
+        }
+
+        if ( '' === $rewritten ) {
+                wp_send_json_error(
+                        array(
+                                'message' => __( 'The provider response did not include rewritten content.', 'aimentor' ),
+                                'code'    => 'aimentor_empty_rewrite',
+                        ),
+                        500
+                );
+        }
+
+        if ( function_exists( 'aimentor_record_provider_usage' ) ) {
+                aimentor_record_provider_usage(
+                        $provider_key,
+                        'success',
+                        array(
+                                'model'  => $model,
+                                'task'   => 'content',
+                                'tier'   => $tier,
+                                'origin' => 'rewrite',
+                        )
+                );
+        }
+
+        $response_payload = array(
+                'provider'      => $provider_key,
+                'model'         => $model,
+                'tier'          => $tier,
+                'rewritten'     => $rewritten,
+                'tone_keywords' => $tone_keywords,
+        );
+
+        if ( ! empty( $result['rate_limit'] ) ) {
+                $response_payload['rate_limit'] = $result['rate_limit'];
+        }
+
+        wp_send_json_success( $response_payload );
+}
+
+if ( ! function_exists( 'aimentor_rewrite_content_ajax' ) ) {
+        function aimentor_rewrite_content_ajax() {
+                jaggrok_rewrite_content_ajax();
+        }
+}
+
 /**
  * Handle the AJAX request to generate Elementor content.
  */

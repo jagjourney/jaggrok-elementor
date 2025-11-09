@@ -321,8 +321,9 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
             $context = [];
         }
 
-        $task = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : 'content';
-        $tier = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : 'fast';
+        $task   = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : 'content';
+        $tier   = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : 'fast';
+        $intent = isset( $context['intent'] ) ? sanitize_key( $context['intent'] ) : 'generate';
 
         if ( ! in_array( $task, [ 'canvas', 'content' ], true ) ) {
             $task = 'content';
@@ -330,6 +331,10 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
 
         if ( ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
             $tier = 'fast';
+        }
+
+        if ( ! in_array( $intent, [ 'generate', 'rewrite' ], true ) ) {
+            $intent = 'generate';
         }
 
         $brand = $this->build_brand_context( $context );
@@ -341,6 +346,7 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
             'tier'       => $tier,
             'brand'      => $brand,
             'variations' => $variations,
+            'intent'     => $intent,
         ];
     }
 
@@ -442,9 +448,15 @@ class AiMentor_Grok_Provider implements AiMentor_Provider_Interface {
     }
 
     protected function get_prompt_suffix( $context ) {
-        $suffix = 'canvas' === $context['task']
-            ? ' Output as structured Elementor JSON with dynamic content, forms, and responsive columns.'
-            : ' Output as clean Elementor HTML sections optimized for fast insertion.';
+        $intent = isset( $context['intent'] ) ? $context['intent'] : 'generate';
+
+        if ( 'rewrite' === $intent ) {
+            $suffix = ' Return only the rewritten copy ready to paste into Elementor. Maintain any HTML tags, shortcodes, or dynamic placeholders present in the source.';
+        } elseif ( 'canvas' === $context['task'] ) {
+            $suffix = ' Output as structured Elementor JSON with dynamic content, forms, and responsive columns.';
+        } else {
+            $suffix = ' Output as clean Elementor HTML sections optimized for fast insertion.';
+        }
 
         $brand = isset( $context['brand'] ) ? $context['brand'] : [];
 
