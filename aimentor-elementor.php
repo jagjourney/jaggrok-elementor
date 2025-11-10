@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.7.0
+ * Version: 1.8.0
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
- define( 'AIMENTOR_PLUGIN_VERSION', '1.7.0' );
+ define( 'AIMENTOR_PLUGIN_VERSION', '1.8.0' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -48,6 +48,10 @@ if ( ! defined( 'AIMENTOR_PLUGIN_URL' ) ) {
 
 if ( ! defined( 'AIMENTOR_PROVIDER_HEALTH_EVENT' ) ) {
         define( 'AIMENTOR_PROVIDER_HEALTH_EVENT', 'aimentor_daily_provider_health_check' );
+}
+
+if ( ! defined( 'AIMENTOR_AUTOMATION_EVENT' ) ) {
+        define( 'AIMENTOR_AUTOMATION_EVENT', 'aimentor_hourly_automation_runner' );
 }
 
 if ( ! function_exists( 'aimentor_get_error_log_directory' ) ) {
@@ -712,6 +716,8 @@ function aimentor_get_ajax_payload() {
                         'knowledgePackDescription'   => __( 'Optional: ground the response with brand or product knowledge.', 'aimentor' ),
                         'knowledgePackSelectionEmpty' => __( 'No knowledge packs available yet.', 'aimentor' ),
                         'knowledgePackSelectedCount' => __( '%d knowledge packs selected', 'aimentor' ),
+                        'automationJobRemoveConfirm' => __( 'Remove this automation job? This cannot be undone.', 'aimentor' ),
+                        'automationJobDefaultTitle'  => __( 'New automation job', 'aimentor' ),
                         /* translators: %s: Human readable duration. */
                         'rateLimitCooldown'       => __( 'Please wait %s before trying again.', 'aimentor' ),
                         'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
@@ -967,6 +973,7 @@ if ( class_exists( 'AiMentor_OpenAI_Provider' ) && ! class_exists( 'JagGrok_Open
 
 // Settings & helpers.
 require_once AIMENTOR_PLUGIN_DIR . 'includes/settings.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/automation.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/legacy-shims.php';
 
 function aimentor_schedule_provider_health_check() {
@@ -1012,6 +1019,49 @@ function aimentor_refresh_provider_health_schedule( $old_value, $value ) {
         aimentor_clear_provider_health_schedule();
 }
 
+function aimentor_schedule_automation_runner() {
+        if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'wp_schedule_event' ) || ! function_exists( 'aimentor_automation_enabled' ) ) {
+                return;
+        }
+
+        if ( ! aimentor_automation_enabled() ) {
+                aimentor_clear_automation_schedule();
+                return;
+        }
+
+        if ( ! wp_next_scheduled( AIMENTOR_AUTOMATION_EVENT ) ) {
+                wp_schedule_event( time() + MINUTE_IN_SECONDS, 'hourly', AIMENTOR_AUTOMATION_EVENT );
+        }
+}
+
+function aimentor_clear_automation_schedule() {
+        if ( function_exists( 'wp_clear_scheduled_hook' ) ) {
+                wp_clear_scheduled_hook( AIMENTOR_AUTOMATION_EVENT );
+        }
+}
+
+function aimentor_refresh_automation_schedule( $old_value, $value ) {
+        if ( ! function_exists( 'aimentor_sanitize_toggle' ) ) {
+                return;
+        }
+
+        $normalized = aimentor_sanitize_toggle( $value );
+
+        if ( 'yes' === $normalized ) {
+                aimentor_schedule_automation_runner();
+                return;
+        }
+
+        aimentor_clear_automation_schedule();
+}
+
+add_action( 'init', 'aimentor_schedule_automation_runner' );
+add_action( 'update_option_aimentor_enable_automation', 'aimentor_refresh_automation_schedule', 10, 2 );
+
+if ( function_exists( 'aimentor_run_scheduled_automation_jobs' ) ) {
+        add_action( AIMENTOR_AUTOMATION_EVENT, 'aimentor_run_scheduled_automation_jobs' );
+}
+
 register_activation_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_activate_plugin' );
 /**
  * Run setup tasks during plugin activation.
@@ -1022,12 +1072,14 @@ function aimentor_activate_plugin() {
         }
 
         aimentor_schedule_provider_health_check();
+        aimentor_schedule_automation_runner();
 }
 
 register_deactivation_hook( AIMENTOR_PLUGIN_FILE, 'aimentor_deactivate_plugin' );
 
 function aimentor_deactivate_plugin() {
         aimentor_clear_provider_health_schedule();
+        aimentor_clear_automation_schedule();
 }
 
 if ( function_exists( 'aimentor_seed_default_options' ) ) {

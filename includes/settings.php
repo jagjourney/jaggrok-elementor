@@ -1310,6 +1310,364 @@ function aimentor_store_generation_history_entry( $prompt, $provider ) {
         return $entry;
 }
 
+function aimentor_get_automation_jobs_option_name() {
+        return 'aimentor_automation_jobs';
+}
+
+function aimentor_get_automation_queue_state_option_name() {
+        return 'aimentor_automation_queue_state';
+}
+
+function aimentor_get_automation_results_option_name() {
+        return 'aimentor_automation_results';
+}
+
+function aimentor_automation_enabled() {
+        $defaults = aimentor_get_default_options();
+        $value    = get_option( 'aimentor_enable_automation', $defaults['aimentor_enable_automation'] );
+        $value    = aimentor_sanitize_toggle( $value );
+
+        return 'yes' === $value;
+}
+
+function aimentor_get_automation_job_defaults() {
+        return [
+                'id'               => '',
+                'label'            => '',
+                'status'           => 'active',
+                'post_type'        => 'post',
+                'post_status'      => 'publish',
+                'selection'        => 'recent',
+                'post_ids'         => [],
+                'limit'            => 1,
+                'cadence'          => 'daily',
+                'task'             => 'content',
+                'provider'         => '',
+                'tier'             => '',
+                'prompt_type'      => 'saved_prompt',
+                'saved_prompt_id'  => '',
+                'prompt_template'  => '',
+                'knowledge_ids'    => [],
+        ];
+}
+
+function aimentor_normalize_automation_job_entry( $entry, $fallback_label = '' ) {
+        if ( ! is_array( $entry ) ) {
+                return null;
+        }
+
+        $defaults = aimentor_get_automation_job_defaults();
+        $entry    = wp_parse_args( $entry, $defaults );
+
+        $job_id = isset( $entry['id'] ) ? sanitize_text_field( (string) $entry['id'] ) : '';
+
+        if ( '' === $job_id && function_exists( 'wp_generate_uuid4' ) ) {
+                $job_id = wp_generate_uuid4();
+        }
+
+        if ( '' === $job_id ) {
+                $job_id = uniqid( 'aimentor_job_', true );
+        }
+
+        $label = sanitize_text_field( (string) $entry['label'] );
+
+        if ( '' === $label ) {
+                $label = $fallback_label ? sanitize_text_field( $fallback_label ) : sprintf( __( 'Automation Job %s', 'aimentor' ), $job_id );
+        }
+
+        $status  = sanitize_key( $entry['status'] );
+        $allowed = [ 'active', 'paused' ];
+
+        if ( ! in_array( $status, $allowed, true ) ) {
+                $status = 'active';
+        }
+
+        $post_type = sanitize_key( $entry['post_type'] );
+
+        if ( ! post_type_exists( $post_type ) ) {
+                return null;
+        }
+
+        $post_status = sanitize_key( $entry['post_status'] );
+        $allowed_statuses = [ 'publish', 'draft', 'future', 'pending', 'private', 'any' ];
+
+        if ( ! in_array( $post_status, $allowed_statuses, true ) ) {
+                $post_status = 'publish';
+        }
+
+        $selection = sanitize_key( $entry['selection'] );
+
+        if ( ! in_array( $selection, [ 'recent', 'ids' ], true ) ) {
+                $selection = 'recent';
+        }
+
+        $post_ids = [];
+
+        if ( 'ids' === $selection ) {
+                $raw_ids = $entry['post_ids'];
+
+                if ( is_string( $raw_ids ) ) {
+                        $raw_ids = preg_split( '/[\s,]+/', $raw_ids, -1, PREG_SPLIT_NO_EMPTY );
+                }
+
+                if ( is_array( $raw_ids ) ) {
+                        foreach ( $raw_ids as $id ) {
+                                $post_ids[] = absint( $id );
+                        }
+                }
+
+                $post_ids = array_values( array_filter( $post_ids ) );
+        }
+
+        $limit = isset( $entry['limit'] ) ? absint( $entry['limit'] ) : $defaults['limit'];
+
+        if ( $limit < 1 ) {
+                $limit = 1;
+        } elseif ( $limit > 20 ) {
+                $limit = 20;
+        }
+
+        $cadence = sanitize_key( $entry['cadence'] );
+        $allowed_cadence = [ 'hourly', 'twicedaily', 'daily', 'weekly' ];
+
+        if ( ! in_array( $cadence, $allowed_cadence, true ) ) {
+                $cadence = 'daily';
+        }
+
+        $task = isset( $entry['task'] ) ? aimentor_sanitize_generation_type( $entry['task'] ) : 'content';
+        $tier = isset( $entry['tier'] ) ? aimentor_sanitize_performance_tier( $entry['tier'] ) : '';
+
+        if ( '' === $tier || 'fast' === $tier ) {
+                $tier = '';
+        }
+
+        $provider = sanitize_key( $entry['provider'] );
+        $provider_labels = aimentor_get_provider_labels();
+
+        if ( '' !== $provider && ! array_key_exists( $provider, $provider_labels ) ) {
+                $provider = '';
+        }
+
+        $prompt_type = sanitize_key( $entry['prompt_type'] );
+
+        if ( ! in_array( $prompt_type, [ 'saved_prompt', 'manual' ], true ) ) {
+                $prompt_type = 'saved_prompt';
+        }
+
+        $saved_prompt_id = sanitize_text_field( (string) $entry['saved_prompt_id'] );
+        $prompt_template = sanitize_textarea_field( (string) $entry['prompt_template'] );
+
+        if ( 'saved_prompt' === $prompt_type && '' === $saved_prompt_id ) {
+                if ( '' !== $prompt_template ) {
+                        $prompt_type = 'manual';
+                } else {
+                        return null;
+                }
+        }
+
+        if ( 'manual' === $prompt_type && '' === $prompt_template ) {
+                return null;
+        }
+
+        $knowledge_ids = isset( $entry['knowledge_ids'] ) ? aimentor_sanitize_knowledge_ids( $entry['knowledge_ids'] ) : [];
+
+        return [
+                'id'              => $job_id,
+                'label'           => $label,
+                'status'          => $status,
+                'post_type'       => $post_type,
+                'post_status'     => $post_status,
+                'selection'       => $selection,
+                'post_ids'        => $post_ids,
+                'limit'           => $limit,
+                'cadence'         => $cadence,
+                'task'            => $task,
+                'provider'        => $provider,
+                'tier'            => $tier,
+                'prompt_type'     => $prompt_type,
+                'saved_prompt_id' => 'saved_prompt' === $prompt_type ? $saved_prompt_id : '',
+                'prompt_template' => 'manual' === $prompt_type ? $prompt_template : '',
+                'knowledge_ids'   => $knowledge_ids,
+        ];
+}
+
+function aimentor_sanitize_automation_jobs( $jobs ) {
+        if ( ! is_array( $jobs ) ) {
+                return [];
+        }
+
+        $normalized = [];
+        $counter    = 1;
+
+        foreach ( $jobs as $job ) {
+                $normalized_job = aimentor_normalize_automation_job_entry( $job, sprintf( __( 'Automation Job %d', 'aimentor' ), $counter ) );
+
+                if ( ! $normalized_job ) {
+                        $counter++;
+                        continue;
+                }
+
+                $normalized[ $normalized_job['id'] ] = $normalized_job;
+                $counter++;
+        }
+
+        return array_values( $normalized );
+}
+
+function aimentor_get_automation_jobs() {
+        $jobs = get_option( aimentor_get_automation_jobs_option_name(), [] );
+
+        if ( ! is_array( $jobs ) ) {
+                return [];
+        }
+
+        return aimentor_sanitize_automation_jobs( $jobs );
+}
+
+function aimentor_get_automation_jobs_map() {
+        $map = [];
+
+        foreach ( aimentor_get_automation_jobs() as $job ) {
+                $map[ $job['id'] ] = $job;
+        }
+
+        return $map;
+}
+
+function aimentor_get_automation_queue_state() {
+        $state = get_option( aimentor_get_automation_queue_state_option_name(), [] );
+
+        if ( ! is_array( $state ) ) {
+                $state = [];
+        }
+
+        $jobs = isset( $state['jobs'] ) && is_array( $state['jobs'] ) ? $state['jobs'] : [];
+        $normalized_jobs = [];
+
+        foreach ( $jobs as $job_id => $job_state ) {
+                $job_key = sanitize_text_field( (string) $job_id );
+
+                if ( '' === $job_key ) {
+                        continue;
+                }
+
+                $normalized_jobs[ $job_key ] = [
+                        'status'             => isset( $job_state['status'] ) ? sanitize_key( $job_state['status'] ) : 'idle',
+                        'last_run'           => isset( $job_state['last_run'] ) ? absint( $job_state['last_run'] ) : 0,
+                        'next_run'           => isset( $job_state['next_run'] ) ? absint( $job_state['next_run'] ) : 0,
+                        'last_result'        => isset( $job_state['last_result'] ) ? sanitize_key( $job_state['last_result'] ) : '',
+                        'last_error'         => isset( $job_state['last_error'] ) ? sanitize_textarea_field( $job_state['last_error'] ) : '',
+                        'processed'          => isset( $job_state['processed'] ) ? absint( $job_state['processed'] ) : 0,
+                        'pending'            => isset( $job_state['pending'] ) ? absint( $job_state['pending'] ) : 0,
+                        'rate_limited_until' => isset( $job_state['rate_limited_until'] ) ? absint( $job_state['rate_limited_until'] ) : 0,
+                ];
+        }
+
+        $state['jobs']       = $normalized_jobs;
+        $state['updated_at'] = isset( $state['updated_at'] ) ? absint( $state['updated_at'] ) : 0;
+
+        return $state;
+}
+
+function aimentor_store_automation_queue_state( $state ) {
+        if ( ! is_array( $state ) ) {
+                $state = [];
+        }
+
+        $state['updated_at'] = current_time( 'timestamp' );
+
+        update_option( aimentor_get_automation_queue_state_option_name(), $state, false );
+}
+
+function aimentor_get_automation_results() {
+        $results = get_option( aimentor_get_automation_results_option_name(), [] );
+
+        if ( ! is_array( $results ) ) {
+                return [];
+        }
+
+        $normalized = [];
+
+        foreach ( $results as $key => $entry ) {
+                if ( ! is_array( $entry ) ) {
+                        continue;
+                }
+
+                $layout_id = isset( $entry['layout_id'] ) ? absint( $entry['layout_id'] ) : absint( $key );
+
+                if ( ! $layout_id ) {
+                        continue;
+                }
+
+                $job_id   = isset( $entry['job_id'] ) ? sanitize_text_field( $entry['job_id'] ) : '';
+                $status   = isset( $entry['status'] ) ? sanitize_key( $entry['status'] ) : 'pending';
+                $statuses = [ 'pending', 'approved', 'dismissed', 'applied' ];
+
+                if ( ! in_array( $status, $statuses, true ) ) {
+                        $status = 'pending';
+                }
+
+                $generation_type = isset( $entry['generation_type'] ) ? sanitize_key( $entry['generation_type'] ) : '';
+
+                if ( '' !== $generation_type && ! in_array( $generation_type, [ 'content', 'canvas' ], true ) ) {
+                        $generation_type = '';
+                }
+
+                $normalized[ $layout_id ] = [
+                        'layout_id'       => $layout_id,
+                        'job_id'          => $job_id,
+                        'source_post_id'  => isset( $entry['source_post_id'] ) ? absint( $entry['source_post_id'] ) : 0,
+                        'status'          => $status,
+                        'generation_type' => $generation_type,
+                        'provider'        => isset( $entry['provider'] ) ? sanitize_key( $entry['provider'] ) : '',
+                        'model'           => isset( $entry['model'] ) ? sanitize_text_field( $entry['model'] ) : '',
+                        'summary'         => isset( $entry['summary'] ) ? sanitize_text_field( $entry['summary'] ) : '',
+                        'created_at'      => isset( $entry['created_at'] ) ? absint( $entry['created_at'] ) : 0,
+                        'updated_at'      => isset( $entry['updated_at'] ) ? absint( $entry['updated_at'] ) : 0,
+                        'applied_at'      => isset( $entry['applied_at'] ) ? absint( $entry['applied_at'] ) : 0,
+                        'notes'           => isset( $entry['notes'] ) ? sanitize_textarea_field( $entry['notes'] ) : '',
+                ];
+        }
+
+        return $normalized;
+}
+
+function aimentor_store_automation_results( $results ) {
+        if ( ! is_array( $results ) ) {
+                $results = [];
+        }
+
+        $normalized = [];
+
+        foreach ( $results as $key => $entry ) {
+                if ( ! is_array( $entry ) ) {
+                        continue;
+                }
+
+                $layout_id = isset( $entry['layout_id'] ) ? absint( $entry['layout_id'] ) : absint( $key );
+
+                if ( ! $layout_id ) {
+                        continue;
+                }
+
+                $normalized[ $layout_id ] = $entry;
+        }
+
+        update_option( aimentor_get_automation_results_option_name(), $normalized, false );
+}
+
+function aimentor_get_pending_automation_results() {
+        $pending = [];
+
+        foreach ( aimentor_get_automation_results() as $result ) {
+                if ( 'pending' === $result['status'] ) {
+                        $pending[ $result['layout_id'] ] = $result;
+                }
+        }
+
+        return $pending;
+}
+
 function aimentor_get_canvas_history_option_name() {
         return 'aimentor_canvas_history';
 }
@@ -2488,6 +2846,10 @@ function aimentor_get_default_options() {
                 'aimentor_archive_layouts_show_ui'    => 'no',
                 'aimentor_request_overrides'          => aimentor_get_request_override_defaults(),
                 'aimentor_network_lock_provider_models' => 'no',
+                'aimentor_enable_automation'          => 'no',
+                'aimentor_automation_jobs'            => [],
+                'aimentor_automation_queue_state'     => [],
+                'aimentor_automation_results'         => [],
         ];
 }
 
@@ -2949,6 +3311,25 @@ function aimentor_register_settings() {
                 [
                         'sanitize_callback' => 'aimentor_sanitize_health_check_recipients',
                         'default' => $defaults['aimentor_health_check_recipients'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_enable_automation',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_toggle',
+                        'default' => $defaults['aimentor_enable_automation'],
+                ]
+        );
+
+        register_setting(
+                'aimentor_settings',
+                'aimentor_automation_jobs',
+                [
+                        'sanitize_callback' => 'aimentor_sanitize_automation_jobs',
+                        'default' => $defaults['aimentor_automation_jobs'],
+                        'type'    => 'array',
                 ]
         );
 
@@ -4201,6 +4582,20 @@ function aimentor_get_settings_view_model() {
         $onboarding_dismissed = 'yes' === get_option( 'aimentor_onboarding_dismissed', $defaults['aimentor_onboarding_dismissed'] );
         $should_show_onboarding = ! $onboarding_dismissed && ( ! $has_api_key || ! $provider_tested );
 
+        $automation_enabled     = aimentor_automation_enabled();
+        $automation_jobs        = aimentor_get_automation_jobs();
+        $automation_jobs_map    = [];
+
+        foreach ( $automation_jobs as $automation_job ) {
+                $automation_jobs_map[ $automation_job['id'] ] = $automation_job;
+        }
+
+        $automation_queue_state   = aimentor_get_automation_queue_state();
+        $automation_results       = aimentor_get_automation_results();
+        $automation_pending       = aimentor_get_pending_automation_results();
+        $saved_prompts_payload    = aimentor_get_saved_prompts_payload();
+        $knowledge_packs          = function_exists( 'aimentor_get_knowledge_packs' ) ? aimentor_get_knowledge_packs() : [];
+
         return [
                 'defaults'                    => $defaults,
                 'usage_metrics'               => $usage_metrics,
@@ -4238,6 +4633,14 @@ function aimentor_get_settings_view_model() {
                 'provider_tested'             => $provider_tested,
                 'onboarding_dismissed'        => $onboarding_dismissed,
                 'should_show_onboarding'      => $should_show_onboarding,
+                'automation_enabled'          => $automation_enabled,
+                'automation_jobs'             => $automation_jobs,
+                'automation_jobs_map'         => $automation_jobs_map,
+                'automation_queue_state'      => $automation_queue_state,
+                'automation_results'          => $automation_results,
+                'automation_pending_results'  => $automation_pending,
+                'saved_prompts_payload'       => $saved_prompts_payload,
+                'knowledge_packs'             => $knowledge_packs,
         ];
 }
 
@@ -4259,8 +4662,13 @@ function aimentor_get_settings_tabs() {
                         'capability' => 'manage_options',
                 ],
                 'brand-automation' => [
-                        'label'      => __( 'Brand & Automation', 'aimentor' ),
+                        'label'      => __( 'Brand', 'aimentor' ),
                         'callback'   => 'aimentor_render_settings_tab_brand',
+                        'capability' => 'manage_options',
+                ],
+                'automation'      => [
+                        'label'      => __( 'Automation', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_automation',
                         'capability' => 'manage_options',
                 ],
                 'frame-library'    => [
@@ -4339,6 +4747,17 @@ function aimentor_render_settings_tab_brand() {
         ob_start();
         extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
         include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-brand.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_automation() {
+        $view_model       = aimentor_get_settings_view_model();
+        $support_sections = aimentor_get_settings_support_resources();
+
+        ob_start();
+        extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-automation.php';
 
         return (string) ob_get_clean();
 }

@@ -124,6 +124,8 @@ jQuery(document).ready(function($) {
     var knowledgeUpdatedColumn = getString('knowledgeUpdatedColumn', 'Updated');
     var knowledgeEditLabel = getString('knowledgeEditLabel', 'Edit');
     var knowledgeDeleteLabel = getString('knowledgeDeleteLabel', 'Delete');
+    var automationJobRemoveConfirmMessage = getString('automationJobRemoveConfirm', 'Remove this automation job? This cannot be undone.');
+    var automationJobDefaultTitle = getString('automationJobDefaultTitle', 'New automation job');
 
     function buildClassList() {
         return statusStates.map(function(state) {
@@ -1411,6 +1413,163 @@ jQuery(document).ready(function($) {
         });
     }
 
+    function initializeAutomationJobs(context) {
+        var $context = resolveContext(context);
+        var $containers = ($context && $context.length) ? $context.find('.aimentor-automation') : $('.aimentor-automation');
+
+        if (!$containers.length) {
+            return;
+        }
+
+        var $template = $('#aimentor-automation-job-template');
+        var templateHtml = $template.length ? $.trim($template.html()) : '';
+
+        $containers.each(function() {
+            var $container = $(this);
+
+            if ($container.data('automationInit')) {
+                return;
+            }
+
+            $container.data('automationInit', true);
+
+            var $jobsWrapper = $container.find('.aimentor-automation-jobs');
+
+            function getNextIndex() {
+                var nextIndex = $jobsWrapper.data('nextIndex');
+
+                if (typeof nextIndex === 'undefined') {
+                    nextIndex = $jobsWrapper.attr('data-next-index');
+                }
+
+                if (typeof nextIndex === 'undefined') {
+                    nextIndex = $container.data('nextIndex');
+                }
+
+                nextIndex = parseInt(nextIndex, 10);
+
+                if (isNaN(nextIndex)) {
+                    nextIndex = $jobsWrapper.children('.aimentor-automation-job').length || 0;
+                }
+
+                return nextIndex;
+            }
+
+            function setNextIndex(value) {
+                $jobsWrapper.data('nextIndex', value);
+                $jobsWrapper.attr('data-next-index', value);
+                $container.data('nextIndex', value);
+                $container.attr('data-next-index', value);
+            }
+
+            function toggleIdsField($job, selection) {
+                var $idsField = $job.find('.aimentor-automation-job__ids-field');
+
+                if (!$idsField.length) {
+                    return;
+                }
+
+                if (selection === 'ids') {
+                    $idsField.show();
+                } else {
+                    $idsField.hide();
+                }
+            }
+
+            function togglePromptFields($job, promptType) {
+                var $saved = $job.find('.aimentor-automation-job__prompt-saved');
+                var $manual = $job.find('.aimentor-automation-job__prompt-manual');
+
+                if ('manual' === promptType) {
+                    $saved.hide();
+                    $manual.show();
+                } else {
+                    $saved.show();
+                    $manual.hide();
+                }
+            }
+
+            function updateJobTitle($job) {
+                var $title = $job.find('.aimentor-automation-job__title');
+
+                if (!$title.length) {
+                    return;
+                }
+
+                var $labelInput = $job.find('input[name$="[label]"]');
+                var labelValue = $.trim($labelInput.val() || '');
+
+                $title.text(labelValue ? labelValue : automationJobDefaultTitle);
+            }
+
+            function initializeJob($job) {
+                if (!$job || !$job.length) {
+                    return;
+                }
+
+                var selection = String($job.find('.aimentor-automation-job__content-selection').val() || 'recent');
+                toggleIdsField($job, selection);
+
+                var $selectedPrompt = $job.find('.aimentor-automation-job__prompt-type input[type="radio"]:checked');
+                var promptType = $selectedPrompt.length ? String($selectedPrompt.val() || 'saved_prompt') : 'saved_prompt';
+                togglePromptFields($job, promptType);
+
+                updateJobTitle($job);
+            }
+
+            $jobsWrapper.children('.aimentor-automation-job').each(function() {
+                initializeJob($(this));
+            });
+
+            $container.on('click' + EVENT_NAMESPACE, '.aimentor-automation-add', function(event) {
+                event.preventDefault();
+
+                if (!templateHtml) {
+                    return;
+                }
+
+                var nextIndex = getNextIndex();
+                var jobHtml = templateHtml.replace(/__INDEX__/g, nextIndex);
+                var $job = $(jobHtml);
+
+                $jobsWrapper.append($job);
+                initializeJob($job);
+                setNextIndex(nextIndex + 1);
+            });
+
+            $container.on('click' + EVENT_NAMESPACE, '.aimentor-automation-job__remove', function(event) {
+                event.preventDefault();
+
+                if (!window.confirm(automationJobRemoveConfirmMessage)) {
+                    return;
+                }
+
+                var $job = $(this).closest('.aimentor-automation-job');
+
+                if ($job.length) {
+                    $job.remove();
+                }
+            });
+
+            $container.on('change' + EVENT_NAMESPACE, '.aimentor-automation-job__content-selection', function() {
+                var $job = $(this).closest('.aimentor-automation-job');
+                var selection = String($(this).val() || 'recent');
+                toggleIdsField($job, selection);
+            });
+
+            $container.on('change' + EVENT_NAMESPACE, '.aimentor-automation-job__prompt-type input[type="radio"]', function() {
+                var $job = $(this).closest('.aimentor-automation-job');
+                var promptType = String($(this).val() || 'saved_prompt');
+                togglePromptFields($job, promptType);
+            });
+
+            $container.on('input' + EVENT_NAMESPACE + ' change' + EVENT_NAMESPACE, '.aimentor-automation-job input[name$="[label]"]', function() {
+                var $job = $(this).closest('.aimentor-automation-job');
+                updateJobTitle($job);
+            });
+        });
+    }
+
     function initializeDynamicContent(context) {
         var $context = resolveContext(context);
 
@@ -1423,6 +1582,7 @@ jQuery(document).ready(function($) {
         initializeSavedPrompts($context);
         initializeKnowledge($context);
         initializeFrameLibrary($context);
+        initializeAutomationJobs($context);
     }
 
     $(document)
