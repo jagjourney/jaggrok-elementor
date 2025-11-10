@@ -8,6 +8,35 @@
     margin-right: 6px;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Knowledge Packs */
+/* -------------------------------------------------------------------------- */
+.aimentor-knowledge__notice {
+    margin: 16px 0;
+}
+
+.aimentor-knowledge__table th,
+.aimentor-knowledge__table td {
+    vertical-align: top;
+}
+
+.aimentor-knowledge__summary span {
+    display: block;
+    max-width: 540px;
+    color: #4b5563;
+}
+
+.aimentor-knowledge__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-direction: row-reverse;
+}
+
+.aimentor-knowledge__actions-header {
+    width: 140px;
+}
+
 .aimentor-onboarding-card {
     padding-right: 0;
     padding-left: 40px;

@@ -337,14 +337,15 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             $intent = 'generate';
         }
 
-        $brand = $this->build_brand_context( $context );
-
+        $brand      = $this->build_brand_context( $context );
+        $knowledge  = $this->normalize_knowledge_context( $context['knowledge'] ?? [] );
         $variations = isset( $context['variations'] ) ? $this->sanitize_variation_count( $context['variations'] ) : 1;
 
         return [
             'task'       => $task,
             'tier'       => $tier,
             'brand'      => $brand,
+            'knowledge'  => $knowledge,
             'variations' => $variations,
             'intent'     => $intent,
         ];
@@ -460,7 +461,10 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
 
         $brand = isset( $context['brand'] ) ? $context['brand'] : [];
 
-        return $suffix . $this->get_brand_prompt_guidance( $brand );
+        $brand_guidance     = $this->get_brand_prompt_guidance( $brand );
+        $knowledge_guidance = $this->get_knowledge_prompt_guidance( $context['knowledge'] ?? [] );
+
+        return $suffix . $brand_guidance . $knowledge_guidance;
     }
 
     protected function get_temperature( $context ) {
@@ -507,6 +511,95 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
 
         if ( '' !== $tone_keywords ) {
             $parts[] = sprintf( 'Keep the writing voice aligned with these tone keywords: %s.', $tone_keywords );
+        }
+
+        if ( empty( $parts ) ) {
+            return '';
+        }
+
+        return ' ' . implode( ' ', $parts );
+    }
+
+    protected function normalize_knowledge_context( $knowledge ) {
+        if ( ! is_array( $knowledge ) ) {
+            return [];
+        }
+
+        $ids = isset( $knowledge['ids'] ) && is_array( $knowledge['ids'] ) ? array_map( 'sanitize_text_field', $knowledge['ids'] ) : [];
+        $ids = array_values( array_unique( array_filter( $ids ) ) );
+
+        $packs = [];
+
+        if ( isset( $knowledge['packs'] ) && is_array( $knowledge['packs'] ) ) {
+            foreach ( $knowledge['packs'] as $pack ) {
+                if ( ! is_array( $pack ) ) {
+                    continue;
+                }
+
+                $id       = isset( $pack['id'] ) ? sanitize_text_field( $pack['id'] ) : '';
+                $title    = isset( $pack['title'] ) ? sanitize_text_field( $pack['title'] ) : '';
+                $summary  = isset( $pack['summary'] ) ? sanitize_textarea_field( $pack['summary'] ) : '';
+                $guidance = isset( $pack['guidance'] ) ? sanitize_textarea_field( $pack['guidance'] ) : '';
+
+                if ( '' === $id && '' === $title ) {
+                    continue;
+                }
+
+                $packs[] = [
+                    'id'       => $id,
+                    'title'    => $title,
+                    'summary'  => $summary,
+                    'guidance' => $guidance,
+                ];
+            }
+        }
+
+        $summary  = isset( $knowledge['summary'] ) ? sanitize_textarea_field( $knowledge['summary'] ) : '';
+        $guidance = isset( $knowledge['guidance'] ) ? sanitize_textarea_field( $knowledge['guidance'] ) : '';
+
+        if ( empty( $packs ) && '' === $summary && '' === $guidance ) {
+            return [];
+        }
+
+        return [
+            'packs'    => $packs,
+            'ids'      => $ids,
+            'summary'  => $summary,
+            'guidance' => $guidance,
+        ];
+    }
+
+    protected function get_knowledge_prompt_guidance( $knowledge ) {
+        $normalized = $this->normalize_knowledge_context( $knowledge );
+
+        if ( empty( $normalized ) ) {
+            return '';
+        }
+
+        $parts = [];
+
+        if ( ! empty( $normalized['summary'] ) ) {
+            $parts[] = sprintf( 'Reference these knowledge summaries: %s.', $normalized['summary'] );
+        }
+
+        if ( ! empty( $normalized['guidance'] ) ) {
+            $parts[] = sprintf( "Follow these directives:\n%s", $normalized['guidance'] );
+        }
+
+        if ( empty( $parts ) && ! empty( $normalized['packs'] ) ) {
+            $labels = [];
+
+            foreach ( $normalized['packs'] as $pack ) {
+                $label = $pack['title'] ? $pack['title'] : $pack['id'];
+
+                if ( '' !== $label ) {
+                    $labels[] = $label;
+                }
+            }
+
+            if ( ! empty( $labels ) ) {
+                $parts[] = sprintf( 'Incorporate insights from these knowledge packs: %s.', implode( ', ', $labels ) );
+            }
         }
 
         if ( empty( $parts ) ) {

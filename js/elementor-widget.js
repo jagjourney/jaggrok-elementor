@@ -25,6 +25,8 @@
             '.aimentor-modal__aside-tab.is-active{background:#ffffff;color:#111827;box-shadow:0 1px 2px rgba(15,23,42,0.12);border-color:#c7c9cc;}' +
             '.aimentor-modal__panel{display:none;border:1px solid #dcdcde;border-radius:8px;background:#ffffff;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,0.08);max-height:360px;overflow:auto;}' +
             '.aimentor-modal__panel.is-active{display:block;}' +
+            '.aimentor-modal__select--multiline{min-height:128px;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;line-height:1.4;}' +
+            '.aimentor-modal__select--multiline option{white-space:normal;}' +
             '.aimentor-layout-history{display:flex;flex-direction:column;gap:12px;}' +
             '.aimentor-layout-history__header{display:flex;align-items:center;gap:8px;}' +
             '.aimentor-layout-history__title{margin:0;font-size:14px;font-weight:600;color:#111827;}' +
@@ -225,11 +227,16 @@
         var savedPromptsData = aimentorData.savedPrompts || {};
         var savedPromptsStore = normalizeSavedPrompts(savedPromptsData);
         var savedPromptSelectNodes = [];
+        var knowledgeData = Array.isArray(aimentorData.knowledgePacks) ? aimentorData.knowledgePacks : [];
+        var knowledgeStore = normalizeKnowledgePacks(knowledgeData);
+        var knowledgeEndpoint = typeof aimentorData.knowledgeEndpoint === 'string' ? aimentorData.knowledgeEndpoint : '';
+        var knowledgeSelectNodes = [];
         var promptPresetData = buildPromptPresetData(aimentorData.promptPresets || {});
         var promptPresetLookup = promptPresetData.presets;
         var promptCategoryLookup = promptPresetData.categories;
         var promptCategoryPresetMap = promptPresetData.categoryPresets;
         var savedPromptCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
+        var knowledgeCollator = savedPromptCollator;
         var defaultLayoutSummary = strings.recentLayoutsPreviewMissing || 'Preview unavailable for this layout.';
         var canvasHistoryStore = createCanvasHistoryStore(aimentorData.canvasHistory || [], parseInt(aimentorData.canvasHistoryMax, 10) || 0);
         var frameLibraryEndpoint = typeof aimentorData.frameLibraryEndpoint === 'string' ? aimentorData.frameLibraryEndpoint : '';
@@ -1846,6 +1853,204 @@
             $(document).trigger('aimentor:saved-prompts-refreshed', { prompts: cloneSavedPrompts() });
         }
 
+        function normalizeKnowledgePack(entry) {
+            if (!entry || typeof entry !== 'object') {
+                return null;
+            }
+
+            var id = typeof entry.id === 'string' ? entry.id.trim() : '';
+            var title = typeof entry.title === 'string' ? entry.title.trim() : '';
+
+            if (!id || !title) {
+                return null;
+            }
+
+            return {
+                id: id,
+                title: title,
+                summary: typeof entry.summary === 'string' ? entry.summary.trim() : '',
+                guidance: typeof entry.guidance === 'string' ? entry.guidance.trim() : ''
+            };
+        }
+
+        function sortKnowledgePacks(list) {
+            if (!Array.isArray(list)) {
+                return [];
+            }
+
+            return list.slice().sort(function(a, b) {
+                var titleA = a && typeof a.title === 'string' ? a.title : '';
+                var titleB = b && typeof b.title === 'string' ? b.title : '';
+
+                if (knowledgeCollator) {
+                    return knowledgeCollator.compare(titleA, titleB);
+                }
+
+                return titleA.localeCompare(titleB);
+            });
+        }
+
+        function normalizeKnowledgePacks(data) {
+            if (!Array.isArray(data)) {
+                return [];
+            }
+
+            return sortKnowledgePacks(data.map(normalizeKnowledgePack).filter(Boolean));
+        }
+
+        function cloneKnowledgePack(entry) {
+            return {
+                id: entry.id,
+                title: entry.title,
+                summary: entry.summary,
+                guidance: entry.guidance
+            };
+        }
+
+        function cloneKnowledgeStore() {
+            return knowledgeStore.map(cloneKnowledgePack);
+        }
+
+        function setKnowledgeStore(data, options) {
+            var settings = $.extend({ silent: false }, options);
+            knowledgeStore = normalizeKnowledgePacks(data);
+            refreshRegisteredKnowledgeSelects();
+            window.aimentorAjax = window.aimentorAjax || {};
+            window.aimentorAjax.knowledgePacks = cloneKnowledgeStore();
+            if (!settings.silent) {
+                $(document).trigger('aimentor:knowledge-packs-refreshed', { packs: cloneKnowledgeStore() });
+            }
+        }
+
+        function findKnowledgePackById(id) {
+            var target = typeof id === 'string' ? id : '';
+            if (!target) {
+                return null;
+            }
+
+            for (var index = 0; index < knowledgeStore.length; index++) {
+                var pack = knowledgeStore[index];
+                if (pack && pack.id === target) {
+                    return pack;
+                }
+            }
+
+            return null;
+        }
+
+        function populateKnowledgeSelect($select) {
+            if (!$select || !$select.length) {
+                return;
+            }
+
+            var currentValues = $select.val() || [];
+            var options = '';
+
+            if (!knowledgeStore.length) {
+                options = '<option value="" disabled>' + escapeHtml(strings.knowledgePackSelectionEmpty || 'No knowledge packs available.') + '</option>';
+                $select.prop('disabled', true);
+            } else {
+                knowledgeStore.forEach(function(pack) {
+                    options += '<option value="' + escapeHtml(pack.id) + '">' + escapeHtml(pack.title) + '</option>';
+                });
+                $select.prop('disabled', false);
+            }
+
+            $select.html(options);
+            if (knowledgeStore.length && currentValues && currentValues.length) {
+                $select.val(currentValues);
+            } else {
+                $select.val([]);
+            }
+        }
+
+        function refreshRegisteredKnowledgeSelects() {
+            knowledgeSelectNodes = knowledgeSelectNodes.filter(function(node) {
+                return node && node.parentNode;
+            });
+
+            knowledgeSelectNodes.forEach(function(node) {
+                populateKnowledgeSelect($(node));
+            });
+        }
+
+        function registerKnowledgeSelect($select) {
+            if (!$select || !$select.length) {
+                return;
+            }
+
+            $select.each(function() {
+                if (knowledgeSelectNodes.indexOf(this) === -1) {
+                    knowledgeSelectNodes.push(this);
+                }
+            });
+
+            populateKnowledgeSelect($select);
+        }
+
+        function sanitizeKnowledgeSelection(ids) {
+            var selection = Array.isArray(ids) ? ids : [];
+            var unique = {};
+            var result = [];
+
+            selection.forEach(function(id) {
+                if (!id) {
+                    return;
+                }
+                var key = String(id);
+                if (!unique[key]) {
+                    unique[key] = true;
+                    result.push(key);
+                }
+            });
+
+            return result;
+        }
+
+        function updateKnowledgeSelectionSummary($target, ids) {
+            if (!$target || !$target.length) {
+                return;
+            }
+
+            var selected = sanitizeKnowledgeSelection(ids);
+
+            if (!selected.length) {
+                $target.text('');
+                return;
+            }
+
+            var template = strings.knowledgePackSelectedCount || '%d knowledge packs selected';
+            var message = template.indexOf('%d') !== -1 ? template.replace('%d', selected.length) : selected.length + ' knowledge packs selected';
+            $target.text(message);
+        }
+
+        function refreshKnowledgeStore() {
+            if (!knowledgeEndpoint || !aimentorData.restNonce || typeof window.fetch !== 'function') {
+                return Promise.resolve(cloneKnowledgeStore());
+            }
+
+            return window.fetch(knowledgeEndpoint, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-WP-Nonce': aimentorData.restNonce
+                },
+                credentials: 'same-origin'
+            }).then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Request failed');
+                }
+                return response.json();
+            }).then(function(body) {
+                if (body && body.packs) {
+                    setKnowledgeStore(body.packs);
+                }
+                return cloneKnowledgeStore();
+            }).catch(function() {
+                return cloneKnowledgeStore();
+            });
+        }
+
         function refreshSavedPrompts() {
             var endpoint = aimentorData.promptsEndpoint;
 
@@ -1916,13 +2121,15 @@
                 tier: sanitizeTier(existingState.modal.tier),
                 provider: sanitizeProvider(existingState.modal.provider || defaultProvider),
                 tonePreset: sanitizeTonePreset(existingState.modal.tonePreset) || (defaultTonePresetId || ''),
-                toneCustom: typeof existingState.modal.toneCustom === 'string' ? existingState.modal.toneCustom : ''
+                toneCustom: typeof existingState.modal.toneCustom === 'string' ? existingState.modal.toneCustom : '',
+                knowledge: Array.isArray(existingState.modal.knowledge) ? existingState.modal.knowledge.map(String) : []
             } : {
                 task: defaultTask,
                 tier: defaultTier,
                 provider: defaultProvider,
                 tonePreset: sanitizeTonePreset(defaultTonePresetId) || '',
-                toneCustom: ''
+                toneCustom: '',
+                knowledge: []
             }
         };
 
@@ -1932,6 +2139,7 @@
             return cloneSavedPrompts();
         };
         api.refreshSavedPrompts = refreshSavedPrompts;
+        api.refreshKnowledgePacks = refreshKnowledgeStore;
 
         api.initWidget = function(config) {
             if (!config || !config.widgetId) {
@@ -1988,6 +2196,8 @@
             widgetState.provider = sanitizeProvider(widgetState.provider || $provider.val() || getDefaultProvider());
             widgetState.task = sanitizeTask(widgetState.task || ($task.length ? $task.val() : api.state.defaults.task), allowCanvas);
             widgetState.tier = sanitizeTier(widgetState.tier || ($tier.length ? $tier.val() : api.state.defaults.tier));
+            var defaultModalKnowledge = (api.state.modal && Array.isArray(api.state.modal.knowledge)) ? api.state.modal.knowledge : [];
+            widgetState.knowledge = sanitizeKnowledgeSelection(Array.isArray(widgetState.knowledge) ? widgetState.knowledge : defaultModalKnowledge);
             api.state.widgets[config.widgetId] = widgetState;
 
             $provider.val(widgetState.provider);
@@ -2057,6 +2267,10 @@
                     task: widgetState.task,
                     tier: widgetState.tier
                 };
+
+                if (widgetState.knowledge && widgetState.knowledge.length) {
+                    requestPayload.knowledge_ids = widgetState.knowledge.slice();
+                }
 
                 if (widgetState.task === 'canvas') {
                     var variationCount = parseInt(aimentorData.canvasVariationCount, 10);
@@ -2147,6 +2361,9 @@
                 var promptPlaceholder = escapeHtml(strings.promptPlaceholder || 'Describe your page (e.g., hero with CTA)');
                 var savedPromptLabel = escapeHtml(strings.savedPromptLabel || 'Saved Prompts');
                 var savedPromptPlaceholder = escapeHtml(strings.savedPromptPlaceholder || 'Select a saved prompt…');
+                var knowledgeLabel = escapeHtml(strings.knowledgePackLabel || 'Knowledge Packs');
+                var knowledgeDescription = escapeHtml(strings.knowledgePackDescription || 'Optional: ground the response with knowledge packs saved in AiMentor settings.');
+                var knowledgeEmpty = escapeHtml(strings.knowledgePackSelectionEmpty || 'No knowledge packs available yet.');
                 var toneLabel = escapeHtml(strings.tonePresetLabel || 'Tone');
                 var tonePlaceholder = escapeHtml(strings.tonePresetPlaceholder || 'Select a tone preset…');
                 var toneCustomOption = escapeHtml(strings.tonePresetCustomOption || 'Custom tone…');
@@ -2216,6 +2433,10 @@
                     '        <select id="aimentor-saved-prompts" class="aimentor-modal__select">' +
                     '          <option value="">' + savedPromptPlaceholder + '</option>' +
                     '        </select>' +
+                    '        <label for="aimentor-knowledge-packs" class="aimentor-modal__label">' + knowledgeLabel + '</label>' +
+                    '        <select id="aimentor-knowledge-packs" class="aimentor-modal__select aimentor-modal__select--multiline" multiple size="4"></select>' +
+                    '        <p class="aimentor-modal__hint" id="aimentor-knowledge-description" style="margin:6px 0 0;font-size:12px;color:#4b5563;">' + knowledgeDescription + '</p>' +
+                    '        <p class="aimentor-modal__hint" id="aimentor-knowledge-summary" style="margin:4px 0 12px;font-size:12px;color:#2563eb;"></p>' +
                     '        <label for="aimentor-prompt" class="aimentor-modal__label">' + promptLabel + '</label>' +
                     '        <textarea id="aimentor-prompt" rows="4" placeholder="' + promptPlaceholder + '" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
                     '        <label for="aimentor-tone-preset" class="aimentor-modal__label">' + toneLabel + '</label>' +
@@ -2276,6 +2497,8 @@
             var $result = $('#aimentor-result');
             var $cooldownNotice = $('#aimentor-cooldown-notice');
             var $savedPromptSelect = $('#aimentor-saved-prompts');
+            var $knowledgeSelect = $('#aimentor-knowledge-packs');
+            var $knowledgeSummary = $('#aimentor-knowledge-summary');
             var $tonePreset = $('#aimentor-tone-preset');
             var $toneCustom = $('#aimentor-tone-custom');
             var $toneCustomLabel = $('#aimentor-tone-custom-label');
@@ -2302,6 +2525,7 @@
             modalState.provider = sanitizeProvider(modalState.provider || getDefaultProvider());
             modalState.task = sanitizeTask(modalState.task, allowCanvas);
             modalState.tier = sanitizeTier(modalState.tier);
+            modalState.knowledge = sanitizeKnowledgeSelection(modalState.knowledge || []);
 
             function updateToneCustomVisibility(selectedPreset) {
                 var isCustom = selectedPreset === 'custom';
@@ -2523,6 +2747,47 @@
                 populateSavedPromptSelect($savedPromptSelect);
             });
 
+            registerKnowledgeSelect($knowledgeSelect);
+
+            function syncKnowledgeSelectionDisplay(selection) {
+                if ($knowledgeSelect.length) {
+                    $knowledgeSelect.val(selection);
+                    if (!knowledgeStore.length) {
+                        $knowledgeSelect.prop('disabled', true);
+                    }
+                }
+
+                if ($knowledgeSummary.length) {
+                    if (!knowledgeStore.length) {
+                        $knowledgeSummary.text(knowledgeEmpty);
+                    } else {
+                        updateKnowledgeSelectionSummary($knowledgeSummary, selection);
+                    }
+                }
+            }
+
+            syncKnowledgeSelectionDisplay(modalState.knowledge);
+
+            refreshKnowledgeStore().then(function() {
+                registerKnowledgeSelect($knowledgeSelect);
+                syncKnowledgeSelectionDisplay(modalState.knowledge);
+            });
+
+            $knowledgeSelect.off('change.aimentorKnowledge').on('change.aimentorKnowledge', function() {
+                var selected = sanitizeKnowledgeSelection($(this).val());
+                modalState.knowledge = selected;
+                updateKnowledgeSelectionSummary($knowledgeSummary, selected);
+                updateSummaryText($summary, modalState.provider, modalState);
+                if (api.state && api.state.widgets) {
+                    Object.keys(api.state.widgets).forEach(function(key) {
+                        var widgetEntry = api.state.widgets[key];
+                        if (widgetEntry && typeof widgetEntry === 'object') {
+                            widgetEntry.knowledge = selected.slice();
+                        }
+                    });
+                }
+            });
+
             $providerRadios.off('change.aimentor').on('change.aimentor', function() {
                 modalState.provider = sanitizeProvider($(this).val());
                 applyProviderMeta(modalState.provider, ui);
@@ -2607,6 +2872,10 @@
                         tone_keywords: toneKeywords
                     };
 
+                    if (modalState.knowledge && modalState.knowledge.length) {
+                        payload.knowledge_ids = modalState.knowledge.slice();
+                    }
+
                     var workingMessage = strings.rewriteWorking || 'Rewriting…';
                     $rewrite.prop('disabled', true).text(workingMessage);
                     $result.html('<p>' + escapeHtml(workingMessage) + '</p>');
@@ -2653,15 +2922,19 @@
                     return;
                 }
 
+                var selectionKnowledge = sanitizeKnowledgeSelection(modalState.knowledge);
+                modalState.knowledge = selectionKnowledge;
                 var selection = {
                     task: sanitizeTask($task.val(), allowCanvas),
-                    tier: sanitizeTier($tier.val())
+                    tier: sanitizeTier($tier.val()),
+                    knowledge: selectionKnowledge.slice()
                 };
                 modalState.task = selection.task;
                 modalState.tier = selection.tier;
 
                 var providerValue = modalState.provider;
                 var providerMeta = applyProviderMeta(providerValue, ui);
+                selection.knowledge = modalState.knowledge.slice();
                 updateSummaryText($summary, providerValue, selection);
 
                 var generatingMessage = getGeneratingMessage(providerMeta);
@@ -2677,6 +2950,10 @@
                     tier: selection.tier,
                     nonce: aimentorData.nonce
                 };
+
+                if (modalState.knowledge && modalState.knowledge.length) {
+                    modalRequestPayload.knowledge_ids = modalState.knowledge.slice();
+                }
 
                 if (selection.task === 'canvas') {
                     var modalVariationCount = parseInt(aimentorData.canvasVariationCount, 10);
@@ -2704,6 +2981,7 @@
                         applyProviderMeta(providerValue, ui);
                     }
 
+                    selection.knowledge = modalState.knowledge.slice();
                     updateSummaryText($summary, providerValue, selection);
 
                     if (response && response.success) {
@@ -3323,6 +3601,12 @@
                 return;
             }
             var summary = buildSummary(providerKey, selection.task, selection.tier);
+            if (selection && Array.isArray(selection.knowledge) && selection.knowledge.length) {
+                var template = strings.knowledgePackSelectedCount || '%d knowledge packs selected';
+                var message = template.indexOf('%d') !== -1 ? template.replace('%d', selection.knowledge.length) : selection.knowledge.length + ' knowledge packs selected';
+                var separator = typeof strings.summarySeparator === 'string' ? strings.summarySeparator : ' • ';
+                summary += separator + message;
+            }
             $summary.text(summary);
         }
 
