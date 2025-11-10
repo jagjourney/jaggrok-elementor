@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.6.2
+ * Version: 1.7.0
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
- define( 'AIMENTOR_PLUGIN_VERSION', '1.6.2' );
+ define( 'AIMENTOR_PLUGIN_VERSION', '1.7.0' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -603,6 +603,7 @@ function aimentor_get_ajax_payload() {
         ];
         $canvas_history        = function_exists( 'aimentor_get_canvas_history' ) ? aimentor_get_canvas_history() : [];
         $tone_presets          = function_exists( 'aimentor_get_tone_presets' ) ? aimentor_get_tone_presets() : [];
+        $knowledge_packs       = array_map( 'aimentor_prepare_knowledge_pack_for_response', aimentor_get_knowledge_packs() );
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
@@ -618,6 +619,7 @@ function aimentor_get_ajax_payload() {
                 'canvasHistoryNonce' => wp_create_nonce( 'aimentor_canvas_history' ),
                 'historyEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/history' ) ),
                 'promptsEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/prompts' ) ),
+                'knowledgeEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/knowledge-packs' ) ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
                 'strings'           => array(
                         'tabLoadError'      => __( 'Unable to load tab content. Please try again.', 'aimentor' ),
@@ -698,6 +700,18 @@ function aimentor_get_ajax_payload() {
                         'savedPromptDeleteSuccess' => __( 'Prompt deleted.', 'aimentor' ),
                         'savedPromptDeleteError'   => __( 'Unable to delete the prompt. Please try again.', 'aimentor' ),
                         'savedPromptPermissionError' => __( 'You do not have permission to manage saved prompts.', 'aimentor' ),
+                        'knowledgeSaveSuccess'       => __( 'Knowledge pack saved.', 'aimentor' ),
+                        'knowledgeSaveError'         => __( 'Unable to save the knowledge pack. Please try again.', 'aimentor' ),
+                        /* translators: %s: Knowledge pack title. */
+                        'knowledgeDeleteConfirm'     => __( 'Delete "%s"? This cannot be undone.', 'aimentor' ),
+                        'knowledgeDeleteSuccess'     => __( 'Knowledge pack deleted.', 'aimentor' ),
+                        'knowledgeDeleteError'       => __( 'Unable to delete the knowledge pack. Please try again.', 'aimentor' ),
+                        'knowledgeEmpty'             => __( 'No knowledge packs have been added yet.', 'aimentor' ),
+                        'knowledgePackLabel'         => __( 'Knowledge Packs', 'aimentor' ),
+                        'knowledgePackPlaceholder'   => __( 'Select knowledge packs…', 'aimentor' ),
+                        'knowledgePackDescription'   => __( 'Optional: ground the response with brand or product knowledge.', 'aimentor' ),
+                        'knowledgePackSelectionEmpty' => __( 'No knowledge packs available yet.', 'aimentor' ),
+                        'knowledgePackSelectedCount' => __( '%d knowledge packs selected', 'aimentor' ),
                         /* translators: %s: Human readable duration. */
                         'rateLimitCooldown'       => __( 'Please wait %s before trying again.', 'aimentor' ),
                         'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
@@ -762,6 +776,7 @@ function aimentor_get_ajax_payload() {
                 'savedPrompts'      => $saved_prompts,
                 'canvasHistory'     => $canvas_history,
                 'tonePresets'       => $tone_presets,
+                'knowledgePacks'    => $knowledge_packs,
                 'canvasHistoryMax'  => function_exists( 'aimentor_get_canvas_history_max_items' ) ? aimentor_get_canvas_history_max_items() : 0,
                 'frameLibraryEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/frames' ) ),
                 'frameLibrary'      => function_exists( 'aimentor_get_frame_library_items' ) ? aimentor_get_frame_library_items( [ 'posts_per_page' => 50 ] ) : [],
@@ -932,6 +947,7 @@ require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/trait-aimentor-provider-v
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-grok-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-anthropic-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-openai-provider.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/knowledge-base.php';
 
 if ( class_exists( 'AiMentor_Provider_Interface' ) && ! class_exists( 'JagGrok_Provider_Interface' ) ) {
         class_alias( 'AiMentor_Provider_Interface', 'JagGrok_Provider_Interface' );
@@ -1290,18 +1306,37 @@ function jaggrok_rewrite_content_ajax() {
                 )
         );
 
+        $request_context = array(
+                'task'   => 'content',
+                'tier'   => $tier,
+                'brand'  => $brand_preferences,
+                'intent' => 'rewrite',
+        );
+
+        if ( isset( $_POST['knowledge_ids'] ) && function_exists( 'aimentor_prepare_provider_knowledge_context' ) ) {
+                $knowledge_context = aimentor_prepare_provider_knowledge_context(
+                        wp_unslash( $_POST['knowledge_ids'] ),
+                        $provider_key,
+                        array(
+                                'origin'  => 'rewrite',
+                                'task'    => 'content',
+                                'tier'    => $tier,
+                                'user_id' => get_current_user_id(),
+                        )
+                );
+
+                if ( ! empty( $knowledge_context ) ) {
+                        $request_context['knowledge'] = $knowledge_context;
+                }
+        }
+
         $result = $provider->request(
                 $prompt,
                 array(
                         'api_key'    => $api_key,
                         'model'      => $model,
                         'max_tokens' => get_option( 'aimentor_max_tokens', 2000 ),
-                        'context'    => array(
-                                'task'   => 'content',
-                                'tier'   => $tier,
-                                'brand'  => $brand_preferences,
-                                'intent' => 'rewrite',
-                        ),
+                        'context'    => $request_context,
                 )
         );
 
@@ -1546,14 +1581,33 @@ function jaggrok_generate_page_ajax() {
                 $variation_count = 1;
         }
 
+        $request_context = array(
+                'task' => $task,
+                'tier' => $tier,
+        );
+
+        if ( isset( $_POST['knowledge_ids'] ) && function_exists( 'aimentor_prepare_provider_knowledge_context' ) ) {
+                $knowledge_context = aimentor_prepare_provider_knowledge_context(
+                        wp_unslash( $_POST['knowledge_ids'] ),
+                        $provider_key,
+                        array(
+                                'origin'  => 'ajax',
+                                'task'    => $task,
+                                'tier'    => $tier,
+                                'user_id' => get_current_user_id(),
+                        )
+                );
+
+                if ( ! empty( $knowledge_context ) ) {
+                        $request_context['knowledge'] = $knowledge_context;
+                }
+        }
+
         $result = $provider->request( $prompt, array(
                 'api_key'    => $api_key,
                 'model'      => $model,
                 'max_tokens' => get_option( 'aimentor_max_tokens', 2000 ),
-                'context'    => array(
-                        'task' => $task,
-                        'tier' => $tier,
-                ),
+                'context'    => $request_context,
                 'variations' => $variation_count,
         ) );
 

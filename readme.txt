@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.6.2
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,7 @@ AiMentor was built for agencies that need reliable AI output without leaving Wor
 == Features ==
 * **Provider model presets:** Ship with tuned defaults for Grok and OpenAI so each provider loads with recommended models, temperature, and safety guardrails tailored to their API capabilities.
 * **Multi-style canvas cards:** Review multiple layout variations per run, insert the favorite option, and log the chosen design in the canvas history automatically.
+* **Knowledge packs & grounded context:** Capture reusable brand, product, or process notes in the Knowledge Base tab and apply them to every Elementor generation or rewrite.
 * **Auto-Insert toggle:** Decide if generated layouts land directly in the Elementor canvas or wait for manual placement—perfect for teams that want review checkpoints.
 * **Theme styling controls:** Keep generated sections on-brand by toggling AiMentor's theme-aware styling helpers on or off per site.
 * **Token limit management:** Configure per-provider token ceilings to prevent runaway prompts and stay inside your contract limits.
@@ -85,6 +86,10 @@ native GitHub channel.
   and refreshes the lightweight manifest on `gh-pages`.
 * Release checklist and versioning guide: `docs/release-guide.md`.
 
+== Hooks ==
+* `aimentor_compiled_knowledge_payload` — Filter the raw compiled knowledge packs before they are cached for provider consumption.
+* `aimentor_provider_knowledge_context` — Filter the provider-ready knowledge payload (including summaries, guidance, and IDs) before each request is dispatched.
+
 == Deployment ==
 Tagged releases automatically produce `aimentor-elementor-v<version>.zip` via GitHub Actions and attach the artifact to the corresponding release. A JSON manifest maintained on the `gh-pages` branch mirrors the latest tag for any external tooling that still references it.
 Refer to `docs/release-guide.md` for detailed tagging, workflow, and post-release steps.
@@ -107,6 +112,12 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.7.0 =
+* Added a Knowledge Base settings tab so administrators can capture reusable packs, manage CRUD via REST, and compile summaries for provider context injection.
+* Wired the Elementor generator modal and rewrite workflow to fetch knowledge packs, surface a multi-select with live summaries, and send the chosen IDs with every AJAX or REST request.
+* Blended knowledge directives into Grok, OpenAI, and Anthropic prompt suffixes so generations and rewrites stay grounded in the selected packs across providers.
+* Introduced the `aimentor_provider_knowledge_context` filter to let developers adjust the provider-ready knowledge payload before requests are dispatched.
+
 = 1.6.2 =
 * Added a “Rewrite with Tone” workflow inside the Elementor modal that validates capabilities, honors stored brand tone keywords, and rewrites copy via the selected provider.
 * Surfaced preset tone selectors alongside rewrite status messaging so editors can preview and apply voices before sending requests.

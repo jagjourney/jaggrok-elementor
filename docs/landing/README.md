@@ -12,9 +12,10 @@ Upgrade from JagGrok Elementor to AiMentor's multi-provider page builder in minu
 - AiMentor Elementor now supports multiple AI providers out of the box. Customers can keep their existing OpenAI or Grok credentials and opt-in to new providers as they are added.
 - Installing the AiMentor build automatically migrates JagGrok settings, API keys, and saved provider preferences.
 - The plugin continues to be tested against WordPress 6.4, Elementor 3.18, and Elementor Pro 3.18.
+- The Knowledge Base tab lets admins store reusable packs and editors ground every generation or rewrite with the latest brand, product, or process guidance.
 
 ## Upgrade Path
-1. Download the latest AiMentor package from the [GitHub Releases asset](https://github.com/jagjourney/aimentor-elementor/releases/download/v1.6.2/aimentor-elementor-v1.6.2.zip). Update the version segment whenever a new tag is promoted so the landing page always references the current ZIP. Releases follow the small (`+0.01`), medium (`+0.10`), and major (`+1.00.00`) increment scheme documented in `docs/release-guide.md`.
+1. Download the latest AiMentor package from the [GitHub Releases asset](https://github.com/jagjourney/aimentor-elementor/releases/download/v1.7.0/aimentor-elementor-v1.7.0.zip). Update the version segment whenever a new tag is promoted so the landing page always references the current ZIP. Releases follow the small (`+0.01`), medium (`+0.10`), and major (`+1.00.00`) increment scheme documented in `docs/release-guide.md`.
 2. In WordPress, navigate to **Plugins → Add New → Upload Plugin** and upload the ZIP.
 3. Activate AiMentor Elementor. Existing settings from JagGrok Elementor are migrated automatically on first load.
 4. Visit **Settings → AiMentor** to choose your preferred AI provider and review the new multi-provider options.

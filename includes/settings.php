@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/knowledge-base.php';
 // ============================================================================
 // AiMentor SETTINGS PAGE v1.3.18 (PROVIDER TEST METRICS)
 // ============================================================================
@@ -1925,6 +1926,7 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                         'store_history' => true,
                         'user_id'       => get_current_user_id(),
                         'variations'    => null,
+                        'knowledge_ids' => [],
                 ]
         );
 
@@ -2034,6 +2036,23 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                 'tier'   => $tier,
                 'origin' => $origin,
         ];
+
+        if ( ! empty( $args['knowledge_ids'] ) && function_exists( 'aimentor_prepare_provider_knowledge_context' ) ) {
+                $knowledge_context = aimentor_prepare_provider_knowledge_context(
+                        $args['knowledge_ids'],
+                        $provider_key,
+                        [
+                                'origin'  => $origin,
+                                'task'    => $task,
+                                'tier'    => $tier,
+                                'user_id' => $args['user_id'],
+                        ]
+                );
+
+                if ( ! empty( $knowledge_context ) ) {
+                        $context['knowledge'] = $knowledge_context;
+                }
+        }
 
         $result = $provider->request(
                 $prompt,
@@ -2190,6 +2209,7 @@ function aimentor_rest_generate_content( WP_REST_Request $request ) {
         $tier          = $request->get_param( 'tier' );
         $max_tokens    = $request->get_param( 'max_tokens' );
         $store_history = $request->get_param( 'store_history' );
+        $knowledge_ids = $request->get_param( 'knowledge_ids' );
 
         $result = aimentor_perform_generation_request(
                 $prompt,
@@ -2201,6 +2221,7 @@ function aimentor_rest_generate_content( WP_REST_Request $request ) {
                         'max_tokens'    => null !== $max_tokens ? $max_tokens : null,
                         'store_history' => null === $store_history ? true : wp_validate_boolean( $store_history ),
                         'user_id'       => get_current_user_id(),
+                        'knowledge_ids' => is_array( $knowledge_ids ) ? $knowledge_ids : [],
                 ]
         );
 
@@ -2240,6 +2261,14 @@ function aimentor_register_generation_route() {
                                                 'type'              => 'string',
                                                 'required'          => false,
                                                 'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'knowledge_ids' => [
+                                                'type'              => 'array',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'aimentor_rest_sanitize_knowledge_ids',
+                                                'items'             => [
+                                                        'type' => 'string',
+                                                ],
                                         ],
                                         'max_tokens' => [
                                                 'type'              => 'integer',
@@ -4239,6 +4268,11 @@ function aimentor_get_settings_tabs() {
                         'callback'   => 'aimentor_render_settings_tab_frame_library',
                         'capability' => 'manage_options',
                 ],
+                'knowledge'        => [
+                        'label'      => __( 'Knowledge Base', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_knowledge',
+                        'capability' => 'manage_options',
+                ],
                 'saved-prompts'    => [
                         'label'      => __( 'Saved Prompts', 'aimentor' ),
                         'callback'   => 'aimentor_render_settings_tab_saved_prompts',
@@ -4382,6 +4416,17 @@ function aimentor_render_settings_tab_frame_library() {
 
         ob_start();
         include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-frame-library.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_knowledge() {
+        $knowledge_packs      = array_map( 'aimentor_prepare_knowledge_pack_for_response', aimentor_get_knowledge_packs() );
+        $knowledge_rest_nonce = wp_create_nonce( 'wp_rest' );
+        $knowledge_nonce      = wp_create_nonce( 'aimentor_knowledge_packs' );
+
+        ob_start();
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-knowledge.php';
 
         return (string) ob_get_clean();
 }

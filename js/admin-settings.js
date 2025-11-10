@@ -98,7 +98,10 @@ jQuery(document).ready(function($) {
     var tabErrorMessage = getString('tabLoadError', 'Unable to load tab content. Please try again.');
     var savedPromptsEndpoint = (typeof aimentorAjax !== 'undefined' && aimentorAjax.promptsEndpoint) ? String(aimentorAjax.promptsEndpoint) : '';
     var savedPromptsRestNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.restNonce) ? String(aimentorAjax.restNonce) : '';
+    var knowledgeEndpoint = (typeof aimentorAjax !== 'undefined' && aimentorAjax.knowledgeEndpoint) ? String(aimentorAjax.knowledgeEndpoint) : '';
+    var knowledgeRestNonce = savedPromptsRestNonce;
     var savedPromptsStore = normalizeSavedPrompts((typeof aimentorAjax !== 'undefined' && aimentorAjax.savedPrompts) ? aimentorAjax.savedPrompts : {});
+    var knowledgeStore = normalizeKnowledgePacks((typeof aimentorAjax !== 'undefined' && aimentorAjax.knowledgePacks) ? aimentorAjax.knowledgePacks : []);
     var savedPromptCreateSuccessMessage = getString('savedPromptCreateSuccess', 'Prompt saved.');
     var savedPromptCreateErrorMessage = getString('savedPromptCreateError', 'Unable to save the prompt. Please try again.');
     var savedPromptDeleteConfirmMessage = getString('savedPromptDeleteConfirm', 'Delete this prompt? This cannot be undone.');
@@ -110,6 +113,17 @@ jQuery(document).ready(function($) {
     var savedPromptColumnPrompt = getString('savedPromptColumnPrompt', 'Prompt');
     var savedPromptColumnActions = getString('savedPromptColumnActions', 'Actions');
     var savedPromptDeleteLabel = getString('savedPromptDeleteLabel', 'Delete');
+    var knowledgeSaveSuccessMessage = getString('knowledgeSaveSuccess', 'Knowledge pack saved.');
+    var knowledgeSaveErrorMessage = getString('knowledgeSaveError', 'Unable to save the knowledge pack. Please try again.');
+    var knowledgeDeleteSuccessMessage = getString('knowledgeDeleteSuccess', 'Knowledge pack deleted.');
+    var knowledgeDeleteErrorMessage = getString('knowledgeDeleteError', 'Unable to delete the knowledge pack. Please try again.');
+    var knowledgeDeleteConfirmMessage = getString('knowledgeDeleteConfirm', 'Delete this knowledge pack? This cannot be undone.');
+    var knowledgeEmptyMessage = getString('knowledgeEmpty', 'No knowledge packs have been added yet.');
+    var knowledgeTitleColumn = getString('knowledgeTitleColumn', 'Title');
+    var knowledgeSummaryColumn = getString('knowledgeSummaryColumn', 'Summary');
+    var knowledgeUpdatedColumn = getString('knowledgeUpdatedColumn', 'Updated');
+    var knowledgeEditLabel = getString('knowledgeEditLabel', 'Edit');
+    var knowledgeDeleteLabel = getString('knowledgeDeleteLabel', 'Delete');
 
     function buildClassList() {
         return statusStates.map(function(state) {
@@ -383,6 +397,8 @@ jQuery(document).ready(function($) {
         };
     }
 
+    var knowledgeCollator = (typeof window.Intl !== 'undefined' && typeof window.Intl.Collator === 'function') ? new window.Intl.Collator(undefined, { sensitivity: 'base' }) : null;
+
     function normalizeSavedPrompts(data) {
         var normalized = { global: [], user: [] };
 
@@ -440,6 +456,130 @@ jQuery(document).ready(function($) {
         if (!settings.silent) {
             $(document).trigger('aimentor:saved-prompts-refreshed', { prompts: cloneSavedPromptsStore() });
         }
+    }
+
+    function normalizeKnowledgePack(entry) {
+        if (!entry || typeof entry !== 'object') {
+            return null;
+        }
+
+        var id = String(entry.id || '').trim();
+        var title = String(entry.title || '').trim();
+
+        if (!id || !title) {
+            return null;
+        }
+
+        var summary = String(entry.summary || '').trim();
+        var guidance = String(entry.guidance || '').trim();
+        var updatedAt = 0;
+
+        if (typeof entry.updated_at !== 'undefined') {
+            var parsed = parseInt(entry.updated_at, 10);
+            if (isFinite(parsed)) {
+                updatedAt = parsed;
+            }
+        }
+
+        if (!updatedAt && entry.updated_at_gmt) {
+            var dateParsed = Date.parse(entry.updated_at_gmt);
+            if (!isNaN(dateParsed)) {
+                updatedAt = Math.floor(dateParsed / 1000);
+            }
+        }
+
+        return {
+            id: id,
+            title: title,
+            summary: summary,
+            guidance: guidance,
+            updated_at: updatedAt,
+            updated_at_gmt: typeof entry.updated_at_gmt === 'string' ? entry.updated_at_gmt : '',
+            created_at: entry.created_at ? parseInt(entry.created_at, 10) || 0 : 0
+        };
+    }
+
+    function normalizeKnowledgePacks(entries) {
+        var normalized = [];
+
+        if (!Array.isArray(entries)) {
+            return normalized;
+        }
+
+        entries.forEach(function(entry) {
+            var normalizedEntry = normalizeKnowledgePack(entry);
+            if (normalizedEntry) {
+                normalized.push(normalizedEntry);
+            }
+        });
+
+        normalized.sort(function(a, b) {
+            var titleA = String(a.title || '');
+            var titleB = String(b.title || '');
+
+            if (knowledgeCollator) {
+                return knowledgeCollator.compare(titleA, titleB);
+            }
+
+            if (titleA < titleB) {
+                return -1;
+            }
+            if (titleA > titleB) {
+                return 1;
+            }
+            return 0;
+        });
+
+        return normalized;
+    }
+
+    function cloneKnowledgePack(entry) {
+        if (!entry || typeof entry !== 'object') {
+            return null;
+        }
+
+        return {
+            id: String(entry.id || ''),
+            title: String(entry.title || ''),
+            summary: String(entry.summary || ''),
+            guidance: String(entry.guidance || ''),
+            updated_at: entry.updated_at ? parseInt(entry.updated_at, 10) || 0 : 0,
+            updated_at_gmt: typeof entry.updated_at_gmt === 'string' ? entry.updated_at_gmt : '',
+            created_at: entry.created_at ? parseInt(entry.created_at, 10) || 0 : 0
+        };
+    }
+
+    function cloneKnowledgeStore() {
+        return knowledgeStore.map(cloneKnowledgePack).filter(Boolean);
+    }
+
+    function setKnowledgeStore(data, options) {
+        var settings = $.extend({ silent: false }, options);
+        knowledgeStore = normalizeKnowledgePacks(data);
+
+        if (typeof window.aimentorAjax !== 'undefined') {
+            window.aimentorAjax.knowledgePacks = cloneKnowledgeStore();
+        }
+
+        if (!settings.silent) {
+            $(document).trigger('aimentor:knowledge-packs-refreshed', { packs: cloneKnowledgeStore() });
+        }
+    }
+
+    function findKnowledgePack(id) {
+        var target = String(id || '');
+        if (!target) {
+            return null;
+        }
+
+        for (var index = 0; index < knowledgeStore.length; index++) {
+            var pack = knowledgeStore[index];
+            if (pack && String(pack.id) === target) {
+                return pack;
+            }
+        }
+
+        return null;
     }
 
     function resolveSavedPromptEndpoint(container) {
@@ -685,16 +825,325 @@ jQuery(document).ready(function($) {
                     updateSavedPromptNonce($container, newNonce);
                 }
 
+        return response.json().catch(function() {
+            return {};
+        }).then(function(data) {
+            if (!response.ok) {
+                throw buildSavedPromptError(response.status, data);
+            }
+            return data;
+        });
+    });
+}
+
+    function resolveKnowledgeEndpoint(container) {
+        var $container = container && container.jquery ? container : $(container);
+        var endpoint = knowledgeEndpoint;
+
+        if ($container && $container.length) {
+            var dataEndpoint = $container.data('restEndpoint') || $container.data('rest-endpoint');
+            if (dataEndpoint) {
+                endpoint = String(dataEndpoint);
+            }
+        }
+
+        return endpoint;
+    }
+
+    function resolveKnowledgeNonce(container) {
+        var $container = container && container.jquery ? container : $(container);
+        var nonce = knowledgeRestNonce;
+
+        if ($container && $container.length) {
+            var dataNonce = $container.data('restNonce') || $container.data('rest-nonce');
+            if (dataNonce) {
+                nonce = String(dataNonce);
+            } else {
+                var $field = $container.find('input[name="aimentor_rest_nonce"]');
+                if ($field.length && $field.val()) {
+                    nonce = String($field.val());
+                    $container.data('restNonce', nonce);
+                }
+            }
+        }
+
+        return nonce;
+    }
+
+    function updateKnowledgeNonce(container, nonce) {
+        if (!nonce) {
+            return;
+        }
+
+        var value = String(nonce);
+        knowledgeRestNonce = value;
+
+        if (typeof window.aimentorAjax !== 'undefined') {
+            window.aimentorAjax.restNonce = value;
+        }
+
+        var $container = container && container.jquery ? container : $(container);
+
+        if ($container && $container.length) {
+            $container.data('restNonce', value);
+            var $field = $container.find('input[name="aimentor_rest_nonce"]');
+            if ($field.length) {
+                $field.val(value);
+            }
+        }
+    }
+
+    function buildKnowledgeError(status, data) {
+        var error = new Error((data && data.message) ? data.message : '');
+        error.status = status || 0;
+        error.data = data || {};
+        error.code = (data && data.code) ? data.code : '';
+        return error;
+    }
+
+    function showKnowledgeNotice(container, message, type) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return;
+        }
+
+        var $notice = $container.find('.aimentor-knowledge__notice');
+
+        if (!$notice.length) {
+            return;
+        }
+
+        if (!message) {
+            $notice.attr('hidden', 'hidden').text('').removeClass('notice notice-success notice-error');
+            return;
+        }
+
+        var isError = type === 'error';
+        $notice.removeClass('notice-success notice-error').addClass('notice');
+        $notice.addClass(isError ? 'notice-error' : 'notice-success');
+        $notice.text(message).removeAttr('hidden');
+    }
+
+    function formatKnowledgeTimestamp(pack) {
+        var timestamp = pack && pack.updated_at ? parseInt(pack.updated_at, 10) : 0;
+        if (!timestamp || !isFinite(timestamp)) {
+            return '';
+        }
+
+        var now = Math.floor(Date.now() / 1000);
+        var diff = now - timestamp;
+
+        if (diff < 0) {
+            diff = 0;
+        }
+
+        if (diff < 60) {
+            return getString('usageJustNow', 'Just now');
+        }
+
+        var minutes = Math.floor(diff / 60);
+        if (minutes < 60) {
+            return minutes === 1 ? '1 minute ago' : minutes + ' minutes ago';
+        }
+
+        var hours = Math.floor(minutes / 60);
+        if (hours < 24) {
+            return hours === 1 ? '1 hour ago' : hours + ' hours ago';
+        }
+
+        var days = Math.floor(hours / 24);
+        return days === 1 ? '1 day ago' : days + ' days ago';
+    }
+
+    function renderKnowledgeTable(entries) {
+        var rows = Array.isArray(entries) ? entries : [];
+
+        if (!rows.length) {
+            return '<p class="description aimentor-knowledge__empty">' + escapeHtml(knowledgeEmptyMessage) + '</p>';
+        }
+
+        var html = '<table class="widefat striped aimentor-knowledge__table">';
+        html += '<thead><tr>'
+            + '<th scope="col">' + escapeHtml(knowledgeTitleColumn) + '</th>'
+            + '<th scope="col">' + escapeHtml(knowledgeSummaryColumn) + '</th>'
+            + '<th scope="col">' + escapeHtml(knowledgeUpdatedColumn) + '</th>'
+            + '<th scope="col" class="aimentor-knowledge__actions-header">' + escapeHtml(savedPromptColumnActions) + '</th>'
+            + '</tr></thead>';
+        html += '<tbody>';
+
+        rows.forEach(function(entry) {
+            if (!entry) {
+                return;
+            }
+
+            var id = escapeHtml(String(entry.id || ''));
+            var title = escapeHtml(String(entry.title || ''));
+            var summary = String(entry.summary || '').trim();
+            var guidance = String(entry.guidance || '').trim();
+            var updatedText = formatKnowledgeTimestamp(entry);
+
+            if (!updatedText && entry.updated_at_gmt) {
+                updatedText = escapeHtml(String(entry.updated_at_gmt));
+            } else {
+                updatedText = escapeHtml(updatedText || getString('usageJustNow', 'Just now'));
+            }
+
+            var excerptSource = summary || guidance;
+            var excerpt = excerptSource;
+            if (excerpt.length > 0) {
+                excerpt = excerpt.replace(/\s+/g, ' ');
+                if (excerpt.length > 180) {
+                    excerpt = excerpt.substring(0, 177) + '…';
+                }
+            }
+
+            html += '<tr data-id="' + id + '">';
+            html += '<td><strong>' + title + '</strong></td>';
+            html += '<td><div class="aimentor-knowledge__summary"><span>' + escapeHtml(excerpt) + '</span></div></td>';
+            html += '<td>' + updatedText + '</td>';
+            html += '<td class="aimentor-knowledge__actions">'
+                + '<button type="button" class="button aimentor-knowledge__edit" data-id="' + id + '">' + escapeHtml(knowledgeEditLabel) + '</button>'
+                + '<button type="button" class="button button-link-delete aimentor-knowledge__delete" data-id="' + id + '" data-label="' + title + '">' + escapeHtml(knowledgeDeleteLabel) + '</button>'
+                + '</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function updateKnowledgeList(container) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            $container = $('.aimentor-knowledge');
+        }
+
+        if (!$container.length) {
+            return;
+        }
+
+        $container.each(function() {
+            var $root = $(this);
+            var $list = $root.find('.aimentor-knowledge__list');
+            if ($list.length) {
+                $list.html(renderKnowledgeTable(knowledgeStore));
+            }
+        });
+    }
+
+    function resetKnowledgeForm(form) {
+        var $form = form && form.jquery ? form : $(form);
+
+        if (!$form.length) {
+            return;
+        }
+
+        $form.find('input[name="id"]').val('');
+        $form.find('input[name="title"]').val('');
+        $form.find('textarea[name="summary"]').val('');
+        $form.find('textarea[name="guidance"]').val('');
+        $form.find('.aimentor-knowledge__cancel').attr('hidden', 'hidden');
+        showKnowledgeNotice($form.closest('.aimentor-knowledge'), '', '');
+    }
+
+    function populateKnowledgeForm(form, pack) {
+        var $form = form && form.jquery ? form : $(form);
+
+        if (!$form.length || !pack) {
+            return;
+        }
+
+        $form.find('input[name="id"]').val(pack.id || '');
+        $form.find('input[name="title"]').val(pack.title || '');
+        $form.find('textarea[name="summary"]').val(pack.summary || '');
+        $form.find('textarea[name="guidance"]').val(pack.guidance || '');
+        $form.find('.aimentor-knowledge__cancel').removeAttr('hidden');
+    }
+
+    function performKnowledgeRequest(container, method, path, body, query) {
+        var $container = container && container.jquery ? container : $(container);
+        var endpoint = resolveKnowledgeEndpoint($container);
+        var nonce = resolveKnowledgeNonce($container);
+
+        if (!endpoint || !nonce) {
+            return $.Deferred().reject(buildKnowledgeError(0, { message: knowledgeSaveErrorMessage })).promise();
+        }
+
+        var url = buildSavedPromptUrl(endpoint, path, query);
+        var headers = {
+            'X-WP-Nonce': nonce,
+            'Accept': 'application/json'
+        };
+
+        if (typeof window.fetch === 'function') {
+            var fetchOptions = {
+                method: method,
+                headers: headers,
+                credentials: 'same-origin'
+            };
+
+            if (body && method !== 'DELETE') {
+                fetchOptions.headers['Content-Type'] = 'application/json';
+                fetchOptions.body = JSON.stringify(body);
+            }
+
+            return window.fetch(url, fetchOptions).then(function(response) {
+                var newNonce = response && response.headers ? response.headers.get('X-WP-Nonce') : null;
+
+                if (newNonce) {
+                    updateKnowledgeNonce($container, newNonce);
+                }
+
                 return response.json().catch(function() {
                     return {};
                 }).then(function(data) {
                     if (!response.ok) {
-                        throw buildSavedPromptError(response.status, data);
+                        throw buildKnowledgeError(response.status, data);
                     }
                     return data;
                 });
             });
         }
+
+        var ajaxOptions = {
+            url: url,
+            method: method,
+            headers: headers,
+            dataType: 'json',
+            xhrFields: {
+                withCredentials: true
+            }
+        };
+
+        if (body && method !== 'DELETE') {
+            ajaxOptions.data = JSON.stringify(body);
+            ajaxOptions.processData = false;
+            ajaxOptions.contentType = 'application/json';
+        } else {
+            ajaxOptions.processData = false;
+        }
+
+        var deferred = $.Deferred();
+
+        $.ajax(ajaxOptions).done(function(data, textStatus, jqXHR) {
+            var newNonce = jqXHR.getResponseHeader('X-WP-Nonce');
+            if (newNonce) {
+                updateKnowledgeNonce($container, newNonce);
+            }
+            deferred.resolve(data);
+        }).fail(function(jqXHR) {
+            var response = jqXHR.responseJSON || {};
+            deferred.reject(buildKnowledgeError(jqXHR.status, response));
+        });
+
+        return deferred.promise();
+    }
+
+    function refreshKnowledgePacks(container) {
+        return performKnowledgeRequest(container, 'GET');
+    }
 
         var ajaxOptions = {
             url: url,
@@ -772,6 +1221,49 @@ jQuery(document).ready(function($) {
 
             updateSavedPromptNonce($container, savedPromptsRestNonce);
             updateSavedPromptLists($container);
+        });
+    }
+
+    function initializeKnowledge(context) {
+        var $context = resolveContext(context);
+        var $containers = ($context && $context.length) ? $context.find('.aimentor-knowledge') : $('.aimentor-knowledge');
+
+        if (!$containers.length) {
+            return;
+        }
+
+        $containers.each(function() {
+            var $container = $(this);
+            var containerEndpoint = $container.data('restEndpoint') || $container.data('rest-endpoint');
+            var containerNonce = $container.data('restNonce') || $container.data('rest-nonce');
+            var initialPacks = $container.data('initialPacks');
+
+            if (containerEndpoint) {
+                knowledgeEndpoint = String(containerEndpoint);
+            }
+
+            if (containerNonce) {
+                knowledgeRestNonce = String(containerNonce);
+            } else {
+                knowledgeRestNonce = resolveKnowledgeNonce($container);
+            }
+
+            if (initialPacks) {
+                if (typeof initialPacks === 'string') {
+                    try {
+                        initialPacks = JSON.parse(initialPacks);
+                    } catch (error) {
+                        initialPacks = null;
+                    }
+                }
+
+                if (initialPacks) {
+                    setKnowledgeStore(initialPacks, { silent: true });
+                }
+            }
+
+            updateKnowledgeNonce($container, knowledgeRestNonce);
+            updateKnowledgeList($container);
         });
     }
 
@@ -929,6 +1421,7 @@ jQuery(document).ready(function($) {
         syncLegacyModelInputs($context);
         initializeLogNonce($context);
         initializeSavedPrompts($context);
+        initializeKnowledge($context);
         initializeFrameLibrary($context);
     }
 
@@ -1078,10 +1571,160 @@ jQuery(document).ready(function($) {
             });
         });
 
+    $(document)
+        .off('submit' + EVENT_NAMESPACE, '.aimentor-knowledge__form')
+        .on('submit' + EVENT_NAMESPACE, '.aimentor-knowledge__form', function(event) {
+            event.preventDefault();
+
+            var $form = $(this);
+            var $container = $form.closest('.aimentor-knowledge');
+
+            if (!$container.length) {
+                return;
+            }
+
+            var titleValue = $.trim($form.find('input[name="title"]').val() || '');
+            var guidanceValue = $.trim($form.find('textarea[name="guidance"]').val() || '');
+            var summaryValue = $.trim($form.find('textarea[name="summary"]').val() || '');
+            var idValue = $.trim($form.find('input[name="id"]').val() || '');
+
+            if (!titleValue || !guidanceValue) {
+                showKnowledgeNotice($container, knowledgeSaveErrorMessage, 'error');
+                return;
+            }
+
+            var payload = {
+                title: titleValue,
+                summary: summaryValue,
+                guidance: guidanceValue
+            };
+
+            var path = '';
+
+            if (idValue) {
+                path = '/' + encodeURIComponent(idValue);
+                payload.id = idValue;
+            }
+
+            var $submit = $form.find('button[type="submit"]');
+            var wasDisabled = $submit.prop('disabled');
+            $submit.prop('disabled', true).addClass('is-busy');
+            showKnowledgeNotice($container, '', '');
+
+            performKnowledgeRequest($container, 'POST', path, payload)
+                .done(function(response) {
+                    var packs = response && response.packs ? response.packs : [];
+                    setKnowledgeStore(packs);
+                    updateKnowledgeList($container);
+                    resetKnowledgeForm($form);
+                    showKnowledgeNotice($container, knowledgeSaveSuccessMessage, 'success');
+                })
+                .fail(function(error) {
+                    var message = knowledgeSaveErrorMessage;
+                    if (error && error.data && error.data.message) {
+                        message = error.data.message;
+                    } else if (error && error.message) {
+                        message = error.message;
+                    }
+                    showKnowledgeNotice($container, message, 'error');
+                })
+                .always(function() {
+                    $submit.prop('disabled', wasDisabled).removeClass('is-busy');
+                });
+        });
+
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '.aimentor-knowledge__cancel')
+        .on('click' + EVENT_NAMESPACE, '.aimentor-knowledge__cancel', function(event) {
+            event.preventDefault();
+            resetKnowledgeForm($(this).closest('.aimentor-knowledge__form'));
+        });
+
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '.aimentor-knowledge__edit')
+        .on('click' + EVENT_NAMESPACE, '.aimentor-knowledge__edit', function(event) {
+            event.preventDefault();
+
+            var id = $(this).data('id');
+            var pack = findKnowledgePack(id);
+            var $form = $(this).closest('.aimentor-knowledge').find('.aimentor-knowledge__form');
+
+            if (!$form.length) {
+                return;
+            }
+
+            if (pack) {
+                populateKnowledgeForm($form, pack);
+                var $title = $form.find('input[name="title"]');
+                if ($title.length) {
+                    $title.focus();
+                }
+            }
+        });
+
+    $(document)
+        .off('click' + EVENT_NAMESPACE, '.aimentor-knowledge__delete')
+        .on('click' + EVENT_NAMESPACE, '.aimentor-knowledge__delete', function(event) {
+            event.preventDefault();
+
+            var $button = $(this);
+            var id = $button.data('id');
+            var label = String($button.data('label') || '');
+            var $container = $button.closest('.aimentor-knowledge');
+
+            if (!$container.length || !id) {
+                return;
+            }
+
+            var message = knowledgeDeleteConfirmMessage;
+            if (message.indexOf('%s') !== -1) {
+                message = message.replace('%s', label);
+            }
+
+            if (!window.confirm(message)) {
+                return;
+            }
+
+            var wasDisabled = $button.prop('disabled');
+            $button.prop('disabled', true).addClass('is-busy');
+            showKnowledgeNotice($container, '', '');
+
+            performKnowledgeRequest($container, 'DELETE', '/' + encodeURIComponent(String(id)))
+                .done(function(response) {
+                    var packs = response && response.packs ? response.packs : [];
+                    var currentId = $container.find('input[name="id"]').val();
+                    setKnowledgeStore(packs);
+                    updateKnowledgeList($container);
+                    if (currentId && String(currentId) === String(id)) {
+                        resetKnowledgeForm($container.find('.aimentor-knowledge__form'));
+                    }
+                    showKnowledgeNotice($container, knowledgeDeleteSuccessMessage, 'success');
+                })
+                .fail(function(error) {
+                    var message = knowledgeDeleteErrorMessage;
+                    if (error && error.data && error.data.message) {
+                        message = error.data.message;
+                    } else if (error && error.message) {
+                        message = error.message;
+                    }
+                    showKnowledgeNotice($container, message, 'error');
+                })
+                .always(function() {
+                    $button.prop('disabled', wasDisabled).removeClass('is-busy');
+                });
+        });
+
     $(document).on('aimentor:saved-prompts-refreshed' + EVENT_NAMESPACE, function(event, payload) {
         if (payload && payload.prompts) {
             setSavedPromptsStore(payload.prompts, { silent: true });
             updateSavedPromptLists();
+        }
+    });
+
+    $(document).on('aimentor:knowledge-packs-refreshed' + EVENT_NAMESPACE, function(event, payload) {
+        if (payload && payload.packs) {
+            setKnowledgeStore(payload.packs, { silent: true });
+            updateKnowledgeList();
         }
     });
 
