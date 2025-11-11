@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.8.0
+ * Version: 1.8.1
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
- define( 'AIMENTOR_PLUGIN_VERSION', '1.8.0' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.8.1' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -608,6 +608,7 @@ function aimentor_get_ajax_payload() {
         $canvas_history        = function_exists( 'aimentor_get_canvas_history' ) ? aimentor_get_canvas_history() : [];
         $tone_presets          = function_exists( 'aimentor_get_tone_presets' ) ? aimentor_get_tone_presets() : [];
         $knowledge_packs       = array_map( 'aimentor_prepare_knowledge_pack_for_response', aimentor_get_knowledge_packs() );
+        $quick_actions_payload = aimentor_get_quick_actions_payload();
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
@@ -624,6 +625,7 @@ function aimentor_get_ajax_payload() {
                 'historyEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/history' ) ),
                 'promptsEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/prompts' ) ),
                 'knowledgeEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/knowledge-packs' ) ),
+                'quickActionsEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/quick-actions' ) ),
                 'analyticsEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/analytics/summary' ) ),
                 'analyticsGuardrailsEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/analytics/guardrails' ) ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
@@ -718,6 +720,15 @@ function aimentor_get_ajax_payload() {
                         'knowledgePackDescription'   => __( 'Optional: ground the response with brand or product knowledge.', 'aimentor' ),
                         'knowledgePackSelectionEmpty' => __( 'No knowledge packs available yet.', 'aimentor' ),
                         'knowledgePackSelectedCount' => __( '%d knowledge packs selected', 'aimentor' ),
+                        'quickActionsSaveSuccess'    => __( 'Quick actions updated.', 'aimentor' ),
+                        'quickActionsSaveError'      => __( 'Unable to save quick actions. Please try again.', 'aimentor' ),
+                        'quickActionsEmpty'          => __( 'No quick actions are registered yet.', 'aimentor' ),
+                        'quickActionsPromptLabel'    => __( 'Prompt instructions', 'aimentor' ),
+                        'quickActionsSystemLabel'    => __( 'System instructions', 'aimentor' ),
+                        'quickActionsToggleLabel'    => __( 'Enable quick action', 'aimentor' ),
+                        'quickActionsSave'           => __( 'Save Quick Actions', 'aimentor' ),
+                        'quickActionsSaving'         => __( 'Saving…', 'aimentor' ),
+                        'quickActionsNoChanges'      => __( 'No changes to save.', 'aimentor' ),
                         'automationJobRemoveConfirm' => __( 'Remove this automation job? This cannot be undone.', 'aimentor' ),
                         'automationJobDefaultTitle'  => __( 'New automation job', 'aimentor' ),
                         /* translators: %s: Human readable duration. */
@@ -801,6 +812,7 @@ function aimentor_get_ajax_payload() {
                 'canvasHistory'     => $canvas_history,
                 'tonePresets'       => $tone_presets,
                 'knowledgePacks'    => $knowledge_packs,
+                'quickActions'      => $quick_actions_payload,
                 'canvasHistoryMax'  => function_exists( 'aimentor_get_canvas_history_max_items' ) ? aimentor_get_canvas_history_max_items() : 0,
                 'frameLibraryEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/frames' ) ),
                 'frameLibrary'      => function_exists( 'aimentor_get_frame_library_items' ) ? aimentor_get_frame_library_items( [ 'posts_per_page' => 50 ] ) : [],

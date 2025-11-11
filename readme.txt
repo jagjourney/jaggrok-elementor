@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -112,6 +112,10 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.8.1 =
+* Added a quick-actions management panel on the Brand tab so administrators can enable or disable actions and edit their default prompts and system guidance.
+* Extended the admin settings script to render the new controls, sync field changes, and persist updates through the REST API with inline validation messaging.
+
 = 1.8.0 =
 * Added an Automation settings tab so administrators can define recurring jobs, choose content sources, pick prompts, and ground runs with knowledge packs.
 * Registered a cron-powered automation runner that reuses the existing generation pipeline, queues AI Layout drafts, and logs rate-limit cooldowns for review.

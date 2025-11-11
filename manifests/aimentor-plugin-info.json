@@ -1,9 +1,9 @@
 {
   "name": "AiMentor Elementor",
   "slug": "aimentor-elementor",
-  "version": "1.8.0",
-  "download_url": "https://github.com/jagjourney/aimentor-elementor/releases/download/v1.8.0/aimentor-elementor-v1.8.0.zip",
-  "released_at": "2025-12-15T00:00:00Z",
+  "version": "1.8.1",
+  "download_url": "https://github.com/jagjourney/aimentor-elementor/releases/download/v1.8.1/aimentor-elementor-v1.8.1.zip",
+  "released_at": "2025-11-11T00:00:00Z",
   "checksum": {
     "algorithm": "sha256",
     "hash": ""

@@ -1,3 +1,21 @@
+<?php
+$quick_actions_payload = isset( $quick_actions_payload ) && is_array( $quick_actions_payload )
+    ? $quick_actions_payload
+    : aimentor_get_quick_actions_payload();
+$quick_actions_rest_nonce = wp_create_nonce( 'wp_rest' );
+$quick_actions_endpoint   = esc_url( rest_url( 'aimentor/v1/quick-actions' ) );
+$quick_actions_json       = wp_json_encode( $quick_actions_payload );
+
+if ( false === $quick_actions_json ) {
+    $quick_actions_json = wp_json_encode(
+        [
+            'registry' => [],
+            'settings' => [],
+        ]
+    );
+}
+?>
+
 <div class="aimentor-settings-layout">
     <div class="aimentor-settings-main">
         <form method="post" action="options.php" class="aimentor-settings-form aimentor-settings-form--brand">
@@ -77,6 +95,17 @@
             </table>
             <?php submit_button(); ?>
         </form>
+
+        <section class="aimentor-quick-actions" data-rest-endpoint="<?php echo esc_url( $quick_actions_endpoint ); ?>" data-rest-nonce="<?php echo esc_attr( $quick_actions_rest_nonce ); ?>" data-initial-actions="<?php echo esc_attr( $quick_actions_json ); ?>">
+            <h2><?php esc_html_e( 'Quick Actions', 'aimentor' ); ?></h2>
+            <p class="description"><?php esc_html_e( 'Choose which quick actions appear in the Elementor modal and fine-tune the prompt and system guidance each action sends.', 'aimentor' ); ?></p>
+            <div class="aimentor-quick-actions__notice" role="status" aria-live="polite" hidden></div>
+            <?php wp_nonce_field( 'wp_rest', 'aimentor_rest_nonce' ); ?>
+            <div class="aimentor-quick-actions__list" data-role="quick-actions-list"></div>
+            <p class="submit">
+                <button type="button" class="button button-primary aimentor-quick-actions__save"><?php esc_html_e( 'Save Quick Actions', 'aimentor' ); ?></button>
+            </p>
+        </section>
     </div>
     <?php include plugin_dir_path( __FILE__ ) . 'sidebar-support.php'; ?>
 </div>

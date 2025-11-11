@@ -124,6 +124,18 @@ jQuery(document).ready(function($) {
     var knowledgeUpdatedColumn = getString('knowledgeUpdatedColumn', 'Updated');
     var knowledgeEditLabel = getString('knowledgeEditLabel', 'Edit');
     var knowledgeDeleteLabel = getString('knowledgeDeleteLabel', 'Delete');
+    var quickActionsPayload = (typeof aimentorAjax !== 'undefined' && aimentorAjax.quickActions) ? aimentorAjax.quickActions : null;
+    var quickActionsEndpoint = (typeof aimentorAjax !== 'undefined' && aimentorAjax.quickActionsEndpoint) ? String(aimentorAjax.quickActionsEndpoint) : '';
+    var quickActionsRestNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.restNonce) ? String(aimentorAjax.restNonce) : '';
+    var quickActionsSaveSuccessMessage = getString('quickActionsSaveSuccess', 'Quick actions updated.');
+    var quickActionsSaveErrorMessage = getString('quickActionsSaveError', 'Unable to save quick actions. Please try again.');
+    var quickActionsEmptyMessage = getString('quickActionsEmpty', 'No quick actions are registered yet.');
+    var quickActionsPromptLabel = getString('quickActionsPromptLabel', 'Prompt instructions');
+    var quickActionsSystemLabel = getString('quickActionsSystemLabel', 'System instructions');
+    var quickActionsToggleLabel = getString('quickActionsToggleLabel', 'Enable quick action');
+    var quickActionsSaveLabel = getString('quickActionsSave', 'Save Quick Actions');
+    var quickActionsSavingLabel = getString('quickActionsSaving', 'Saving…');
+    var quickActionsNoChangesLabel = getString('quickActionsNoChanges', 'No changes to save.');
     var automationJobRemoveConfirmMessage = getString('automationJobRemoveConfirm', 'Remove this automation job? This cannot be undone.');
     var automationJobDefaultTitle = getString('automationJobDefaultTitle', 'New automation job');
 
@@ -169,6 +181,10 @@ jQuery(document).ready(function($) {
 
     function escapeHtml(value) {
         return $('<div>').text(value || '').html();
+    }
+
+    function escapeAttribute(value) {
+        return $('<div>').text(value || '').html().replace(/"/g, '&quot;');
     }
 
     function renderTabLoading() {
@@ -1269,6 +1285,576 @@ jQuery(document).ready(function($) {
         });
     }
 
+    function normalizeQuickActionsPayload(payload) {
+        var registry = (payload && typeof payload.registry === 'object') ? payload.registry : {};
+        var settings = (payload && typeof payload.settings === 'object') ? payload.settings : {};
+        var normalized = [];
+
+        Object.keys(registry).forEach(function(key) {
+            if (!Object.prototype.hasOwnProperty.call(registry, key)) {
+                return;
+            }
+
+            var definition = registry[key] || {};
+            var slug = String(definition.slug || key || '').trim();
+
+            if (!slug) {
+                slug = String(key || '');
+            }
+
+            if (!slug) {
+                return;
+            }
+
+            var labels = definition.labels || {};
+            var defaults = definition.defaults || {};
+            var stored = settings.hasOwnProperty(slug) ? settings[slug] : settings[key];
+            stored = stored && typeof stored === 'object' ? stored : {};
+
+            var entry = {
+                slug: slug,
+                name: String(labels.name || definition.name || slug),
+                menuLabel: String(labels.menu_label || labels.menuLabel || ''),
+                description: String(labels.description || ''),
+                enabled: typeof stored.enabled === 'boolean' ? stored.enabled : !!defaults.enabled,
+                prompt: typeof stored.prompt === 'string' ? stored.prompt : (typeof defaults.prompt === 'string' ? defaults.prompt : ''),
+                system: typeof stored.system === 'string' ? stored.system : (typeof defaults.system === 'string' ? defaults.system : ''),
+                defaults: {
+                    enabled: !!defaults.enabled,
+                    prompt: typeof defaults.prompt === 'string' ? defaults.prompt : '',
+                    system: typeof defaults.system === 'string' ? defaults.system : ''
+                }
+            };
+
+            normalized.push(entry);
+        });
+
+        return {
+            actions: normalized,
+            registry: registry,
+            settings: settings
+        };
+    }
+
+    function cloneQuickActionEntry(entry) {
+        if (!entry || typeof entry !== 'object') {
+            return null;
+        }
+
+        return {
+            slug: String(entry.slug || ''),
+            name: String(entry.name || ''),
+            menuLabel: String(entry.menuLabel || ''),
+            description: String(entry.description || ''),
+            enabled: entry.enabled === true,
+            prompt: String(entry.prompt || ''),
+            system: String(entry.system || ''),
+            defaults: {
+                enabled: entry.defaults && entry.defaults.enabled === true,
+                prompt: entry.defaults && typeof entry.defaults.prompt === 'string' ? String(entry.defaults.prompt) : '',
+                system: entry.defaults && typeof entry.defaults.system === 'string' ? String(entry.defaults.system) : ''
+            }
+        };
+    }
+
+    function cloneQuickActions(entries) {
+        if (!Array.isArray(entries)) {
+            return [];
+        }
+
+        var clones = [];
+
+        entries.forEach(function(entry) {
+            var clone = cloneQuickActionEntry(entry);
+            if (clone && clone.slug) {
+                clones.push(clone);
+            }
+        });
+
+        return clones;
+    }
+
+    function findQuickActionEntry(actions, slug) {
+        if (!Array.isArray(actions)) {
+            return null;
+        }
+
+        var needle = String(slug || '');
+
+        for (var i = 0; i < actions.length; i++) {
+            var entry = actions[i];
+            if (entry && String(entry.slug || '') === needle) {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    function getQuickActionsState(container) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return null;
+        }
+
+        return $container.data('quickActionsState') || null;
+    }
+
+    function updateQuickActionsGlobalPayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return;
+        }
+
+        quickActionsPayload = payload;
+
+        if (typeof window.aimentorAjax !== 'undefined') {
+            window.aimentorAjax.quickActions = payload;
+        }
+    }
+
+    function updateQuickActionsNonce(container, nonce) {
+        if (!nonce) {
+            return;
+        }
+
+        var value = String(nonce);
+        quickActionsRestNonce = value;
+
+        if (typeof window.aimentorAjax !== 'undefined') {
+            window.aimentorAjax.restNonce = value;
+        }
+
+        var $container = container && container.jquery ? container : $(container);
+
+        if ($container && $container.length) {
+            var state = getQuickActionsState($container);
+            if (state) {
+                state.nonce = value;
+            }
+
+            $container.data('restNonce', value);
+            var $field = $container.find('input[name="aimentor_rest_nonce"]');
+            if ($field.length) {
+                $field.val(value);
+            }
+        }
+    }
+
+    function buildQuickActionsUrl(endpoint, path) {
+        var base = endpoint || quickActionsEndpoint || '';
+
+        if (!base) {
+            return '';
+        }
+
+        var normalized = String(base);
+        var suffix = path || '';
+
+        if (suffix) {
+            suffix = String(suffix);
+            if (suffix.charAt(0) !== '/') {
+                suffix = '/' + suffix;
+            }
+        }
+
+        return normalized.replace(/\/$/, '') + suffix;
+    }
+
+    function buildQuickActionsError(status, data) {
+        var message = '';
+
+        if (data && typeof data.message === 'string') {
+            message = data.message;
+        }
+
+        var error = new Error(message);
+        error.status = status || 0;
+        error.data = data || {};
+        error.code = (data && data.code) ? data.code : '';
+        return error;
+    }
+
+    function showQuickActionsNotice(container, message, type) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return;
+        }
+
+        var $notice = $container.find('.aimentor-quick-actions__notice');
+
+        if (!$notice.length) {
+            return;
+        }
+
+        if (!message) {
+            $notice.attr('hidden', 'hidden').text('').removeClass('notice notice-success notice-error notice-info');
+            return;
+        }
+
+        var className = 'notice';
+
+        if (type === 'success') {
+            className += ' notice-success';
+        } else if (type === 'error') {
+            className += ' notice-error';
+        } else {
+            className += ' notice-info';
+        }
+
+        $notice.removeClass('notice notice-success notice-error notice-info').addClass(className);
+        $notice.text(message).removeAttr('hidden');
+    }
+
+    function renderQuickActionsList(container, actions) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return;
+        }
+
+        var $list = $container.find('.aimentor-quick-actions__list');
+
+        if (!$list.length) {
+            return;
+        }
+
+        if (!Array.isArray(actions) || !actions.length) {
+            $list.html('<p class="description aimentor-quick-actions__empty">' + escapeHtml(quickActionsEmptyMessage) + '</p>');
+            return;
+        }
+
+        var html = '';
+
+        actions.forEach(function(action) {
+            if (!action || !action.slug) {
+                return;
+            }
+
+            var slug = String(action.slug || '');
+            var id = 'aimentor-quick-action-' + slug.replace(/[^a-zA-Z0-9_-]/g, '-');
+            var descriptionId = id + '-description';
+            var description = action.description ? '<p class="description aimentor-quick-actions__description" id="' + escapeAttribute(descriptionId) + '">' + escapeHtml(action.description) + '</p>' : '';
+            var promptPlaceholder = action.defaults && action.defaults.prompt ? ' placeholder="' + escapeAttribute(action.defaults.prompt) + '"' : '';
+            var systemPlaceholder = action.defaults && action.defaults.system ? ' placeholder="' + escapeAttribute(action.defaults.system) + '"' : '';
+            var isChecked = action.enabled ? ' checked' : '';
+            var describedBy = description ? ' aria-describedby="' + escapeAttribute(descriptionId) + '"' : '';
+
+            html += '<article class="aimentor-quick-actions__item" data-slug="' + escapeAttribute(slug) + '">';
+            html += '<header class="aimentor-quick-actions__item-header">';
+            html += '<label class="aimentor-quick-actions__toggle" for="' + escapeAttribute(id) + '">';
+            if (quickActionsToggleLabel) {
+                html += '<span class="screen-reader-text">' + escapeHtml(quickActionsToggleLabel) + '</span>';
+            }
+            html += '<input type="checkbox" class="aimentor-quick-actions__field aimentor-quick-actions__field--toggle" data-field="enabled" id="' + escapeAttribute(id) + '"' + describedBy + isChecked + ' />';
+            html += '<span class="aimentor-quick-actions__name">' + escapeHtml(action.name || slug) + '</span>';
+            html += '</label>';
+            html += '</header>';
+
+            if (description) {
+                html += description;
+            }
+
+            html += '<div class="aimentor-quick-actions__field-group">';
+            html += '<label class="aimentor-quick-actions__field-wrap">';
+            html += '<span class="aimentor-quick-actions__field-label">' + escapeHtml(quickActionsPromptLabel) + '</span>';
+            html += '<textarea class="large-text aimentor-quick-actions__field aimentor-quick-actions__field--prompt" data-field="prompt" rows="3"' + promptPlaceholder + describedBy + '>' + escapeHtml(action.prompt || '') + '</textarea>';
+            html += '</label>';
+            html += '<label class="aimentor-quick-actions__field-wrap">';
+            html += '<span class="aimentor-quick-actions__field-label">' + escapeHtml(quickActionsSystemLabel) + '</span>';
+            html += '<textarea class="large-text aimentor-quick-actions__field aimentor-quick-actions__field--system" data-field="system" rows="3"' + systemPlaceholder + describedBy + '>' + escapeHtml(action.system || '') + '</textarea>';
+            html += '</label>';
+            html += '</div>';
+            html += '</article>';
+        });
+
+        $list.html(html);
+    }
+
+    function updateQuickActionsSaveState(container) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return;
+        }
+
+        var state = getQuickActionsState($container);
+        var $button = $container.find('.aimentor-quick-actions__save');
+
+        if (!$button.length || !state) {
+            return;
+        }
+
+        var label = state.saving ? quickActionsSavingLabel : quickActionsSaveLabel;
+        $button.text(label);
+
+        var disabled = state.saving || !state.dirty;
+        $button.prop('disabled', disabled);
+        $button.toggleClass('is-busy', state.saving);
+    }
+
+    function setQuickActionsDirty(container, dirty) {
+        var state = getQuickActionsState(container);
+
+        if (!state) {
+            return;
+        }
+
+        state.dirty = !!dirty;
+        updateQuickActionsSaveState(container);
+    }
+
+    function performQuickActionsRequest(container, method, path, body) {
+        var $container = container && container.jquery ? container : $(container);
+        var state = getQuickActionsState($container);
+        var endpoint = (state && state.endpoint) ? state.endpoint : quickActionsEndpoint;
+        var nonce = (state && state.nonce) ? state.nonce : quickActionsRestNonce;
+
+        if (!endpoint || !nonce) {
+            return $.Deferred().reject(buildQuickActionsError(0, { message: quickActionsSaveErrorMessage })).promise();
+        }
+
+        var url = buildQuickActionsUrl(endpoint, path);
+        var headers = {
+            'X-WP-Nonce': nonce,
+            'Accept': 'application/json'
+        };
+        var supportsFetch = typeof window.fetch === 'function';
+
+        if (supportsFetch) {
+            var options = {
+                method: method,
+                headers: headers,
+                credentials: 'same-origin'
+            };
+
+            if (body && method !== 'GET' && method !== 'DELETE') {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
+            }
+
+            return window.fetch(url, options).then(function(response) {
+                var newNonce = response && response.headers ? response.headers.get('X-WP-Nonce') : null;
+
+                if (newNonce) {
+                    updateQuickActionsNonce($container, newNonce);
+                }
+
+                return response.json().catch(function() {
+                    return {};
+                }).then(function(data) {
+                    if (!response.ok) {
+                        throw buildQuickActionsError(response.status, data);
+                    }
+
+                    return data;
+                });
+            });
+        }
+
+        var ajaxOptions = {
+            url: url,
+            method: method,
+            headers: headers,
+            dataType: 'json',
+            xhrFields: {
+                withCredentials: true
+            }
+        };
+
+        if (body && method !== 'GET' && method !== 'DELETE') {
+            ajaxOptions.data = JSON.stringify(body);
+            ajaxOptions.processData = false;
+            ajaxOptions.contentType = 'application/json';
+        } else {
+            ajaxOptions.processData = false;
+        }
+
+        var deferred = $.Deferred();
+
+        $.ajax(ajaxOptions).done(function(data, textStatus, jqXHR) {
+            var newNonce = jqXHR.getResponseHeader('X-WP-Nonce');
+
+            if (newNonce) {
+                updateQuickActionsNonce($container, newNonce);
+            }
+
+            deferred.resolve(data || {});
+        }).fail(function(jqXHR) {
+            var responseJSON = jqXHR && jqXHR.responseJSON ? jqXHR.responseJSON : {};
+            deferred.reject(buildQuickActionsError(jqXHR ? jqXHR.status : 0, responseJSON));
+        });
+
+        return deferred.promise();
+    }
+
+    function saveQuickActions(container) {
+        var $container = container && container.jquery ? container : $(container);
+
+        if (!$container || !$container.length) {
+            return;
+        }
+
+        var state = getQuickActionsState($container);
+
+        if (!state || state.saving) {
+            return;
+        }
+
+        if (!state.dirty) {
+            showQuickActionsNotice($container, quickActionsNoChangesLabel, 'info');
+            return;
+        }
+
+        var payload = { actions: {} };
+
+        state.actions.forEach(function(action) {
+            if (!action || !action.slug) {
+                return;
+            }
+
+            payload.actions[action.slug] = {
+                enabled: !!action.enabled,
+                prompt: String(action.prompt || ''),
+                system: String(action.system || '')
+            };
+        });
+
+        state.saving = true;
+        updateQuickActionsSaveState($container);
+        showQuickActionsNotice($container, '', '');
+
+        performQuickActionsRequest($container, 'POST', '', payload).done(function(response) {
+            var data = response && response.data ? response.data : response;
+            if (!data || typeof data !== 'object') {
+                data = {};
+            }
+
+            updateQuickActionsGlobalPayload(data);
+
+            var normalized = normalizeQuickActionsPayload(data);
+            state.actions = cloneQuickActions(normalized.actions);
+
+            renderQuickActionsList($container, state.actions);
+            setQuickActionsDirty($container, false);
+            showQuickActionsNotice($container, quickActionsSaveSuccessMessage, 'success');
+
+            $(document).trigger('aimentor:quick-actions-refreshed', {
+                actions: cloneQuickActions(state.actions),
+                payload: data
+            });
+        }).fail(function(error) {
+            var message = quickActionsSaveErrorMessage;
+
+            if (error && error.data && error.data.message) {
+                message = error.data.message;
+            } else if (error && error.message) {
+                message = error.message;
+            }
+
+            showQuickActionsNotice($container, message, 'error');
+        }).always(function() {
+            state.saving = false;
+            updateQuickActionsSaveState($container);
+        });
+    }
+
+    function initializeQuickActions(context) {
+        var $context = resolveContext(context);
+        var $containers = ($context && $context.length) ? $context.find('.aimentor-quick-actions') : $('.aimentor-quick-actions');
+
+        if (!$containers.length) {
+            return;
+        }
+
+        $containers.each(function() {
+            var $container = $(this);
+
+            if ($container.data('quickActionsInit')) {
+                return;
+            }
+
+            $container.data('quickActionsInit', true);
+
+            var containerEndpoint = $container.data('restEndpoint') || $container.data('rest-endpoint');
+            var containerNonce = $container.data('restNonce') || $container.data('rest-nonce');
+            var initialPayload = $container.data('initialActions') || $container.data('initial-actions');
+
+            if (typeof initialPayload === 'string') {
+                try {
+                    initialPayload = JSON.parse(initialPayload);
+                } catch (error) {
+                    initialPayload = null;
+                }
+            }
+
+            var normalized = normalizeQuickActionsPayload(initialPayload || quickActionsPayload || {});
+            var state = {
+                actions: cloneQuickActions(normalized.actions),
+                endpoint: containerEndpoint ? String(containerEndpoint) : (quickActionsEndpoint || ''),
+                nonce: containerNonce ? String(containerNonce) : quickActionsRestNonce,
+                dirty: false,
+                saving: false
+            };
+
+            $container.data('quickActionsState', state);
+
+            if (state.nonce) {
+                updateQuickActionsNonce($container, state.nonce);
+            }
+
+            renderQuickActionsList($container, state.actions);
+            updateQuickActionsSaveState($container);
+
+            $container
+                .off('change' + EVENT_NAMESPACE, '.aimentor-quick-actions__field--toggle')
+                .on('change' + EVENT_NAMESPACE, '.aimentor-quick-actions__field--toggle', function() {
+                    var $item = $(this).closest('.aimentor-quick-actions__item');
+                    var slug = String($item.data('slug') || '');
+                    var entry = findQuickActionEntry(state.actions, slug);
+
+                    if (!entry) {
+                        return;
+                    }
+
+                    entry.enabled = $(this).is(':checked');
+                    setQuickActionsDirty($container, true);
+                });
+
+            $container
+                .off('input' + EVENT_NAMESPACE, '.aimentor-quick-actions__field--prompt, .aimentor-quick-actions__field--system')
+                .on('input' + EVENT_NAMESPACE, '.aimentor-quick-actions__field--prompt, .aimentor-quick-actions__field--system', function() {
+                    var $field = $(this);
+                    var $item = $field.closest('.aimentor-quick-actions__item');
+                    var slug = String($item.data('slug') || '');
+                    var entry = findQuickActionEntry(state.actions, slug);
+
+                    if (!entry) {
+                        return;
+                    }
+
+                    var field = String($field.data('field') || '');
+                    var value = String($field.val() || '');
+
+                    if (field === 'prompt') {
+                        entry.prompt = value;
+                    } else if (field === 'system') {
+                        entry.system = value;
+                    }
+
+                    setQuickActionsDirty($container, true);
+                });
+
+            $container
+                .off('click' + EVENT_NAMESPACE, '.aimentor-quick-actions__save')
+                .on('click' + EVENT_NAMESPACE, '.aimentor-quick-actions__save', function(event) {
+                    event.preventDefault();
+                    saveQuickActions($container);
+                });
+        });
+    }
+
     function initializeAnalyticsDashboard(context) {
         var $context = resolveContext(context);
 
@@ -1869,6 +2455,7 @@ jQuery(document).ready(function($) {
         initializeLogNonce($context);
         initializeSavedPrompts($context);
         initializeKnowledge($context);
+        initializeQuickActions($context);
         initializeAnalyticsDashboard($context);
         initializeFrameLibrary($context);
         initializeAutomationJobs($context);
@@ -2175,6 +2762,32 @@ jQuery(document).ready(function($) {
             setKnowledgeStore(payload.packs, { silent: true });
             updateKnowledgeList();
         }
+    });
+
+    $(document).on('aimentor:quick-actions-refreshed' + EVENT_NAMESPACE, function(event, payload) {
+        if (payload && payload.payload) {
+            updateQuickActionsGlobalPayload(payload.payload);
+        }
+
+        var actions = payload && payload.actions ? payload.actions : null;
+
+        if (!actions) {
+            return;
+        }
+
+        $('.aimentor-quick-actions').each(function() {
+            var $container = $(this);
+            var state = getQuickActionsState($container);
+
+            if (!state) {
+                return;
+            }
+
+            state.actions = cloneQuickActions(actions);
+            renderQuickActionsList($container, state.actions);
+            setQuickActionsDirty($container, false);
+            showQuickActionsNotice($container, '', '');
+        });
     });
 
     function setActiveTabState(tabSlug) {
