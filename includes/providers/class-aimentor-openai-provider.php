@@ -29,9 +29,23 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
         $timeout    = isset( $args['timeout'] ) ? absint( $args['timeout'] ) : $this->get_default_timeout( $context );
         $prompt     = trim( (string) $prompt ) . $this->get_prompt_suffix( $context );
 
+        $messages = [];
+
+        if ( ! empty( $context['system'] ) ) {
+            $messages[] = [
+                'role'    => 'system',
+                'content' => $context['system'],
+            ];
+        }
+
+        $messages[] = [
+            'role'    => 'user',
+            'content' => $prompt,
+        ];
+
         $body = [
             'model'      => $model,
-            'messages'   => [ [ 'role' => 'user', 'content' => $prompt ] ],
+            'messages'   => $messages,
             'max_tokens' => $max_tokens,
             'temperature' => $this->get_temperature( $context ),
         ];
@@ -341,6 +355,12 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
         $knowledge  = $this->normalize_knowledge_context( $context['knowledge'] ?? [] );
         $variations = isset( $context['variations'] ) ? $this->sanitize_variation_count( $context['variations'] ) : 1;
 
+        $system_instruction = '';
+
+        if ( isset( $context['system'] ) ) {
+            $system_instruction = sanitize_textarea_field( (string) $context['system'] );
+        }
+
         return [
             'task'       => $task,
             'tier'       => $tier,
@@ -348,6 +368,7 @@ class AiMentor_OpenAI_Provider implements AiMentor_Provider_Interface {
             'knowledge'  => $knowledge,
             'variations' => $variations,
             'intent'     => $intent,
+            'system'     => $system_instruction,
         ];
     }
 

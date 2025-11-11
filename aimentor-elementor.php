@@ -1564,6 +1564,17 @@ function jaggrok_generate_page_ajax() {
                 );
         }
 
+        $quick_action_slug = isset( $_POST['action_type'] ) ? sanitize_key( wp_unslash( $_POST['action_type'] ) ) : '';
+
+        if ( '' !== $quick_action_slug ) {
+                if ( ! function_exists( 'aimentor_ajax_execute_quick_action' ) ) {
+                        require_once AIMENTOR_PLUGIN_DIR . 'includes/settings.php';
+                }
+
+                aimentor_ajax_execute_quick_action();
+                return;
+        }
+
         $prompt = isset( $_POST['prompt'] ) ? sanitize_textarea_field( wp_unslash( $_POST['prompt'] ) ) : '';
         $is_pro = aimentor_is_pro_active();
 

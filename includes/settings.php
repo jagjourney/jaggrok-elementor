@@ -470,6 +470,21 @@ add_action( 'rest_api_init', 'aimentor_register_quick_actions_route' );
 
 function aimentor_dispatch_quick_action( $slug, $payload = [], $context = [] ) {
         /**
+         * Allow quick action processors to return a structured response.
+         *
+         * Implementations can hook into this filter to run synchronous quick action
+         * handlers and return data that should be sent back to the caller.
+         *
+         * @since 1.8.2
+         *
+         * @param mixed  $response Default null response.
+         * @param string $slug     The quick action identifier being dispatched.
+         * @param array  $payload  Optional payload supplied by the caller.
+         * @param array  $context  Optional context describing the execution environment.
+         */
+        $response = apply_filters( 'aimentor_quick_action_response', null, $slug, $payload, $context );
+
+        /**
          * Fires when a quick action dispatch is requested.
          *
          * Implementations can hook into this action to process quick action requests for
@@ -480,7 +495,313 @@ function aimentor_dispatch_quick_action( $slug, $payload = [], $context = [] ) {
          * @param array  $context Optional context describing the execution environment.
          */
         do_action( 'aimentor_quick_action_dispatch', $slug, $payload, $context );
+
+        return $response;
 }
+
+function aimentor_prepare_quick_action_prompt( $instructions, $source ) {
+        $instructions = sanitize_textarea_field( (string) $instructions );
+        $source       = is_string( $source ) ? trim( (string) $source ) : '';
+
+        $sections = [];
+
+        if ( '' !== $instructions ) {
+                $sections[] = $instructions;
+        }
+
+        if ( '' !== $source ) {
+                $sections[] = sprintf(
+                        "%s\n%s",
+                        __( 'Source content:', 'aimentor' ),
+                        $source
+                );
+        }
+
+        $prompt = trim( implode( "\n\n", array_filter( $sections ) ) );
+
+        /**
+         * Filter the compiled quick action prompt before it is sent to a provider.
+         *
+         * @since 1.8.2
+         *
+         * @param string $prompt Compiled prompt string.
+         * @param string $instructions Action-specific instructions.
+         * @param string $source Source content supplied by the user.
+         */
+        return apply_filters( 'aimentor_quick_action_prompt', $prompt, $instructions, $source );
+}
+
+function aimentor_handle_quick_action_response( $response, $slug, $payload, $context ) {
+        if ( null !== $response ) {
+                return $response;
+        }
+
+        $registry = aimentor_get_quick_action_registry();
+
+        if ( ! isset( $registry[ $slug ] ) ) {
+                return $response;
+        }
+
+        if ( ! is_array( $payload ) ) {
+                return new WP_Error(
+                        'aimentor_quick_action_invalid_payload',
+                        __( 'Invalid quick action payload.', 'aimentor' )
+                );
+        }
+
+        $user_prompt = isset( $payload['prompt'] ) ? trim( (string) $payload['prompt'] ) : '';
+
+        if ( '' === $user_prompt ) {
+                return new WP_Error(
+                        'aimentor_quick_action_missing_prompt',
+                        __( 'Provide content to process for the quick action.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        $instructions = isset( $payload['prompt_override'] ) ? (string) $payload['prompt_override'] : '';
+        $system       = isset( $payload['system_override'] ) ? (string) $payload['system_override'] : '';
+
+        $final_prompt = aimentor_prepare_quick_action_prompt( $instructions, $user_prompt );
+
+        if ( '' === $final_prompt ) {
+                return new WP_Error(
+                        'aimentor_quick_action_empty_prompt',
+                        __( 'Unable to prepare the quick action prompt.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        $provider = isset( $payload['provider'] ) ? sanitize_key( (string) $payload['provider'] ) : '';
+
+        if ( function_exists( 'aimentor_sanitize_provider' ) ) {
+                $provider = aimentor_sanitize_provider( $provider );
+        }
+
+        $task = isset( $payload['task'] ) ? sanitize_key( (string) $payload['task'] ) : 'content';
+
+        if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
+                $task = aimentor_sanitize_generation_type( $task );
+        }
+
+        if ( 'canvas' === $task ) {
+                $task = 'content';
+        }
+
+        $tier = isset( $payload['tier'] ) ? sanitize_key( (string) $payload['tier'] ) : '';
+
+        if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
+                $tier = aimentor_sanitize_performance_tier( $tier );
+        }
+
+        $knowledge_ids = [];
+
+        if ( isset( $payload['knowledge_ids'] ) ) {
+                $raw_ids = is_array( $payload['knowledge_ids'] ) ? $payload['knowledge_ids'] : [];
+
+                if ( function_exists( 'aimentor_sanitize_knowledge_ids' ) ) {
+                        $knowledge_ids = aimentor_sanitize_knowledge_ids( $raw_ids );
+                } else {
+                        $knowledge_ids = array_map( 'sanitize_text_field', array_map( 'strval', $raw_ids ) );
+                }
+        }
+
+        $request_args = [
+                'task'          => $task,
+                'tier'          => $tier,
+                'origin'        => 'quick_action',
+                'store_history' => true,
+                'user_id'       => isset( $context['user_id'] ) ? absint( $context['user_id'] ) : get_current_user_id(),
+                'knowledge_ids' => $knowledge_ids,
+                'intent'        => 'rewrite',
+                'system'        => $system,
+        ];
+
+        $result = aimentor_perform_generation_request( $final_prompt, $provider, $request_args );
+
+        if ( is_wp_error( $result ) ) {
+                return $result;
+        }
+
+        if ( is_array( $result ) ) {
+                $result['quick_action'] = $slug;
+        }
+
+        return $result;
+}
+add_filter( 'aimentor_quick_action_response', 'aimentor_handle_quick_action_response', 10, 4 );
+
+function aimentor_ajax_execute_quick_action() {
+        check_ajax_referer( 'aimentor_test', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_forbidden',
+                                'message' => __( 'Insufficient permissions to run quick actions.', 'aimentor' ),
+                        ],
+                        403
+                );
+        }
+
+        $slug = isset( $_POST['action_type'] ) ? sanitize_key( wp_unslash( $_POST['action_type'] ) ) : '';
+
+        if ( '' === $slug ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_missing_slug',
+                                'message' => __( 'Quick action identifier is required.', 'aimentor' ),
+                        ],
+                        400
+                );
+        }
+
+        $registry = aimentor_get_quick_action_registry();
+
+        if ( ! isset( $registry[ $slug ] ) ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_unknown',
+                                'message' => __( 'Unknown quick action.', 'aimentor' ),
+                        ],
+                        404
+                );
+        }
+
+        $settings        = aimentor_get_quick_actions_settings();
+        $action_settings = isset( $settings[ $slug ] ) ? $settings[ $slug ] : [];
+        $defaults        = isset( $registry[ $slug ]['defaults'] ) ? $registry[ $slug ]['defaults'] : [];
+
+        $enabled = isset( $action_settings['enabled'] ) ? (bool) $action_settings['enabled'] : (bool) ( $defaults['enabled'] ?? false );
+
+        if ( ! $enabled ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_disabled',
+                                'message' => __( 'This quick action is disabled.', 'aimentor' ),
+                        ],
+                        400
+                );
+        }
+
+        $prompt = isset( $_POST['prompt'] ) ? wp_unslash( $_POST['prompt'] ) : '';
+        $prompt = is_string( $prompt ) ? trim( $prompt ) : '';
+
+        if ( '' === $prompt ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_missing_prompt',
+                                'message' => __( 'Provide content to process for the quick action.', 'aimentor' ),
+                        ],
+                        400
+                );
+        }
+
+        $provider = isset( $_POST['provider'] ) ? sanitize_key( wp_unslash( $_POST['provider'] ) ) : '';
+
+        if ( function_exists( 'aimentor_sanitize_provider' ) ) {
+                $provider = aimentor_sanitize_provider( $provider );
+        }
+
+        $task = isset( $_POST['task'] ) ? sanitize_key( wp_unslash( $_POST['task'] ) ) : 'content';
+
+        if ( function_exists( 'aimentor_sanitize_generation_type' ) ) {
+                $task = aimentor_sanitize_generation_type( $task );
+        }
+
+        if ( 'canvas' === $task ) {
+                $task = 'content';
+        }
+
+        $tier = isset( $_POST['tier'] ) ? sanitize_key( wp_unslash( $_POST['tier'] ) ) : '';
+
+        if ( function_exists( 'aimentor_sanitize_performance_tier' ) ) {
+                $tier = aimentor_sanitize_performance_tier( $tier );
+        }
+
+        $knowledge_ids = [];
+
+        if ( isset( $_POST['knowledge_ids'] ) ) {
+                $raw_knowledge = wp_unslash( $_POST['knowledge_ids'] );
+
+                if ( is_string( $raw_knowledge ) && '' !== $raw_knowledge ) {
+                        $decoded = json_decode( $raw_knowledge, true );
+                        if ( is_array( $decoded ) ) {
+                                $raw_knowledge = $decoded;
+                        } else {
+                                $raw_knowledge = [ $raw_knowledge ];
+                        }
+                }
+
+                if ( is_array( $raw_knowledge ) ) {
+                        if ( function_exists( 'aimentor_sanitize_knowledge_ids' ) ) {
+                                $knowledge_ids = aimentor_sanitize_knowledge_ids( $raw_knowledge );
+                        } else {
+                                $knowledge_ids = array_map( 'sanitize_text_field', array_map( 'strval', $raw_knowledge ) );
+                        }
+                }
+        }
+
+        $instructions = isset( $action_settings['prompt'] ) ? (string) $action_settings['prompt'] : (string) ( $defaults['prompt'] ?? '' );
+        $system       = isset( $action_settings['system'] ) ? (string) $action_settings['system'] : (string) ( $defaults['system'] ?? '' );
+
+        $payload = [
+                'prompt'          => $prompt,
+                'provider'        => $provider,
+                'task'            => $task,
+                'tier'            => $tier,
+                'knowledge_ids'   => $knowledge_ids,
+                'prompt_override' => $instructions,
+                'system_override' => $system,
+        ];
+
+        $dispatch = isset( $registry[ $slug ]['processors']['dispatch'] ) ? $registry[ $slug ]['processors']['dispatch'] : null;
+
+        if ( empty( $dispatch ) || ! is_callable( $dispatch ) ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_unhandled',
+                                'message' => __( 'No processor is registered for this quick action.', 'aimentor' ),
+                        ],
+                        500
+                );
+        }
+
+        $context = [
+                'origin'  => 'ajax',
+                'user_id' => get_current_user_id(),
+        ];
+
+        $result = call_user_func( $dispatch, $slug, $payload, $context );
+
+        if ( is_wp_error( $result ) ) {
+                $error_data = $result->get_error_data();
+                $status     = isset( $error_data['status'] ) ? absint( $error_data['status'] ) : 400;
+
+                wp_send_json_error(
+                        [
+                                'code'    => $result->get_error_code(),
+                                'message' => $result->get_error_message(),
+                                'data'    => is_array( $error_data ) ? $error_data : [],
+                        ],
+                        $status
+                );
+        }
+
+        if ( ! is_array( $result ) ) {
+                wp_send_json_error(
+                        [
+                                'code'    => 'aimentor_quick_action_invalid_response',
+                                'message' => __( 'Unexpected quick action response.', 'aimentor' ),
+                        ],
+                        500
+                );
+        }
+
+        wp_send_json_success( $result );
+}
+add_action( 'wp_ajax_aimentor_execute_quick_action', 'aimentor_ajax_execute_quick_action' );
+add_action( 'wp_ajax_jaggrok_execute_quick_action', 'aimentor_ajax_execute_quick_action' );
 
 function aimentor_get_network_managed_options() {
         return [
@@ -2795,6 +3116,8 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                         'user_id'       => get_current_user_id(),
                         'variations'    => null,
                         'knowledge_ids' => [],
+                        'intent'        => '',
+                        'system'        => '',
                 ]
         );
 
@@ -2904,6 +3227,14 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                 'tier'   => $tier,
                 'origin' => $origin,
         ];
+
+        if ( '' !== $args['intent'] ) {
+                $context['intent'] = sanitize_key( (string) $args['intent'] );
+        }
+
+        if ( '' !== $args['system'] ) {
+                $context['system'] = sanitize_textarea_field( (string) $args['system'] );
+        }
 
         if ( ! empty( $args['knowledge_ids'] ) && function_exists( 'aimentor_prepare_provider_knowledge_context' ) ) {
                 $knowledge_context = aimentor_prepare_provider_knowledge_context(
@@ -3037,6 +3368,8 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                 );
         }
 
+        $history_recorded = false;
+
         if ( function_exists( 'aimentor_store_generation_history_entry' ) && $args['store_history'] ) {
                 $history_result = aimentor_store_generation_history_entry(
                         $prompt,
@@ -3052,18 +3385,22 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                         ]
                 );
 
-                if ( is_wp_error( $history_result ) && function_exists( 'aimentor_log_error' ) ) {
-                        aimentor_log_error(
-                                $history_result->get_error_message(),
-                                [
-                                        'provider' => $provider_key,
-                                        'model'    => $model,
-                                        'task'     => $task,
-                                        'tier'     => $tier,
-                                        'origin'   => $origin,
-                                        'user_id'  => $args['user_id'],
-                                ]
-                        );
+                if ( is_wp_error( $history_result ) ) {
+                        if ( function_exists( 'aimentor_log_error' ) ) {
+                                aimentor_log_error(
+                                        $history_result->get_error_message(),
+                                        [
+                                                'provider' => $provider_key,
+                                                'model'    => $model,
+                                                'task'     => $task,
+                                                'tier'     => $tier,
+                                                'origin'   => $origin,
+                                                'user_id'  => $args['user_id'],
+                                        ]
+                                );
+                        }
+                } else {
+                        $history_recorded = true;
                 }
         }
 
@@ -3112,6 +3449,8 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
         if ( ! empty( $result['summary'] ) && is_string( $result['summary'] ) ) {
                 $payload['summary'] = $result['summary'];
         }
+
+        $payload['history_recorded'] = $history_recorded;
 
         return $payload;
 }
