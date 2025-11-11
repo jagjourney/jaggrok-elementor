@@ -85,6 +85,7 @@ native GitHub channel.
 * Release automation: `.github/workflows/release.yml` validates PHP syntax, builds the ZIP package, attaches it to the release,
   and refreshes the lightweight manifest on `gh-pages`.
 * Release checklist and versioning guide: `docs/release-guide.md`.
+* Quick actions developer guide: `docs/developers/quick-actions.md`.
 
 == Hooks ==
 * `aimentor_compiled_knowledge_payload` — Filter the raw compiled knowledge packs before they are cached for provider consumption.
