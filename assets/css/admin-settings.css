@@ -200,6 +200,136 @@
     color: #1da866;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Analytics Dashboard */
+/* -------------------------------------------------------------------------- */
+.aimentor-settings-analytics {
+    gap: 32px;
+}
+
+.aimentor-analytics__intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.aimentor-analytics__intro h2 {
+    margin: 0;
+}
+
+.aimentor-analytics__intro .description {
+    flex: 1 1 280px;
+    margin: 0;
+    max-width: 520px;
+}
+
+.aimentor-analytics-summary__metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.aimentor-analytics-summary__metrics > div {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.aimentor-analytics-summary__metrics strong {
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.aimentor-analytics-summary__metrics span {
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.aimentor-analytics-chart__bars {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 24px 0;
+}
+
+.aimentor-analytics-chart__bar {
+    display: grid;
+    grid-template-columns: minmax(140px, 180px) 1fr;
+    align-items: center;
+    gap: 16px;
+}
+
+.aimentor-analytics-chart__label {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.aimentor-analytics-chart__value {
+    position: relative;
+    display: block;
+    height: 28px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 100%);
+    color: #fff;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 12px;
+}
+
+.aimentor-analytics-chart__value span {
+    font-size: 12px;
+}
+
+.aimentor-analytics__placeholder {
+    color: #6b7280;
+    font-style: italic;
+}
+
+.aimentor-analytics__table table {
+    margin-top: 16px;
+}
+
+.aimentor-analytics-guardrails__form .submit {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.aimentor-analytics-guardrails__status {
+    font-size: 13px;
+    color: #2563eb;
+}
+
+.aimentor-guardrail-warnings {
+    margin-top: 16px;
+    padding: 16px 18px;
+    border-left: 4px solid #d97706;
+    background: #fff7ed;
+    border-radius: 6px;
+    color: #92400e;
+}
+
+.aimentor-guardrail-warnings strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.aimentor-guardrail-warnings ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
 .aimentor-onboarding-card__step.is-pending .dashicons {
     color: #2271b1;
 }

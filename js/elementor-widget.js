@@ -171,7 +171,7 @@
         return 'Variation ' + (index + 1);
     }
 
-    function recordHistoryEntry(prompt, providerKey) {
+    function recordHistoryEntry(prompt, providerKey, meta) {
         if (!prompt || !providerKey) {
             return;
         }
@@ -184,6 +184,27 @@
             prompt: String(prompt),
             provider: String(providerKey)
         };
+
+        if (meta && typeof meta === 'object') {
+            if (meta.task) {
+                payload.task = String(meta.task);
+            }
+            if (meta.tier) {
+                payload.tier = String(meta.tier);
+            }
+            if (meta.model) {
+                payload.model = String(meta.model);
+            }
+            if (meta.origin) {
+                payload.origin = String(meta.origin);
+            }
+            if (typeof meta.tokens !== 'undefined') {
+                payload.tokens = parseInt(meta.tokens, 10);
+            }
+            if (meta.rate_limit) {
+                payload.rate_limit = meta.rate_limit;
+            }
+        }
 
         if (window.fetch) {
             window.fetch(aimentorData.historyEndpoint, {
@@ -685,7 +706,7 @@
                 summary = summaryText.replace(/\s+/g, ' ').trim();
             }
 
-            $.post(aimentorData.ajaxurl, {
+            var requestPayload = {
                 action: 'aimentor_store_canvas_history',
                 nonce: aimentorData.canvasHistoryNonce,
                 layout: layoutJson,
@@ -693,8 +714,20 @@
                 provider: responseData.provider || '',
                 model: responseData.model || '',
                 task: responseData.task || 'canvas',
-                tier: responseData.tier || ''
-            }).done(function(storeResponse) {
+                tier: responseData.tier || '',
+                origin: responseData.origin || 'ajax',
+                tokens: typeof responseData.tokens !== 'undefined' ? responseData.tokens : 0
+            };
+
+            if (responseData.rate_limit) {
+                try {
+                    requestPayload.rate_limit = JSON.stringify(responseData.rate_limit);
+                } catch (error) {
+                    // Ignore serialization issues.
+                }
+            }
+
+            $.post(aimentorData.ajaxurl, requestPayload).done(function(storeResponse) {
                 if (!storeResponse || !storeResponse.success || !storeResponse.data) {
                     return;
                 }
@@ -2301,6 +2334,15 @@
                             }
                             var hasCanvasPayload = response.data && response.data.canvas_json && !canvasVariations.length;
 
+                            var historyMeta = {
+                                task: widgetState.task,
+                                tier: widgetState.tier,
+                                model: response && response.data && response.data.model ? response.data.model : '',
+                                origin: 'ajax',
+                                rate_limit: response && response.data ? response.data.rate_limit || null : null,
+                                tokens: response && response.data && typeof response.data.tokens !== 'undefined' ? response.data.tokens : 0
+                            };
+
                             if (canvasVariations.length && $output.length) {
                                 renderCanvasVariations($output, canvasVariations, {
                                     provider: responseProvider,
@@ -2322,7 +2364,17 @@
                                 $output.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
                             }
 
-                            recordHistoryEntry(promptValue, widgetState.provider);
+                            if (response.data && Array.isArray(response.data.warnings) && response.data.warnings.length && $output.length) {
+                                var warningItems = response.data.warnings.map(function(message) {
+                                    return '<li>' + escapeHtml(String(message)) + '</li>';
+                                }).join('');
+                                var warningTitle = escapeHtml(strings.analyticsWarningTitle || 'Guardrail warnings');
+                                $output.append('<div class="aimentor-guardrail-warnings" role="status"><strong>' + warningTitle + '</strong><ul>' + warningItems + '</ul></div>');
+                            }
+
+                            if (!response.data || !response.data.history_recorded) {
+                                recordHistoryEntry(promptValue, widgetState.provider, historyMeta);
+                            }
                         } else {
                             var message = response && response.data ? response.data : 'Unknown error';
                             if (typeof message === 'object' && message !== null) {
@@ -2992,6 +3044,15 @@
                         }
                         var hasCanvasPayload = response.data && response.data.canvas_json && !canvasVariations.length;
 
+                        var historyMeta = {
+                            task: selection.task,
+                            tier: selection.tier,
+                            model: response && response.data && response.data.model ? response.data.model : '',
+                            origin: 'ajax',
+                            rate_limit: response && response.data ? response.data.rate_limit || null : null,
+                            tokens: response && response.data && typeof response.data.tokens !== 'undefined' ? response.data.tokens : 0
+                        };
+
                         if (canvasVariations.length) {
                             renderCanvasVariations($result, canvasVariations, {
                                 provider: providerValue,
@@ -3019,7 +3080,17 @@
                             }
                         }
 
-                        recordHistoryEntry(promptValue, providerValue);
+                        if (response.data && Array.isArray(response.data.warnings) && response.data.warnings.length) {
+                            var warningItems = response.data.warnings.map(function(message) {
+                                return '<li>' + escapeHtml(String(message)) + '</li>';
+                            }).join('');
+                            var warningTitle = escapeHtml(strings.analyticsWarningTitle || 'Guardrail warnings');
+                            $result.append('<div class="aimentor-guardrail-warnings" role="status"><strong>' + warningTitle + '</strong><ul>' + warningItems + '</ul></div>');
+                        }
+
+                        if (!response.data || !response.data.history_recorded) {
+                            recordHistoryEntry(promptValue, providerValue, historyMeta);
+                        }
                     } else {
                         var message = response && response.data ? response.data : 'Unknown error';
                         if (typeof message === 'object' && message !== null) {
