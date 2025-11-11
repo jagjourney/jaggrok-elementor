@@ -1269,6 +1269,294 @@ jQuery(document).ready(function($) {
         });
     }
 
+    function initializeAnalyticsDashboard(context) {
+        var $context = resolveContext(context);
+
+        if (!$context || !$context.length) {
+            $context = $(document);
+        }
+
+        var $panels = $context.find('.aimentor-settings-analytics');
+
+        if (!$panels.length) {
+            return;
+        }
+
+        var restNonce = (typeof aimentorAjax !== 'undefined' && aimentorAjax.restNonce) ? String(aimentorAjax.restNonce) : '';
+        var defaultSummaryEndpoint = (typeof aimentorAjax !== 'undefined' && aimentorAjax.analyticsEndpoint) ? String(aimentorAjax.analyticsEndpoint) : '';
+        var defaultGuardEndpoint = (typeof aimentorAjax !== 'undefined' && aimentorAjax.analyticsGuardrailsEndpoint) ? String(aimentorAjax.analyticsGuardrailsEndpoint) : '';
+        var loadingMessage = getString('analyticsLoading', 'Loading analytics…');
+        var loadErrorMessage = getString('analyticsLoadError', 'Unable to load analytics right now. Please try again later.');
+        var emptyMessage = getString('analyticsEmpty', 'No analytics data recorded yet.');
+        var guardrailsSavedMessage = getString('analyticsGuardrailsSaved', 'Guardrail updates saved.');
+        var guardrailsErrorMessage = getString('analyticsGuardrailsError', 'Unable to update guardrails. Please try again.');
+        var summarySuccessLabel = getString('analyticsSummarySuccess', 'Successful requests');
+        var summaryErrorsLabel = getString('analyticsSummaryErrors', 'Errors');
+        var summaryTokensLabel = getString('analyticsSummaryTokens', 'Tokens used');
+        var summaryRangeLabelFallback = getString('analyticsIntervalFallbackLabel', 'Intervals tracked');
+        var summaryHourLabel = getString('analyticsIntervalHourLabel', 'Hours tracked');
+        var summaryDayLabel = getString('analyticsIntervalDayLabel', 'Days tracked');
+        var summaryWeekLabel = getString('analyticsIntervalWeekLabel', 'Weeks tracked');
+        var chartBarLabelTemplate = getString('analyticsChartBarLabel', '%1$s: %2$d total requests');
+        var tableProviderLabel = getString('analyticsTableProvider', 'Provider');
+        var tableRequestsLabel = getString('analyticsTableRequests', 'Requests');
+
+        $panels.each(function() {
+            var $panel = $(this);
+            var $summary = $panel.find('[data-role="analytics-summary"]');
+            var $chart = $panel.find('[data-role="analytics-chart"]');
+            var $table = $panel.find('[data-role="analytics-table"]');
+            var $refresh = $panel.find('.aimentor-analytics__refresh');
+            var $form = $panel.find('.aimentor-analytics-guardrails__form');
+            var $status = $panel.find('.aimentor-analytics-guardrails__status');
+
+            var summaryEndpoint = $refresh.data('endpoint') ? String($refresh.data('endpoint')) : defaultSummaryEndpoint;
+            var guardEndpoint = $form.data('endpoint') ? String($form.data('endpoint')) : defaultGuardEndpoint;
+            var panelRestNonce = restNonce;
+            var panelNonce = $panel.data('restNonce') || $panel.data('rest-nonce');
+
+            if (panelNonce) {
+                panelRestNonce = String(panelNonce);
+            }
+
+            function resolveBarLabel(label, total) {
+                var resolved = String(chartBarLabelTemplate);
+
+                if (resolved.indexOf('%1$s') !== -1) {
+                    resolved = resolved.replace('%1$s', label);
+                } else if (resolved.indexOf('%s') !== -1) {
+                    resolved = resolved.replace('%s', label);
+                }
+
+                if (resolved.indexOf('%2$d') !== -1) {
+                    resolved = resolved.replace('%2$d', total);
+                } else if (resolved.indexOf('%d') !== -1) {
+                    resolved = resolved.replace('%d', total);
+                }
+
+                return resolved;
+            }
+
+            function renderSummaryPlaceholder(message) {
+                if ($summary.length) {
+                    $summary.html('<p class="aimentor-analytics__placeholder">' + escapeHtml(String(message)) + '</p>');
+                }
+                if ($chart.length) {
+                    $chart.empty();
+                }
+                if ($table.length) {
+                    $table.empty();
+                }
+            }
+
+            function populateGuardrails(guardrails) {
+                if (!$form.length || !guardrails) {
+                    return;
+                }
+
+                if (typeof guardrails.daily_limit !== 'undefined') {
+                    $form.find('[name="daily_limit"]').val(guardrails.daily_limit);
+                }
+                if (typeof guardrails.hourly_limit !== 'undefined') {
+                    $form.find('[name="hourly_limit"]').val(guardrails.hourly_limit);
+                }
+                if (typeof guardrails.user_daily_limit !== 'undefined') {
+                    $form.find('[name="user_daily_limit"]').val(guardrails.user_daily_limit);
+                }
+                if (typeof guardrails.warning_ratio !== 'undefined') {
+                    $form.find('[name="warning_ratio"]').val(guardrails.warning_ratio);
+                }
+            }
+
+            function renderSummary(data) {
+                if (!data) {
+                    renderSummaryPlaceholder(emptyMessage);
+                    return;
+                }
+
+                if (data.guardrails) {
+                    populateGuardrails(data.guardrails);
+                }
+
+                if (!data.groups || !data.groups.length) {
+                    renderSummaryPlaceholder(emptyMessage);
+                    return;
+                }
+
+                if ($summary.length) {
+                    var totals = data.totals || {};
+                    var rangeCount = parseInt(data.range, 10);
+                    if (isNaN(rangeCount)) {
+                        rangeCount = 0;
+                    }
+                    var intervalLabel = typeof data.interval === 'string' ? data.interval : '';
+                    var rangeLabel = summaryRangeLabelFallback;
+
+                    if ('hour' === intervalLabel) {
+                        rangeLabel = summaryHourLabel;
+                    } else if ('week' === intervalLabel) {
+                        rangeLabel = summaryWeekLabel;
+                    } else if ('day' === intervalLabel) {
+                        rangeLabel = summaryDayLabel;
+                    }
+
+                    var summaryHtml = '<div class="aimentor-analytics-summary__metrics">'
+                        + '<div><strong>' + escapeHtml(String(totals.success || 0)) + '</strong><span>' + escapeHtml(summarySuccessLabel) + '</span></div>'
+                        + '<div><strong>' + escapeHtml(String(totals.errors || 0)) + '</strong><span>' + escapeHtml(summaryErrorsLabel) + '</span></div>'
+                        + '<div><strong>' + escapeHtml(String(totals.tokens || 0)) + '</strong><span>' + escapeHtml(summaryTokensLabel) + '</span></div>'
+                        + '<div><strong>' + escapeHtml(String(rangeCount)) + '</strong><span>' + escapeHtml(rangeLabel) + '</span></div>'
+                        + '</div>';
+
+                    $summary.html(summaryHtml);
+                }
+
+                if ($chart.length) {
+                    var maxValue = 0;
+                    var chartHtml = '<div class="aimentor-analytics-chart__bars" role="list">';
+
+                    data.groups.forEach(function(group) {
+                        var total = (group.success || 0) + (group.errors || 0);
+                        if (total > maxValue) {
+                            maxValue = total;
+                        }
+                    });
+
+                    if (maxValue <= 0) {
+                        chartHtml += '<p class="aimentor-analytics__placeholder">' + escapeHtml(emptyMessage) + '</p>';
+                    } else {
+                        data.groups.forEach(function(group) {
+                            var total = (group.success || 0) + (group.errors || 0);
+                            var width = Math.max(5, Math.round((total / maxValue) * 100));
+                            var label = group.label || '';
+                            var ariaLabel = resolveBarLabel(label, total);
+
+                            chartHtml += '<div class="aimentor-analytics-chart__bar" role="listitem" aria-label="' + escapeHtml(String(ariaLabel)) + '">'
+                                + '<span class="aimentor-analytics-chart__label">' + escapeHtml(label) + '</span>'
+                                + '<span class="aimentor-analytics-chart__value" style="width:' + width + '%">'
+                                + '<span>' + escapeHtml(String(total)) + '</span>'
+                                + '</span>'
+                                + '</div>';
+                        });
+                    }
+
+                    chartHtml += '</div>';
+                    $chart.html(chartHtml);
+                }
+
+                if ($table.length) {
+                    var providers = data.totals && data.totals.providers ? data.totals.providers : {};
+                    var tableRows = '';
+                    Object.keys(providers).forEach(function(key) {
+                        var count = providers[key] || 0;
+                        tableRows += '<tr><th scope="row">' + escapeHtml(key) + '</th><td>' + escapeHtml(String(count)) + '</td></tr>';
+                    });
+
+                    if (!tableRows) {
+                        tableRows = '<tr><td colspan="2">' + escapeHtml(emptyMessage) + '</td></tr>';
+                    }
+
+                    $table.html('<table class="widefat"><thead><tr><th>' + escapeHtml(tableProviderLabel) + '</th><th>' + escapeHtml(tableRequestsLabel) + '</th></tr></thead><tbody>' + tableRows + '</tbody></table>');
+                }
+            }
+
+            function fetchSummary() {
+                if (!summaryEndpoint) {
+                    renderSummaryPlaceholder(emptyMessage);
+                    return $.Deferred().reject().promise();
+                }
+
+                renderSummaryPlaceholder(loadingMessage);
+
+                return window.fetch(summaryEndpoint, {
+                    method: 'GET',
+                    headers: {
+                        'X-WP-Nonce': panelRestNonce
+                    },
+                    credentials: 'same-origin'
+                }).then(function(response) {
+                    if (!response.ok) {
+                        throw response;
+                    }
+                    return response.json();
+                }).then(function(payload) {
+                    var data = payload && payload.data ? payload.data : payload;
+                    renderSummary(data);
+                    return data;
+                }).catch(function() {
+                    renderSummaryPlaceholder(loadErrorMessage);
+                });
+            }
+
+            function submitGuardrails(event) {
+                event.preventDefault();
+
+                if (!$form.length || !guardEndpoint) {
+                    return;
+                }
+
+                if ($status.length) {
+                    $status.text('');
+                }
+
+                if ($form.data('submitting') === true) {
+                    return;
+                }
+
+                var payload = {
+                    daily_limit: parseInt($form.find('[name="daily_limit"]').val() || 0, 10),
+                    hourly_limit: parseInt($form.find('[name="hourly_limit"]').val() || 0, 10),
+                    user_daily_limit: parseInt($form.find('[name="user_daily_limit"]').val() || 0, 10),
+                    warning_ratio: parseFloat($form.find('[name="warning_ratio"]').val() || 0)
+                };
+
+                $form.data('submitting', true);
+
+                window.fetch(guardEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-WP-Nonce': panelRestNonce
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                }).then(function(response) {
+                    if (!response.ok) {
+                        throw response;
+                    }
+                    return response.json();
+                }).then(function(payload) {
+                    var data = payload && payload.data ? payload.data : payload;
+                    if (data && data.guardrails) {
+                        populateGuardrails(data.guardrails);
+                    }
+                    if ($status.length) {
+                        $status.text(guardrailsSavedMessage);
+                    }
+                    fetchSummary();
+                }).catch(function() {
+                    if ($status.length) {
+                        $status.text(guardrailsErrorMessage);
+                    }
+                }).finally(function() {
+                    $form.data('submitting', false);
+                });
+            }
+
+            fetchSummary();
+
+            if ($refresh.length) {
+                $refresh.off('click' + EVENT_NAMESPACE).on('click' + EVENT_NAMESPACE, function(event) {
+                    event.preventDefault();
+                    fetchSummary();
+                });
+            }
+
+            if ($form.length) {
+                $form.off('submit' + EVENT_NAMESPACE).on('submit' + EVENT_NAMESPACE, submitGuardrails);
+            }
+        });
+    }
+
     function initializeFrameLibrary(context) {
         var $context = resolveContext(context);
         var $forms = ($context && $context.length) ? $context.find('.aimentor-frame-library__form') : $('.aimentor-frame-library__form');
@@ -1581,6 +1869,7 @@ jQuery(document).ready(function($) {
         initializeLogNonce($context);
         initializeSavedPrompts($context);
         initializeKnowledge($context);
+        initializeAnalyticsDashboard($context);
         initializeFrameLibrary($context);
         initializeAutomationJobs($context);
     }

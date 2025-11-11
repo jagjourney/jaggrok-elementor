@@ -624,6 +624,8 @@ function aimentor_get_ajax_payload() {
                 'historyEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/history' ) ),
                 'promptsEndpoint'   => esc_url_raw( rest_url( 'aimentor/v1/prompts' ) ),
                 'knowledgeEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/knowledge-packs' ) ),
+                'analyticsEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/analytics/summary' ) ),
+                'analyticsGuardrailsEndpoint' => esc_url_raw( rest_url( 'aimentor/v1/analytics/guardrails' ) ),
                 'usageRefreshInterval' => apply_filters( 'aimentor_usage_refresh_interval', MINUTE_IN_SECONDS ),
                 'strings'           => array(
                         'tabLoadError'      => __( 'Unable to load tab content. Please try again.', 'aimentor' ),
@@ -722,6 +724,22 @@ function aimentor_get_ajax_payload() {
                         'rateLimitCooldown'       => __( 'Please wait %s before trying again.', 'aimentor' ),
                         'rateLimitSecondsFallbackSingular' => __( '%d second', 'aimentor' ),
                         'rateLimitSecondsFallback' => __( '%d seconds', 'aimentor' ),
+                        'analyticsLoading'         => __( 'Loading analytics…', 'aimentor' ),
+                        'analyticsLoadError'       => __( 'Unable to load analytics right now. Please try again later.', 'aimentor' ),
+                        'analyticsEmpty'           => __( 'No analytics data recorded yet.', 'aimentor' ),
+                        'analyticsGuardrailsSaved' => __( 'Guardrail updates saved.', 'aimentor' ),
+                        'analyticsGuardrailsError' => __( 'Unable to update guardrails. Please try again.', 'aimentor' ),
+                        'analyticsSummarySuccess'  => __( 'Successful requests', 'aimentor' ),
+                        'analyticsSummaryErrors'   => __( 'Errors', 'aimentor' ),
+                        'analyticsSummaryTokens'   => __( 'Tokens used', 'aimentor' ),
+                        'analyticsIntervalFallbackLabel' => __( 'Intervals tracked', 'aimentor' ),
+                        'analyticsIntervalHourLabel' => __( 'Hours tracked', 'aimentor' ),
+                        'analyticsIntervalDayLabel'  => __( 'Days tracked', 'aimentor' ),
+                        'analyticsIntervalWeekLabel' => __( 'Weeks tracked', 'aimentor' ),
+                        'analyticsTableProvider'    => __( 'Provider', 'aimentor' ),
+                        'analyticsTableRequests'    => __( 'Requests', 'aimentor' ),
+                        'analyticsChartBarLabel'    => __( '%1$s: %2$d total requests', 'aimentor' ),
+                        'analyticsWarningTitle'    => __( 'Guardrail warnings', 'aimentor' ),
                         'recentLayoutsHeading'     => __( 'Recent layouts', 'aimentor' ),
                         'recentLayoutsBrowse'      => __( 'Browse recent layouts', 'aimentor' ),
                         'recentLayoutsPrev'        => __( 'Show previous layout', 'aimentor' ),
@@ -954,6 +972,7 @@ require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-grok-provi
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-anthropic-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/providers/class-aimentor-openai-provider.php';
 require_once AIMENTOR_PLUGIN_DIR . 'includes/knowledge-base.php';
+require_once AIMENTOR_PLUGIN_DIR . 'includes/analytics.php';
 
 if ( class_exists( 'AiMentor_Provider_Interface' ) && ! class_exists( 'JagGrok_Provider_Interface' ) ) {
         class_alias( 'AiMentor_Provider_Interface', 'JagGrok_Provider_Interface' );
@@ -1426,6 +1445,30 @@ function jaggrok_rewrite_content_ajax() {
                         $error_data = array();
                 }
 
+                if ( function_exists( 'aimentor_record_usage_event' ) ) {
+                        aimentor_record_usage_event(
+                                array(
+                                        'provider'   => $provider_key,
+                                        'status'     => 'error',
+                                        'task'       => $task,
+                                        'tier'       => $tier,
+                                        'model'      => $model,
+                                        'origin'     => 'generation',
+                                        'user_id'    => get_current_user_id(),
+                                        'type'       => 'generation',
+                                        'rate_limit' => isset( $error_data['rate_limit'] ) ? $error_data['rate_limit'] : array(),
+                                )
+                        );
+                }
+
+                if ( ! empty( $guardrail_warnings ) ) {
+                        $error_data['warnings'] = array_values( array_map( 'sanitize_text_field', $guardrail_warnings ) );
+                }
+
+                if ( ! empty( $guardrail_state ) ) {
+                        $error_data['guardrail_state'] = $guardrail_state;
+                }
+
                 $error_data['message'] = $error_message;
 
                 wp_send_json_error( $error_data );
@@ -1655,6 +1698,38 @@ function jaggrok_generate_page_ajax() {
                 }
         }
 
+        $guardrail_warnings = array();
+        $guardrail_state    = array();
+
+        if ( function_exists( 'aimentor_enforce_usage_guardrails' ) ) {
+                $guardrail_check = aimentor_enforce_usage_guardrails(
+                        array(
+                                'provider' => $provider_key,
+                                'task'     => $task,
+                                'tier'     => $tier,
+                                'origin'   => 'ajax',
+                                'user_id'  => get_current_user_id(),
+                                'type'     => 'generation',
+                        )
+                );
+
+                if ( is_wp_error( $guardrail_check ) ) {
+                        $error_data = $guardrail_check->get_error_data();
+
+                        if ( ! is_array( $error_data ) ) {
+                                $error_data = array();
+                        }
+
+                        $error_data['message'] = $guardrail_check->get_error_message();
+                        $error_data['code']    = $guardrail_check->get_error_code();
+
+                        wp_send_json_error( $error_data, 429 );
+                }
+
+                $guardrail_warnings = isset( $guardrail_check['warnings'] ) ? array_filter( (array) $guardrail_check['warnings'] ) : array();
+                $guardrail_state    = isset( $guardrail_check['state'] ) && is_array( $guardrail_check['state'] ) ? $guardrail_check['state'] : array();
+        }
+
         $result = $provider->request( $prompt, array(
                 'api_key'    => $api_key,
                 'model'      => $model,
@@ -1711,6 +1786,63 @@ function jaggrok_generate_page_ajax() {
 
         if ( ! empty( $result['rate_limit'] ) ) {
                 $response_payload['rate_limit'] = $result['rate_limit'];
+        }
+
+        if ( function_exists( 'aimentor_record_usage_event' ) ) {
+                aimentor_record_usage_event(
+                        array(
+                                'provider'   => $provider_key,
+                                'status'     => 'success',
+                                'task'       => $task,
+                                'tier'       => $tier,
+                                'model'      => $model,
+                                'origin'     => 'generation',
+                                'user_id'    => get_current_user_id(),
+                                'type'       => 'generation',
+                                'rate_limit' => isset( $result['rate_limit'] ) ? $result['rate_limit'] : array(),
+                        )
+                );
+        }
+
+        $history_entry = null;
+
+        if ( function_exists( 'aimentor_store_generation_history_entry' ) ) {
+                $history_entry = aimentor_store_generation_history_entry(
+                        $prompt,
+                        $provider_key,
+                        array(
+                                'task'       => $task,
+                                'tier'       => $tier,
+                                'model'      => $model,
+                                'origin'     => 'generation',
+                                'user_id'    => get_current_user_id(),
+                                'rate_limit' => isset( $result['rate_limit'] ) ? $result['rate_limit'] : array(),
+                                'tokens'     => isset( $result['tokens'] ) ? absint( $result['tokens'] ) : 0,
+                        )
+                );
+
+                if ( is_wp_error( $history_entry ) && function_exists( 'aimentor_log_error' ) ) {
+                        aimentor_log_error(
+                                $history_entry->get_error_message(),
+                                array(
+                                        'provider' => $provider_key,
+                                        'model'    => $model,
+                                        'task'     => $task,
+                                        'tier'     => $tier,
+                                        'user_id'  => get_current_user_id(),
+                                )
+                        );
+                }
+        }
+
+        $response_payload['history_recorded'] = $history_entry && ! is_wp_error( $history_entry );
+
+        if ( ! empty( $guardrail_warnings ) ) {
+                $response_payload['warnings'] = array_values( array_map( 'sanitize_text_field', $guardrail_warnings ) );
+        }
+
+        if ( ! empty( $guardrail_state ) ) {
+                $response_payload['guardrail_state'] = $guardrail_state;
         }
 
         if ( isset( $result['type'] ) && 'canvas' === $result['type'] ) {
@@ -1801,6 +1933,7 @@ if ( ! function_exists( 'aimentor_generate_page_ajax' ) ) {
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
         require_once AIMENTOR_PLUGIN_DIR . 'includes/settings.php';
+        require_once AIMENTOR_PLUGIN_DIR . 'includes/cli.php';
 
         if ( ! class_exists( 'AiMentor_CLI_Command' ) ) {
                 /**

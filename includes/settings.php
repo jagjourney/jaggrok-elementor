@@ -1258,19 +1258,51 @@ function aimentor_get_generation_history() {
                         continue;
                 }
 
-                $normalized[] = [
+                $task = isset( $entry['task'] ) ? sanitize_key( $entry['task'] ) : 'content';
+
+                if ( ! in_array( $task, [ 'content', 'canvas' ], true ) ) {
+                        $task = 'content';
+                }
+
+                $tier = isset( $entry['tier'] ) ? sanitize_key( $entry['tier'] ) : '';
+
+                if ( '' !== $tier && ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
+                        $tier = '';
+                }
+
+                $model   = isset( $entry['model'] ) ? sanitize_text_field( $entry['model'] ) : '';
+                $origin  = isset( $entry['origin'] ) ? sanitize_key( $entry['origin'] ) : '';
+                $user_id = isset( $entry['user_id'] ) ? absint( $entry['user_id'] ) : 0;
+                $tokens  = isset( $entry['tokens'] ) ? absint( $entry['tokens'] ) : 0;
+
+                $rate_limit = isset( $entry['rate_limit'] ) ? aimentor_sanitize_rate_limit_context( $entry['rate_limit'] ) : [];
+
+                $normalized_entry = [
                         'prompt'    => $prompt,
                         'provider'  => $provider,
                         'timestamp' => $timestamp,
+                        'task'      => $task,
+                        'tier'      => $tier,
+                        'model'     => $model,
+                        'origin'    => $origin,
+                        'user_id'   => $user_id,
+                        'tokens'    => $tokens,
                 ];
+
+                if ( ! empty( $rate_limit ) ) {
+                        $normalized_entry['rate_limit'] = $rate_limit;
+                }
+
+                $normalized[] = $normalized_entry;
         }
 
         return $normalized;
 }
 
-function aimentor_store_generation_history_entry( $prompt, $provider ) {
+function aimentor_store_generation_history_entry( $prompt, $provider, $context = [] ) {
         $prompt   = sanitize_textarea_field( (string) $prompt );
         $provider = sanitize_key( $provider );
+        $context  = is_array( $context ) ? $context : [];
 
         if ( '' === $prompt ) {
                 return new WP_Error(
@@ -1290,11 +1322,45 @@ function aimentor_store_generation_history_entry( $prompt, $provider ) {
                 );
         }
 
+        $task = isset( $context['task'] ) ? sanitize_key( $context['task'] ) : 'content';
+
+        if ( ! in_array( $task, [ 'content', 'canvas' ], true ) ) {
+                $task = 'content';
+        }
+
+        $tier = isset( $context['tier'] ) ? sanitize_key( $context['tier'] ) : '';
+
+        if ( '' !== $tier && ! in_array( $tier, [ 'fast', 'quality' ], true ) ) {
+                $tier = '';
+        }
+
+        $model    = isset( $context['model'] ) ? sanitize_text_field( $context['model'] ) : '';
+        $origin   = isset( $context['origin'] ) ? sanitize_key( $context['origin'] ) : '';
+        $user_id  = isset( $context['user_id'] ) ? absint( $context['user_id'] ) : get_current_user_id();
+        $tokens   = isset( $context['tokens'] ) ? absint( $context['tokens'] ) : 0;
+        $metadata = isset( $context['metadata'] ) && is_array( $context['metadata'] ) ? $context['metadata'] : [];
+
+        $rate_limit = isset( $context['rate_limit'] ) ? aimentor_sanitize_rate_limit_context( $context['rate_limit'] ) : [];
+
         $entry = [
                 'prompt'    => $prompt,
                 'provider'  => $provider,
                 'timestamp' => current_time( 'timestamp' ),
+                'task'      => $task,
+                'tier'      => $tier,
+                'model'     => $model,
+                'origin'    => $origin,
+                'user_id'   => $user_id,
+                'tokens'    => $tokens,
         ];
+
+        if ( ! empty( $metadata ) ) {
+                $entry['metadata'] = array_map( 'sanitize_text_field', $metadata );
+        }
+
+        if ( ! empty( $rate_limit ) ) {
+                $entry['rate_limit'] = $rate_limit;
+        }
 
         $history   = aimentor_get_generation_history();
         array_unshift( $history, $entry );
@@ -1689,8 +1755,12 @@ function aimentor_normalize_canvas_history_entry( $entry ) {
         $model     = isset( $entry['model'] ) ? sanitize_text_field( $entry['model'] ) : '';
         $task      = isset( $entry['task'] ) ? sanitize_key( $entry['task'] ) : 'canvas';
         $tier      = isset( $entry['tier'] ) ? sanitize_key( $entry['tier'] ) : '';
+        $origin    = isset( $entry['origin'] ) ? sanitize_key( $entry['origin'] ) : '';
         $timestamp = isset( $entry['timestamp'] ) ? absint( $entry['timestamp'] ) : 0;
         $layout    = $entry['layout'] ?? '';
+        $user_id   = isset( $entry['user_id'] ) ? absint( $entry['user_id'] ) : 0;
+        $tokens    = isset( $entry['tokens'] ) ? absint( $entry['tokens'] ) : 0;
+        $rate_limit = isset( $entry['rate_limit'] ) ? aimentor_sanitize_rate_limit_context( $entry['rate_limit'] ) : [];
 
         if ( '' === $id ) {
                 return null;
@@ -1734,16 +1804,25 @@ function aimentor_normalize_canvas_history_entry( $entry ) {
                 $timestamp = current_time( 'timestamp' );
         }
 
-        return [
+        $normalized = [
                 'id'        => $id,
                 'summary'   => $summary,
                 'provider'  => $provider,
                 'model'     => $model,
                 'task'      => $task,
                 'tier'      => $tier,
+                'origin'    => $origin,
+                'user_id'   => $user_id,
+                'tokens'    => $tokens,
                 'timestamp' => $timestamp,
                 'layout'    => wp_json_encode( $decoded_layout ),
         ];
+
+        if ( ! empty( $rate_limit ) ) {
+                $normalized['rate_limit'] = $rate_limit;
+        }
+
+        return $normalized;
 }
 
 function aimentor_get_canvas_history() {
@@ -1988,6 +2067,10 @@ function aimentor_store_canvas_history_entry( $layout, $meta ) {
         $model    = isset( $meta['model'] ) ? sanitize_text_field( $meta['model'] ) : '';
         $task     = isset( $meta['task'] ) ? sanitize_key( $meta['task'] ) : 'canvas';
         $tier     = isset( $meta['tier'] ) ? sanitize_key( $meta['tier'] ) : '';
+        $origin   = isset( $meta['origin'] ) ? sanitize_key( $meta['origin'] ) : 'generation';
+        $user_id  = isset( $meta['user_id'] ) ? absint( $meta['user_id'] ) : get_current_user_id();
+        $tokens   = isset( $meta['tokens'] ) ? absint( $meta['tokens'] ) : 0;
+        $rate_limit = isset( $meta['rate_limit'] ) ? aimentor_sanitize_rate_limit_context( $meta['rate_limit'] ) : [];
 
         if ( '' === $provider ) {
                 $provider = 'grok';
@@ -2018,7 +2101,14 @@ function aimentor_store_canvas_history_entry( $layout, $meta ) {
                 'tier'      => $tier,
                 'timestamp' => current_time( 'timestamp' ),
                 'layout'    => $decoded,
+                'origin'    => $origin,
+                'user_id'   => $user_id,
+                'tokens'    => $tokens,
         ];
+
+        if ( ! empty( $rate_limit ) ) {
+                $entry['rate_limit'] = $rate_limit;
+        }
 
         $normalized_entry = aimentor_normalize_canvas_history_entry( $entry );
 
@@ -2193,12 +2283,26 @@ function aimentor_ajax_store_canvas_history() {
 
         $layout = isset( $_POST['layout'] ) ? wp_unslash( $_POST['layout'] ) : '';
 
+        $rate_limit_raw = isset( $_POST['rate_limit'] ) ? wp_unslash( $_POST['rate_limit'] ) : '';
+
+        if ( is_string( $rate_limit_raw ) && '' !== $rate_limit_raw ) {
+                $decoded = json_decode( $rate_limit_raw, true );
+
+                if ( is_array( $decoded ) ) {
+                        $rate_limit_raw = $decoded;
+                }
+        }
+
         $meta = [
-                'summary'  => isset( $_POST['summary'] ) ? wp_unslash( $_POST['summary'] ) : '',
-                'provider' => isset( $_POST['provider'] ) ? wp_unslash( $_POST['provider'] ) : '',
-                'model'    => isset( $_POST['model'] ) ? wp_unslash( $_POST['model'] ) : '',
-                'task'     => isset( $_POST['task'] ) ? wp_unslash( $_POST['task'] ) : '',
-                'tier'     => isset( $_POST['tier'] ) ? wp_unslash( $_POST['tier'] ) : '',
+                'summary'    => isset( $_POST['summary'] ) ? wp_unslash( $_POST['summary'] ) : '',
+                'provider'   => isset( $_POST['provider'] ) ? wp_unslash( $_POST['provider'] ) : '',
+                'model'      => isset( $_POST['model'] ) ? wp_unslash( $_POST['model'] ) : '',
+                'task'       => isset( $_POST['task'] ) ? wp_unslash( $_POST['task'] ) : '',
+                'tier'       => isset( $_POST['tier'] ) ? wp_unslash( $_POST['tier'] ) : '',
+                'origin'     => isset( $_POST['origin'] ) ? wp_unslash( $_POST['origin'] ) : 'generation',
+                'tokens'     => isset( $_POST['tokens'] ) ? wp_unslash( $_POST['tokens'] ) : 0,
+                'user_id'    => get_current_user_id(),
+                'rate_limit' => $rate_limit_raw,
         ];
 
         $stored = aimentor_store_canvas_history_entry( $layout, $meta );
@@ -2227,11 +2331,37 @@ function aimentor_generation_history_permissions_check( WP_REST_Request $request
         return current_user_can( 'edit_posts' );
 }
 
+function aimentor_rest_sanitize_rate_limit_payload( $value ) {
+        if ( is_string( $value ) ) {
+                $decoded = json_decode( $value, true );
+
+                if ( is_array( $decoded ) ) {
+                        $value = $decoded;
+                }
+        }
+
+        if ( ! is_array( $value ) ) {
+                return [];
+        }
+
+        return aimentor_sanitize_rate_limit_context( $value );
+}
+
 function aimentor_rest_create_generation_history_entry( WP_REST_Request $request ) {
         $prompt   = $request->get_param( 'prompt' );
         $provider = $request->get_param( 'provider' );
 
-        $result = aimentor_store_generation_history_entry( $prompt, $provider );
+        $context = [
+                'task'       => $request->get_param( 'task' ),
+                'tier'       => $request->get_param( 'tier' ),
+                'model'      => $request->get_param( 'model' ),
+                'origin'     => $request->get_param( 'origin' ),
+                'tokens'     => $request->get_param( 'tokens' ),
+                'user_id'    => get_current_user_id(),
+                'rate_limit' => $request->get_param( 'rate_limit' ),
+        ];
+
+        $result = aimentor_store_generation_history_entry( $prompt, $provider, $context );
 
         if ( is_wp_error( $result ) ) {
                 return $result;
@@ -2256,15 +2386,45 @@ function aimentor_register_generation_history_route() {
                                 'callback'            => 'aimentor_rest_create_generation_history_entry',
                                 'permission_callback' => 'aimentor_generation_history_permissions_check',
                                 'args'                => [
-                                        'prompt'   => [
+                                        'prompt'    => [
                                                 'type'              => 'string',
                                                 'required'          => true,
                                                 'sanitize_callback' => 'sanitize_textarea_field',
                                         ],
-                                        'provider' => [
+                                        'provider'  => [
                                                 'type'              => 'string',
                                                 'required'          => true,
                                                 'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'task'      => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'tier'      => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'model'     => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_text_field',
+                                        ],
+                                        'origin'    => [
+                                                'type'              => 'string',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'sanitize_key',
+                                        ],
+                                        'tokens'    => [
+                                                'type'              => 'integer',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'absint',
+                                        ],
+                                        'rate_limit' => [
+                                                'type'              => 'object',
+                                                'required'          => false,
+                                                'sanitize_callback' => 'aimentor_rest_sanitize_rate_limit_payload',
                                         ],
                                 ],
                         ],
@@ -2437,6 +2597,28 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                         );
                 }
 
+                if ( function_exists( 'aimentor_record_usage_event' ) ) {
+                        $error_data = $result->get_error_data();
+
+                        if ( ! is_array( $error_data ) ) {
+                                $error_data = [];
+                        }
+
+                        aimentor_record_usage_event(
+                                [
+                                        'provider'   => $provider_key,
+                                        'status'     => 'error',
+                                        'task'       => $task,
+                                        'tier'       => $tier,
+                                        'model'      => $model,
+                                        'origin'     => $origin,
+                                        'user_id'    => $args['user_id'],
+                                        'type'       => 'generation',
+                                        'rate_limit' => isset( $error_data['rate_limit'] ) ? $error_data['rate_limit'] : [],
+                                ]
+                        );
+                }
+
                 if ( function_exists( 'aimentor_log_error' ) ) {
                         aimentor_log_error(
                                 $result->get_error_message(),
@@ -2489,8 +2671,36 @@ function aimentor_perform_generation_request( $prompt, $provider_key = '', $args
                 );
         }
 
+        if ( function_exists( 'aimentor_record_usage_event' ) ) {
+                aimentor_record_usage_event(
+                        [
+                                'provider'   => $provider_key,
+                                'status'     => 'success',
+                                'task'       => $task,
+                                'tier'       => $tier,
+                                'model'      => $model,
+                                'origin'     => $origin,
+                                'user_id'    => $args['user_id'],
+                                'type'       => 'generation',
+                                'rate_limit' => isset( $result['rate_limit'] ) ? $result['rate_limit'] : [],
+                        ]
+                );
+        }
+
         if ( function_exists( 'aimentor_store_generation_history_entry' ) && $args['store_history'] ) {
-                $history_result = aimentor_store_generation_history_entry( $prompt, $provider_key );
+                $history_result = aimentor_store_generation_history_entry(
+                        $prompt,
+                        $provider_key,
+                        [
+                                'task'       => $task,
+                                'tier'       => $tier,
+                                'model'      => $model,
+                                'origin'     => $origin,
+                                'user_id'    => $args['user_id'],
+                                'rate_limit' => isset( $result['rate_limit'] ) ? $result['rate_limit'] : [],
+                                'tokens'     => isset( $result['tokens'] ) ? absint( $result['tokens'] ) : 0,
+                        ]
+                );
 
                 if ( is_wp_error( $history_result ) && function_exists( 'aimentor_log_error' ) ) {
                         aimentor_log_error(
@@ -4691,6 +4901,11 @@ function aimentor_get_settings_tabs() {
                         'callback'   => 'aimentor_render_settings_tab_logs',
                         'capability' => 'manage_options',
                 ],
+                'analytics'        => [
+                        'label'      => __( 'Analytics', 'aimentor' ),
+                        'callback'   => 'aimentor_render_settings_tab_analytics',
+                        'capability' => 'manage_options',
+                ],
         ];
 
         return apply_filters( 'aimentor_settings_tabs', $tabs );
@@ -4899,6 +5114,13 @@ function aimentor_render_settings_tab_logs() {
         ob_start();
         extract( $view_model, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract
         include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-logs.php';
+
+        return (string) ob_get_clean();
+}
+
+function aimentor_render_settings_tab_analytics() {
+        ob_start();
+        include plugin_dir_path( __FILE__ ) . 'admin/settings/tab-analytics.php';
 
         return (string) ob_get_clean();
 }
