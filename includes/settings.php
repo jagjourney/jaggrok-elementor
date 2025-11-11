@@ -132,6 +132,286 @@ function aimentor_get_request_override_defaults() {
         return $defaults;
 }
 
+function aimentor_get_quick_actions_option_name() {
+        return 'aimentor_quick_actions';
+}
+
+function aimentor_normalize_quick_action_definition( $slug, $definition ) {
+        $normalized = [
+                'slug'       => sanitize_key( $slug ),
+                'labels'     => [
+                        'name'        => '',
+                        'menu_label'  => '',
+                        'description' => '',
+                ],
+                'defaults'   => [
+                        'enabled' => true,
+                        'prompt'  => '',
+                        'system'  => '',
+                ],
+                'processors' => [],
+        ];
+
+        if ( ! is_array( $definition ) ) {
+                return $normalized;
+        }
+
+        if ( ! empty( $definition['slug'] ) ) {
+                $normalized['slug'] = sanitize_key( $definition['slug'] );
+        }
+
+        if ( isset( $definition['labels'] ) && is_array( $definition['labels'] ) ) {
+                $labels = $definition['labels'];
+
+                if ( isset( $labels['name'] ) ) {
+                        $normalized['labels']['name'] = sanitize_text_field( $labels['name'] );
+                }
+
+                if ( isset( $labels['menu_label'] ) ) {
+                        $normalized['labels']['menu_label'] = sanitize_text_field( $labels['menu_label'] );
+                }
+
+                if ( isset( $labels['description'] ) ) {
+                        $normalized['labels']['description'] = sanitize_textarea_field( $labels['description'] );
+                }
+        }
+
+        if ( isset( $definition['defaults'] ) && is_array( $definition['defaults'] ) ) {
+                $defaults = $definition['defaults'];
+                $normalized_defaults = $normalized['defaults'];
+
+                if ( array_key_exists( 'enabled', $defaults ) ) {
+                        $enabled = $defaults['enabled'];
+                        if ( is_string( $enabled ) ) {
+                                $enabled = 'yes' === aimentor_sanitize_toggle( $enabled );
+                        } else {
+                                $enabled = (bool) $enabled;
+                        }
+
+                        $normalized_defaults['enabled'] = $enabled;
+                }
+
+                if ( array_key_exists( 'prompt', $defaults ) ) {
+                        $normalized_defaults['prompt'] = sanitize_textarea_field( (string) $defaults['prompt'] );
+                }
+
+                if ( array_key_exists( 'system', $defaults ) ) {
+                        $normalized_defaults['system'] = sanitize_textarea_field( (string) $defaults['system'] );
+                }
+
+                $normalized['defaults'] = $normalized_defaults;
+        }
+
+        if ( isset( $definition['processors'] ) && is_array( $definition['processors'] ) ) {
+                $processors = [];
+                foreach ( $definition['processors'] as $processor_key => $callback ) {
+                        $processor_id = is_string( $processor_key ) ? sanitize_key( $processor_key ) : $processor_key;
+
+                        if ( is_string( $callback ) ) {
+                                $processors[ $processor_id ] = trim( $callback );
+                                continue;
+                        }
+
+                        if ( is_callable( $callback ) ) {
+                                $processors[ $processor_id ] = $callback;
+                        }
+                }
+
+                $normalized['processors'] = $processors;
+        }
+
+        return $normalized;
+}
+
+function aimentor_get_quick_action_registry() {
+        $actions = [
+                'summarize_selection' => [
+                        'slug'     => 'summarize_selection',
+                        'labels'   => [
+                                'name'        => __( 'Summarize Selection', 'aimentor' ),
+                                'menu_label'  => __( 'Summarize', 'aimentor' ),
+                                'description' => __( 'Create a concise summary of highlighted copy to speed up page revisions.', 'aimentor' ),
+                        ],
+                        'defaults' => [
+                                'enabled' => true,
+                                'prompt'  => __( 'Summarize the highlighted content in three concise bullet points that capture the main takeaways.', 'aimentor' ),
+                                'system'  => __( 'You are an editorial assistant who distills complex Elementor copy into quick reference summaries.', 'aimentor' ),
+                        ],
+                        'processors' => [
+                                'dispatch' => 'aimentor_dispatch_quick_action',
+                        ],
+                ],
+                'improve_tone' => [
+                        'slug'     => 'improve_tone',
+                        'labels'   => [
+                                'name'        => __( 'Improve Tone', 'aimentor' ),
+                                'menu_label'  => __( 'Improve Tone', 'aimentor' ),
+                                'description' => __( 'Rewrite content with AiMentor’s default tone guidance to align with site standards.', 'aimentor' ),
+                        ],
+                        'defaults' => [
+                                'enabled' => true,
+                                'prompt'  => __( 'Rewrite the selected content so it matches the brand tone: friendly, confident, and helpful.', 'aimentor' ),
+                                'system'  => __( 'You are a tone specialist ensuring all output reflects the site’s brand voice.', 'aimentor' ),
+                        ],
+                        'processors' => [
+                                'dispatch' => 'aimentor_dispatch_quick_action',
+                        ],
+                ],
+                'outline_steps' => [
+                        'slug'     => 'outline_steps',
+                        'labels'   => [
+                                'name'        => __( 'Outline Action Steps', 'aimentor' ),
+                                'menu_label'  => __( 'Action Steps', 'aimentor' ),
+                                'description' => __( 'Transform a loose idea into clear action steps editors can follow.', 'aimentor' ),
+                        ],
+                        'defaults' => [
+                                'enabled' => true,
+                                'prompt'  => __( 'Convert the idea into a numbered list of actionable next steps with short explanations for each.', 'aimentor' ),
+                                'system'  => __( 'You are a project manager who turns ideas into structured implementation checklists.', 'aimentor' ),
+                        ],
+                        'processors' => [
+                                'dispatch' => 'aimentor_dispatch_quick_action',
+                        ],
+                ],
+        ];
+
+        /**
+         * Filter the AiMentor quick action registry definitions.
+         *
+         * Third-party extensions can register, remove, or modify quick action metadata used
+         * throughout the plugin.
+         *
+         * @param array $actions List of quick action definitions keyed by slug.
+         */
+        $actions = apply_filters( 'aimentor_quick_actions', $actions );
+
+        if ( ! is_array( $actions ) ) {
+                $actions = [];
+        }
+
+        $normalized = [];
+
+        foreach ( $actions as $slug => $definition ) {
+                $normalized_slug = sanitize_key( is_array( $definition ) && ! empty( $definition['slug'] ) ? $definition['slug'] : $slug );
+                $normalized[ $normalized_slug ] = aimentor_normalize_quick_action_definition( $normalized_slug, $definition );
+        }
+
+        /**
+         * Fires after AiMentor quick actions have been registered.
+         *
+         * This hook runs after quick action definitions are normalized, allowing third parties
+         * to inspect the registry or bootstrap custom processors.
+         *
+         * @param array $normalized Normalized quick action definitions keyed by slug.
+         */
+        do_action( 'aimentor_quick_actions_registered', $normalized );
+
+        return $normalized;
+}
+
+function aimentor_normalize_quick_action_settings( $values, $fallback = [] ) {
+        $base = [
+                'enabled' => true,
+                'prompt'  => '',
+                'system'  => '',
+        ];
+
+        if ( is_array( $fallback ) && ! empty( $fallback ) ) {
+                $base = wp_parse_args( $fallback, $base );
+        }
+
+        $normalized = [
+                'enabled' => (bool) $base['enabled'],
+                'prompt'  => sanitize_textarea_field( (string) $base['prompt'] ),
+                'system'  => sanitize_textarea_field( (string) $base['system'] ),
+        ];
+
+        if ( isset( $values['enabled'] ) ) {
+                $enabled = $values['enabled'];
+
+                if ( is_string( $enabled ) ) {
+                        $enabled = 'yes' === aimentor_sanitize_toggle( $enabled );
+                } else {
+                        $enabled = (bool) $enabled;
+                }
+
+                $normalized['enabled'] = $enabled;
+        }
+
+        if ( isset( $values['prompt'] ) ) {
+                $normalized['prompt'] = sanitize_textarea_field( (string) $values['prompt'] );
+        }
+
+        if ( isset( $values['system'] ) ) {
+                $normalized['system'] = sanitize_textarea_field( (string) $values['system'] );
+        }
+
+        return $normalized;
+}
+
+function aimentor_get_quick_actions_default_settings() {
+        $registry = aimentor_get_quick_action_registry();
+        $defaults = [];
+
+        foreach ( $registry as $slug => $definition ) {
+                $action_defaults = isset( $definition['defaults'] ) && is_array( $definition['defaults'] ) ? $definition['defaults'] : [];
+                $defaults[ $slug ] = aimentor_normalize_quick_action_settings( $action_defaults );
+        }
+
+        return $defaults;
+}
+
+function aimentor_get_quick_actions_settings() {
+        $option_name = aimentor_get_quick_actions_option_name();
+        $stored      = get_option( $option_name, [] );
+
+        if ( ! is_array( $stored ) ) {
+                $stored = [];
+        }
+
+        $defaults = aimentor_get_quick_actions_default_settings();
+        $settings = [];
+
+        foreach ( $defaults as $slug => $default_values ) {
+                $stored_values    = isset( $stored[ $slug ] ) && is_array( $stored[ $slug ] ) ? $stored[ $slug ] : [];
+                $settings[ $slug ] = aimentor_normalize_quick_action_settings( $stored_values, $default_values );
+        }
+
+        return $settings;
+}
+
+function aimentor_save_quick_actions_settings( $settings ) {
+        if ( ! is_array( $settings ) ) {
+                $settings = [];
+        }
+
+        $defaults   = aimentor_get_quick_actions_default_settings();
+        $normalized = [];
+
+        foreach ( $defaults as $slug => $default_values ) {
+                $values               = isset( $settings[ $slug ] ) && is_array( $settings[ $slug ] ) ? $settings[ $slug ] : [];
+                $normalized[ $slug ] = aimentor_normalize_quick_action_settings( $values, $default_values );
+        }
+
+        update_option( aimentor_get_quick_actions_option_name(), $normalized, false );
+
+        return $normalized;
+}
+
+function aimentor_dispatch_quick_action( $slug, $payload = [], $context = [] ) {
+        /**
+         * Fires when a quick action dispatch is requested.
+         *
+         * Implementations can hook into this action to process quick action requests for
+         * custom integrations or UI flows.
+         *
+         * @param string $slug    The quick action identifier being dispatched.
+         * @param array  $payload Optional payload supplied by the caller.
+         * @param array  $context Optional context describing the execution environment.
+         */
+        do_action( 'aimentor_quick_action_dispatch', $slug, $payload, $context );
+}
+
 function aimentor_get_network_managed_options() {
         return [
                 'aimentor_network_lock_provider_models',
@@ -3055,6 +3335,7 @@ function aimentor_get_default_options() {
                 'aimentor_archive_layouts'            => 'no',
                 'aimentor_archive_layouts_show_ui'    => 'no',
                 'aimentor_request_overrides'          => aimentor_get_request_override_defaults(),
+                'aimentor_quick_actions'              => aimentor_get_quick_actions_default_settings(),
                 'aimentor_network_lock_provider_models' => 'no',
                 'aimentor_enable_automation'          => 'no',
                 'aimentor_automation_jobs'            => [],
