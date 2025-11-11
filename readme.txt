@@ -4,7 +4,7 @@ Tags: elementor, ai, grok, page builder, xai
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.8.1
+Stable tag: 1.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -112,6 +112,11 @@ Absolutely. Use the **Auto-Insert** toggle in the settings to decide if generate
 3. Generate content in middle canvas
 
 == Changelog ==
+= 1.8.2 =
+* Enriched the Elementor modal payload so both the editor and settings scripts receive enabled quick-action metadata, prompt/system defaults, and lookup helpers.
+* Localized new quick-action toolbar labels, running-state messages, and missing-content prompts for translators.
+* Updated script localization wiring to share the expanded payload between admin settings and the Elementor editor.
+
 = 1.8.1 =
 * Added a quick-actions management panel on the Brand tab so administrators can enable or disable actions and edit their default prompts and system guidance.
 * Extended the admin settings script to render the new controls, sync field changes, and persist updates through the REST API with inline validation messaging.
