@@ -4,7 +4,7 @@
  * Plugin URI: https://jagjourney.com/
  * Update URI: https://github.com/jagjourney/aimentor-elementor
  * Description: 🚀 FREE AI Page Builder - Generate full Elementor layouts with AiMentor. One prompt = complete pages!
- * Version: 1.8.1
+ * Version: 1.8.2
  * Author: AiMentor
  * Author URI: https://jagjourney.com/
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if ( ! defined( 'AIMENTOR_PLUGIN_VERSION' ) ) {
          * Updated for each tagged release so dependent systems can detect
          * available updates and WordPress can surface the correct metadata.
          */
-        define( 'AIMENTOR_PLUGIN_VERSION', '1.8.1' );
+        define( 'AIMENTOR_PLUGIN_VERSION', '1.8.2' );
 }
 
 if ( ! defined( 'AIMENTOR_PLUGIN_FILE' ) ) {
@@ -587,6 +587,102 @@ add_filter( 'plugin_action_links', 'aimentor_settings_link', 10, 2 );
  *
  * @return array
  */
+/**
+ * Prepare quick action metadata for client consumption.
+ *
+ * @param array $payload Quick action payload including registry and settings.
+ *
+ * @return array{
+ *     actions: array<int, array<string, mixed>>,
+ *     enabled: array<int, array<string, mixed>>,
+ *     states: array<string, array<string, mixed>>,
+ *     lookup: array<string, array<string, mixed>>,
+ * }
+ */
+function aimentor_prepare_quick_actions_client_state( $payload ) {
+        $registry = isset( $payload['registry'] ) && is_array( $payload['registry'] ) ? $payload['registry'] : array();
+        $settings = isset( $payload['settings'] ) && is_array( $payload['settings'] ) ? $payload['settings'] : array();
+
+        $actions = array();
+        $enabled = array();
+        $states  = array();
+        $lookup  = array();
+
+        foreach ( $registry as $slug => $definition ) {
+                $normalized_slug = sanitize_key(
+                        is_array( $definition ) && ! empty( $definition['slug'] ) ? $definition['slug'] : $slug
+                );
+
+                if ( '' === $normalized_slug ) {
+                        continue;
+                }
+
+                $labels   = isset( $definition['labels'] ) && is_array( $definition['labels'] ) ? $definition['labels'] : array();
+                $defaults = isset( $definition['defaults'] ) && is_array( $definition['defaults'] ) ? $definition['defaults'] : array();
+                $stored   = isset( $settings[ $normalized_slug ] ) && is_array( $settings[ $normalized_slug ] )
+                        ? $settings[ $normalized_slug ]
+                        : array();
+
+                $name = isset( $labels['name'] ) ? (string) $labels['name'] : '';
+                if ( '' === $name ) {
+                        $name = $normalized_slug;
+                }
+
+                $menu_label = '';
+                if ( isset( $labels['menu_label'] ) ) {
+                        $menu_label = (string) $labels['menu_label'];
+                } elseif ( isset( $labels['menuLabel'] ) ) {
+                        $menu_label = (string) $labels['menuLabel'];
+                }
+                if ( '' === $menu_label ) {
+                        $menu_label = $name;
+                }
+
+                $description = isset( $labels['description'] ) ? (string) $labels['description'] : '';
+
+                $enabled_flag = array_key_exists( 'enabled', $stored )
+                        ? (bool) $stored['enabled']
+                        : (bool) ( $defaults['enabled'] ?? false );
+
+                $prompt_value = isset( $stored['prompt'] ) && '' !== $stored['prompt']
+                        ? (string) $stored['prompt']
+                        : ( isset( $defaults['prompt'] ) ? (string) $defaults['prompt'] : '' );
+
+                $system_value = isset( $stored['system'] ) && '' !== $stored['system']
+                        ? (string) $stored['system']
+                        : ( isset( $defaults['system'] ) ? (string) $defaults['system'] : '' );
+
+                $entry = array(
+                        'slug'        => $normalized_slug,
+                        'name'        => $name,
+                        'menuLabel'   => $menu_label,
+                        'description' => $description,
+                        'enabled'     => $enabled_flag,
+                        'prompt'      => $prompt_value,
+                        'system'      => $system_value,
+                );
+
+                $actions[]                   = $entry;
+                $lookup[ $normalized_slug ]  = $entry;
+                $states[ $normalized_slug ]  = array(
+                        'enabled' => $enabled_flag,
+                        'prompt'  => $prompt_value,
+                        'system'  => $system_value,
+                );
+
+                if ( $enabled_flag ) {
+                        $enabled[] = $entry;
+                }
+        }
+
+        return array(
+                'actions' => $actions,
+                'enabled' => $enabled,
+                'states'  => $states,
+                'lookup'  => $lookup,
+        );
+}
+
 function aimentor_get_ajax_payload() {
         $provider_meta_map     = aimentor_get_provider_meta_map();
         $provider_labels       = wp_list_pluck( $provider_meta_map, 'label' );
@@ -609,6 +705,16 @@ function aimentor_get_ajax_payload() {
         $tone_presets          = function_exists( 'aimentor_get_tone_presets' ) ? aimentor_get_tone_presets() : [];
         $knowledge_packs       = array_map( 'aimentor_prepare_knowledge_pack_for_response', aimentor_get_knowledge_packs() );
         $quick_actions_payload = aimentor_get_quick_actions_payload();
+        $quick_actions_state   = aimentor_prepare_quick_actions_client_state( $quick_actions_payload );
+        $quick_actions_payload = array_merge(
+                $quick_actions_payload,
+                array(
+                        'actions'         => $quick_actions_state['actions'],
+                        'enabled_actions' => $quick_actions_state['enabled'],
+                        'states'          => $quick_actions_state['states'],
+                        'lookup'          => $quick_actions_state['lookup'],
+                )
+        );
 
         return array(
                 'ajaxurl'           => admin_url( 'admin-ajax.php' ),
@@ -720,6 +826,8 @@ function aimentor_get_ajax_payload() {
                         'knowledgePackDescription'   => __( 'Optional: ground the response with brand or product knowledge.', 'aimentor' ),
                         'knowledgePackSelectionEmpty' => __( 'No knowledge packs available yet.', 'aimentor' ),
                         'knowledgePackSelectedCount' => __( '%d knowledge packs selected', 'aimentor' ),
+                        'quickActionsHeading'        => __( 'Quick actions', 'aimentor' ),
+                        'quickActionsToolbarLabel'   => __( 'Quick actions toolbar', 'aimentor' ),
                         'quickActionsSaveSuccess'    => __( 'Quick actions updated.', 'aimentor' ),
                         'quickActionsSaveError'      => __( 'Unable to save quick actions. Please try again.', 'aimentor' ),
                         'quickActionsEmpty'          => __( 'No quick actions are registered yet.', 'aimentor' ),
@@ -729,6 +837,11 @@ function aimentor_get_ajax_payload() {
                         'quickActionsSave'           => __( 'Save Quick Actions', 'aimentor' ),
                         'quickActionsSaving'         => __( 'Saving…', 'aimentor' ),
                         'quickActionsNoChanges'      => __( 'No changes to save.', 'aimentor' ),
+                        /* translators: %s: Quick action label. */
+                        'quickActionWorking'         => __( 'Running "%s"…', 'aimentor' ),
+                        /* translators: %s: Quick action label. */
+                        'quickActionError'           => __( 'Unable to run "%s". Please try again.', 'aimentor' ),
+                        'quickActionPromptMissing'   => __( 'Select or enter content before running this quick action.', 'aimentor' ),
                         'automationJobRemoveConfirm' => __( 'Remove this automation job? This cannot be undone.', 'aimentor' ),
                         'automationJobDefaultTitle'  => __( 'New automation job', 'aimentor' ),
                         /* translators: %s: Human readable duration. */
@@ -898,7 +1011,8 @@ function aimentor_enqueue_assets( $hook ) {
         }
 
         wp_enqueue_script( 'aimentor-admin-settings' );
-        wp_localize_script( 'aimentor-admin-settings', 'aimentorAjax', aimentor_get_ajax_payload() );
+        $ajax_payload = aimentor_get_ajax_payload();
+        wp_localize_script( 'aimentor-admin-settings', 'aimentorAjax', $ajax_payload );
         wp_add_inline_script(
                 'aimentor-admin-settings',
                 "window.aimentorAjax = window.aimentorAjax || {};\n"
@@ -915,7 +1029,8 @@ function aimentor_enqueue_elementor_assets() {
         aimentor_register_asset_handles();
 
         wp_enqueue_script( 'aimentor-elementor-widget' );
-        wp_localize_script( 'aimentor-elementor-widget', 'aimentorAjax', aimentor_get_ajax_payload() );
+        $ajax_payload = aimentor_get_ajax_payload();
+        wp_localize_script( 'aimentor-elementor-widget', 'aimentorAjax', $ajax_payload );
         wp_add_inline_script(
                 'aimentor-elementor-widget',
                 "window.aimentorAjax = window.aimentorAjax || {};\n",
