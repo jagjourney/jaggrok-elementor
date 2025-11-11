@@ -398,6 +398,76 @@ function aimentor_save_quick_actions_settings( $settings ) {
         return $normalized;
 }
 
+function aimentor_get_quick_actions_payload() {
+        return [
+                'registry' => aimentor_get_quick_action_registry(),
+                'settings' => aimentor_get_quick_actions_settings(),
+        ];
+}
+
+function aimentor_quick_actions_permissions_check( WP_REST_Request $request ) {
+        return current_user_can( 'manage_options' );
+}
+
+function aimentor_rest_get_quick_actions( WP_REST_Request $request ) {
+        return rest_ensure_response( aimentor_get_quick_actions_payload() );
+}
+
+function aimentor_rest_update_quick_actions( WP_REST_Request $request ) {
+        $actions = $request->get_param( 'actions' );
+
+        if ( null === $actions ) {
+                return new WP_Error(
+                        'aimentor_quick_actions_missing_actions',
+                        __( 'Quick action settings are required.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        if ( ! is_array( $actions ) ) {
+                return new WP_Error(
+                        'aimentor_quick_actions_invalid_data',
+                        __( 'Invalid quick action payload.', 'aimentor' ),
+                        [ 'status' => 400 ]
+                );
+        }
+
+        $settings = aimentor_save_quick_actions_settings( $actions );
+
+        return rest_ensure_response(
+                [
+                        'registry' => aimentor_get_quick_action_registry(),
+                        'settings' => $settings,
+                ]
+        );
+}
+
+function aimentor_register_quick_actions_route() {
+        register_rest_route(
+                'aimentor/v1',
+                '/quick-actions',
+                [
+                        [
+                                'methods'             => WP_REST_Server::READABLE,
+                                'callback'            => 'aimentor_rest_get_quick_actions',
+                                'permission_callback' => 'aimentor_quick_actions_permissions_check',
+                        ],
+                        [
+                                'methods'             => WP_REST_Server::EDITABLE,
+                                'callback'            => 'aimentor_rest_update_quick_actions',
+                                'permission_callback' => 'aimentor_quick_actions_permissions_check',
+                                'args'                => [
+                                        'actions' => [
+                                                'type'     => 'object',
+                                                'required' => true,
+                                        ],
+                                ],
+                        ],
+                ]
+        );
+}
+add_action( 'rest_api_init', 'aimentor_register_quick_actions_route' );
+
 function aimentor_dispatch_quick_action( $slug, $payload = [], $context = [] ) {
         /**
          * Fires when a quick action dispatch is requested.
@@ -5132,6 +5202,7 @@ function aimentor_get_settings_view_model() {
                 'automation_pending_results'  => $automation_pending,
                 'saved_prompts_payload'       => $saved_prompts_payload,
                 'knowledge_packs'             => $knowledge_packs,
+                'quick_actions_payload'       => aimentor_get_quick_actions_payload(),
         ];
 }
 
