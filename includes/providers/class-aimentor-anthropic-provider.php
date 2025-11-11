@@ -37,8 +37,16 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
             'temperature' => $this->get_temperature( $context ),
         ];
 
-        if ( 'canvas' === $context['task'] ) {
-            $body['system'] = __( 'Return only valid Elementor JSON for the requested layout. Avoid commentary.', 'aimentor' );
+        $system_instruction = '';
+
+        if ( ! empty( $context['system'] ) ) {
+            $system_instruction = $context['system'];
+        } elseif ( 'canvas' === $context['task'] ) {
+            $system_instruction = __( 'Return only valid Elementor JSON for the requested layout. Avoid commentary.', 'aimentor' );
+        }
+
+        if ( '' !== $system_instruction ) {
+            $body['system'] = $system_instruction;
         }
 
         return [
@@ -357,6 +365,12 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
         $knowledge  = $this->normalize_knowledge_context( $context['knowledge'] ?? [] );
         $variations = isset( $context['variations'] ) ? $this->sanitize_variation_count( $context['variations'] ) : 1;
 
+        $system_instruction = '';
+
+        if ( isset( $context['system'] ) ) {
+            $system_instruction = sanitize_textarea_field( (string) $context['system'] );
+        }
+
         return [
             'task'       => $task,
             'tier'       => $tier,
@@ -364,6 +378,7 @@ class AiMentor_Anthropic_Provider implements AiMentor_Provider_Interface {
             'knowledge'  => $knowledge,
             'variations' => $variations,
             'intent'     => $intent,
+            'system'     => $system_instruction,
         ];
     }
 
