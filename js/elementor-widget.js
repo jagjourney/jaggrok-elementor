@@ -90,6 +90,21 @@
         document.head.appendChild(style);
     }
 
+    function ensureQuickActionStyles() {
+        if (document.getElementById('aimentor-quick-actions-style')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'aimentor-quick-actions-style';
+        style.textContent = '' +
+            '.aimentor-quick-actions{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;}' +
+            '.aimentor-quick-actions__label{margin:0;font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;}' +
+            '.aimentor-quick-actions__buttons{display:flex;flex-wrap:wrap;gap:8px;}' +
+            '.aimentor-quick-actions__button{flex:0 0 auto;font-weight:600;}' +
+            '.aimentor-quick-actions__button[disabled]{opacity:0.6;cursor:not-allowed;}';
+        document.head.appendChild(style);
+    }
+
     function escapeHtml(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
@@ -104,6 +119,71 @@
             return value;
         }
         return template.replace('%s', value);
+    }
+
+    function normalizeQuickActionsPayload(payload) {
+        var registry = (payload && typeof payload.registry === 'object' && payload.registry) ? payload.registry : {};
+        var settings = (payload && typeof payload.settings === 'object' && payload.settings) ? payload.settings : {};
+        var normalized = [];
+
+        Object.keys(registry).forEach(function(key) {
+            if (!Object.prototype.hasOwnProperty.call(registry, key)) {
+                return;
+            }
+
+            var definition = registry[key] || {};
+            var slug = String(definition.slug || key || '').trim();
+
+            if (!slug) {
+                return;
+            }
+
+            var labels = definition.labels || {};
+            var defaults = definition.defaults || {};
+            var stored = settings.hasOwnProperty(slug) ? settings[slug] : settings[key];
+            stored = stored && typeof stored === 'object' ? stored : {};
+
+            var entry = {
+                slug: slug,
+                name: String(labels.name || definition.name || slug),
+                menuLabel: String(labels.menu_label || labels.menuLabel || labels.name || definition.menu_label || definition.name || slug),
+                description: String(labels.description || ''),
+                enabled: typeof stored.enabled === 'boolean' ? stored.enabled : !!defaults.enabled,
+                prompt: typeof stored.prompt === 'string' ? stored.prompt : (typeof defaults.prompt === 'string' ? defaults.prompt : ''),
+                system: typeof stored.system === 'string' ? stored.system : (typeof defaults.system === 'string' ? defaults.system : '')
+            };
+
+            normalized.push(entry);
+        });
+
+        return normalized;
+    }
+
+    function buildQuickActionsMarkup(actions, headingLabel) {
+        if (!Array.isArray(actions) || !actions.length) {
+            return '';
+        }
+
+        var heading = headingLabel || 'Quick actions';
+        var html = '<div class="aimentor-quick-actions" role="toolbar" aria-label="' + escapeHtml(heading) + '">';
+        html += '<p class="aimentor-quick-actions__label">' + escapeHtml(heading) + '</p>';
+        html += '<div class="aimentor-quick-actions__buttons">';
+
+        actions.forEach(function(action) {
+            if (!action || !action.enabled) {
+                return;
+            }
+            var slug = String(action.slug || '');
+            if (!slug) {
+                return;
+            }
+            var label = action.menuLabel || action.name || slug;
+            var tooltip = action.description ? ' title="' + escapeHtml(action.description) + '"' : '';
+            html += '<button type="button" class="button button-secondary aimentor-quick-actions__button" data-quick-action="' + escapeHtml(slug) + '" aria-label="' + escapeHtml(label) + '"' + tooltip + '>' + escapeHtml(label) + '</button>';
+        });
+
+        html += '</div></div>';
+        return html;
     }
 
     function formatCountString(value, singularKey, pluralKey, strings) {
@@ -265,6 +345,17 @@
         var tonePresets = Array.isArray(aimentorData.tonePresets) ? aimentorData.tonePresets.slice() : [];
         var tonePresetLookup = {};
         var defaultTonePresetId = '';
+        var quickActionsPayload = aimentorData.quickActions || {};
+        var quickActionsList = normalizeQuickActionsPayload(quickActionsPayload);
+        var quickActionLookup = {};
+        var enabledQuickActions = [];
+
+        quickActionsList.forEach(function(action) {
+            quickActionLookup[action.slug] = action;
+            if (action.enabled) {
+                enabledQuickActions.push(action);
+            }
+        });
 
         tonePresets.forEach(function(preset) {
             if (!preset || typeof preset.id === 'undefined') {
@@ -2149,6 +2240,11 @@
             contextMap: (defaultsData && defaultsData.contexts && typeof defaultsData.contexts === 'object') ? defaultsData.contexts : {},
             documentDefaults: documentDefaults,
             widgets: existingState.widgets || {},
+            quickActions: {
+                actions: quickActionsList,
+                enabled: enabledQuickActions,
+                lookup: quickActionLookup
+            },
             modal: existingState.modal ? {
                 task: sanitizeTask(existingState.modal.task, isProActive),
                 tier: sanitizeTier(existingState.modal.tier),
@@ -2427,6 +2523,8 @@
                 var askLabel = escapeHtml(strings.askAiMentor || 'Ask AiMentor');
                 var rewriteLabelRaw = strings.rewriteButtonLabel || 'Rewrite with Tone';
                 var rewriteLabel = escapeHtml(rewriteLabelRaw);
+                var quickActionsHeading = escapeHtml(strings.quickActionsHeading || 'Quick actions');
+                var quickActionsMarkup = buildQuickActionsMarkup(enabledQuickActions, quickActionsHeading);
                 var historyHeading = escapeHtml(strings.recentLayoutsHeading || 'Recent layouts');
                 var historyNavLabel = escapeHtml(strings.recentLayoutsBrowse || 'Browse recent layouts');
                 var historyPrevLabel = escapeHtml(strings.recentLayoutsPrev || 'Show previous layout');
@@ -2453,6 +2551,10 @@
                     toneOptions += '<option value="' + escapeHtml(id) + '">' + escapeHtml(meta.label || id) + '</option>';
                 });
                 toneOptions += '<option value="custom">' + toneCustomOption + '</option>';
+
+                if (quickActionsMarkup) {
+                    ensureQuickActionStyles();
+                }
 
                 var modalHtml = '' +
                     '<div id="aimentor-modal" class="aimentor-modal" role="dialog" aria-modal="true" aria-labelledby="aimentor-modal-heading-text" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;">' +
@@ -2495,6 +2597,7 @@
                     '        <select id="aimentor-tone-preset" class="aimentor-modal__select">' + toneOptions + '</select>' +
                     '        <label for="aimentor-tone-custom" id="aimentor-tone-custom-label" class="aimentor-modal__label" style="display:none;">' + toneCustomLabel + '</label>' +
                     '        <input type="text" id="aimentor-tone-custom" class="aimentor-modal__input" style="display:none;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;" placeholder="' + toneCustomPlaceholder + '">' +
+                    (quickActionsMarkup ? quickActionsMarkup : '') +
                     '        <div class="aimentor-modal__actions" style="display:flex;gap:8px;flex-wrap:wrap;">' +
                     '          <button type="button" id="aimentor-rewrite" class="button button-secondary" style="flex:1 1 160px;font-weight:600;">' + rewriteLabel + '</button>' +
                     '          <button type="button" id="aimentor-generate" class="button button-primary" style="flex:1 1 160px;padding:12px;font-size:16px;font-weight:600;">' + askLabel + '</button>' +
@@ -2554,6 +2657,8 @@
             var $tonePreset = $('#aimentor-tone-preset');
             var $toneCustom = $('#aimentor-tone-custom');
             var $toneCustomLabel = $('#aimentor-tone-custom-label');
+            var $quickActionsToolbar = $modal.find('.aimentor-quick-actions');
+            var $quickActionButtons = $modal.find('.aimentor-quick-actions__button');
             var $rewrite = $('#aimentor-rewrite');
             var ui = {
                 icon: $('#aimentor-provider-active-icon'),
@@ -2892,6 +2997,137 @@
             $result.empty();
             updateCooldownNotice($cooldownNotice, null);
 
+            function executeModalGeneration(requestPayload, context) {
+                if (!requestPayload || typeof requestPayload !== 'object') {
+                    return;
+                }
+
+                var $trigger = context && context.$trigger ? context.$trigger : null;
+                var resetTriggerLabel = context && typeof context.resetTriggerLabel === 'function' ? context.resetTriggerLabel : null;
+                var promptValue = context && typeof context.promptValue === 'string' ? context.promptValue : '';
+                var requestedTask = context && context.requestedTask ? context.requestedTask : modalState.task;
+                var requestedTier = context && context.requestedTier ? context.requestedTier : modalState.tier;
+                var quickActionSlug = context && context.quickActionSlug ? String(context.quickActionSlug) : '';
+                var providerValue = sanitizeProvider((context && context.providerValue) || modalState.provider);
+
+                $.post(aimentorData.ajaxurl, requestPayload).done(function(response) {
+                    if ($trigger && $trigger.length) {
+                        $trigger.prop('disabled', false);
+                        if (resetTriggerLabel) {
+                            resetTriggerLabel();
+                        }
+                    }
+
+                    var rateLimitPayload = null;
+                    if (response && response.data && typeof response.data === 'object' && response.data !== null) {
+                        rateLimitPayload = response.data.rate_limit || null;
+                    }
+
+                    updateCooldownNotice($cooldownNotice, rateLimitPayload);
+
+                    if (response && response.data && response.data.provider) {
+                        providerValue = sanitizeProvider(response.data.provider);
+                    }
+
+                    modalState.provider = providerValue;
+
+                    if ($providerRadios.length) {
+                        $providerRadios.prop('checked', false);
+                        $providerRadios.filter('[value="' + providerValue + '"]').prop('checked', true);
+                    }
+
+                    applyProviderMeta(providerValue, ui);
+
+                    var summarySelection = {
+                        task: requestedTask,
+                        tier: requestedTier,
+                        knowledge: modalState.knowledge.slice()
+                    };
+
+                    updateSummaryText($summary, providerValue, summarySelection);
+
+                    if (response && response.success) {
+                        var summaryText = extractResponseSummary(response, providerValue, summarySelection);
+                        var canvasVariations = [];
+                        if (response.data && Array.isArray(response.data.canvas_variations)) {
+                            canvasVariations = response.data.canvas_variations;
+                        }
+                        var hasCanvasPayload = response.data && response.data.canvas_json && !canvasVariations.length;
+
+                        var historyMeta = {
+                            task: summarySelection.task,
+                            tier: summarySelection.tier,
+                            model: response && response.data && response.data.model ? response.data.model : '',
+                            origin: 'ajax',
+                            rate_limit: response && response.data ? response.data.rate_limit || null : null,
+                            tokens: response && response.data && typeof response.data.tokens !== 'undefined' ? response.data.tokens : 0
+                        };
+
+                        if (quickActionSlug) {
+                            historyMeta.action_type = quickActionSlug;
+                        }
+
+                        if (canvasVariations.length) {
+                            renderCanvasVariations($result, canvasVariations, {
+                                provider: providerValue,
+                                tier: summarySelection.tier,
+                                summaryText: summaryText,
+                                responseData: response.data
+                            });
+                        }
+
+                        if (hasCanvasPayload && window.elementorFrontend && elementorFrontend.elementsHandler) {
+                            elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
+                        }
+
+                        if (hasCanvasPayload) {
+                            persistCanvasHistory(response.data, summaryText);
+                        }
+
+                        if (!canvasVariations.length) {
+                            if (response.data && response.data.html) {
+                                var snippet = response.data.html.substring(0, 160);
+                                var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet + (response.data.html.length > 160 ? '…' : '')) + '</small>' : '';
+                                $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + snippetHtml + '</p>');
+                            } else {
+                                $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
+                            }
+                        }
+
+                        if (response.data && Array.isArray(response.data.warnings) && response.data.warnings.length) {
+                            var warningItems = response.data.warnings.map(function(message) {
+                                return '<li>' + escapeHtml(String(message)) + '</li>';
+                            }).join('');
+                            var warningTitle = escapeHtml(strings.analyticsWarningTitle || 'Guardrail warnings');
+                            $result.append('<div class="aimentor-guardrail-warnings" role="status"><strong>' + warningTitle + '</strong><ul>' + warningItems + '</ul></div>');
+                        }
+
+                        if (!response.data || !response.data.history_recorded) {
+                            recordHistoryEntry(promptValue, providerValue, historyMeta);
+                        }
+                    } else {
+                        var message = response && response.data ? response.data : 'Unknown error';
+                        if (typeof message === 'object' && message !== null) {
+                            message = message.message || message.error || 'Unknown error';
+                        }
+                        var errorPrefix = strings.errorPrefix || 'Error:';
+                        $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(String(message)) + '</p>');
+                    }
+                }).fail(function() {
+                    if ($trigger && $trigger.length) {
+                        $trigger.prop('disabled', false);
+                        if (resetTriggerLabel) {
+                            resetTriggerLabel();
+                        }
+                    }
+                    applyProviderMeta(modalState.provider, ui);
+                    var errorPrefix = strings.errorPrefix || 'Error:';
+                    var errorMessage = strings.unknownError || 'Request failed.';
+                    $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(errorMessage) + '</p>');
+                    updateCooldownNotice($cooldownNotice, null);
+                });
+            }
+
             if ($rewrite.length) {
                 $rewrite.off('click.aimentorRewrite').on('click.aimentorRewrite', function() {
                     var rewriteSource = resolveRewriteSource();
@@ -3014,100 +3250,127 @@
                     }
                 }
 
-                $.post(aimentorData.ajaxurl, modalRequestPayload).done(function(response) {
-                    $generate.prop('disabled', false);
-                    applyProviderMeta(providerValue, ui);
-
-                    var rateLimitPayload = null;
-                    if (response && response.data && typeof response.data === 'object' && response.data !== null) {
-                        rateLimitPayload = response.data.rate_limit || null;
-                    }
-
-                    updateCooldownNotice($cooldownNotice, rateLimitPayload);
-
-                    if (response && response.data && response.data.provider) {
-                        providerValue = sanitizeProvider(response.data.provider);
-                        modalState.provider = providerValue;
-                        $providerRadios.prop('checked', false);
-                        $providerRadios.filter('[value="' + providerValue + '"]').prop('checked', true);
-                        applyProviderMeta(providerValue, ui);
-                    }
-
-                    selection.knowledge = modalState.knowledge.slice();
-                    updateSummaryText($summary, providerValue, selection);
-
-                    if (response && response.success) {
-                        var summaryText = extractResponseSummary(response, providerValue, selection);
-                        var canvasVariations = [];
-                        if (response.data && Array.isArray(response.data.canvas_variations)) {
-                            canvasVariations = response.data.canvas_variations;
-                        }
-                        var hasCanvasPayload = response.data && response.data.canvas_json && !canvasVariations.length;
-
-                        var historyMeta = {
-                            task: selection.task,
-                            tier: selection.tier,
-                            model: response && response.data && response.data.model ? response.data.model : '',
-                            origin: 'ajax',
-                            rate_limit: response && response.data ? response.data.rate_limit || null : null,
-                            tokens: response && response.data && typeof response.data.tokens !== 'undefined' ? response.data.tokens : 0
-                        };
-
-                        if (canvasVariations.length) {
-                            renderCanvasVariations($result, canvasVariations, {
-                                provider: providerValue,
-                                tier: selection.tier,
-                                summaryText: summaryText,
-                                responseData: response.data
-                            });
-                        }
-
-                        if (hasCanvasPayload && window.elementorFrontend && elementorFrontend.elementsHandler) {
-                            elementorFrontend.elementsHandler.addElements(response.data.canvas_json);
-                        }
-
-                        if (hasCanvasPayload) {
-                            persistCanvasHistory(response.data, summaryText);
-                        }
-
-                        if (!canvasVariations.length) {
-                            if (response.data && response.data.html) {
-                                var snippet = response.data.html.substring(0, 160);
-                                var snippetHtml = snippet ? '<br><small>' + escapeHtml(snippet + (response.data.html.length > 160 ? '…' : '')) + '</small>' : '';
-                                $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + snippetHtml + '</p>');
-                            } else {
-                                $result.html('<p style="color:green">' + escapeHtml(strings.successPrefix || '✅') + ' ' + escapeHtml(summaryText) + '</p>');
-                            }
-                        }
-
-                        if (response.data && Array.isArray(response.data.warnings) && response.data.warnings.length) {
-                            var warningItems = response.data.warnings.map(function(message) {
-                                return '<li>' + escapeHtml(String(message)) + '</li>';
-                            }).join('');
-                            var warningTitle = escapeHtml(strings.analyticsWarningTitle || 'Guardrail warnings');
-                            $result.append('<div class="aimentor-guardrail-warnings" role="status"><strong>' + warningTitle + '</strong><ul>' + warningItems + '</ul></div>');
-                        }
-
-                        if (!response.data || !response.data.history_recorded) {
-                            recordHistoryEntry(promptValue, providerValue, historyMeta);
-                        }
-                    } else {
-                        var message = response && response.data ? response.data : 'Unknown error';
-                        if (typeof message === 'object' && message !== null) {
-                            message = message.message || message.error || 'Unknown error';
-                        }
-                        var errorPrefix = strings.errorPrefix || 'Error:';
-                        $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(String(message)) + '</p>');
-                    }
-                }).fail(function() {
-                    $generate.prop('disabled', false);
-                    applyProviderMeta(modalState.provider, ui);
-                    var errorPrefix = strings.errorPrefix || 'Error:';
-                    var errorMessage = strings.unknownError || 'Request failed.';
-                    $result.html('<p style="color:red">' + escapeHtml(errorPrefix) + ' ' + escapeHtml(errorMessage) + '</p>');
-                    updateCooldownNotice($cooldownNotice, null);
+                executeModalGeneration(modalRequestPayload, {
+                    $trigger: $generate,
+                    providerValue: providerValue,
+                    requestedTask: selection.task,
+                    requestedTier: selection.tier,
+                    promptValue: promptValue
                 });
             });
+
+            if ($quickActionButtons.length) {
+                $quickActionButtons.off('click.aimentorQuickAction').on('click.aimentorQuickAction', function() {
+                    var $button = $(this);
+                    var slug = String($button.data('quickAction') || '').trim();
+                    if (!slug || !Object.prototype.hasOwnProperty.call(quickActionLookup, slug)) {
+                        return;
+                    }
+
+                    var action = quickActionLookup[slug];
+                    if (!action || !action.enabled) {
+                        return;
+                    }
+
+                    captureRewriteTarget();
+                    var source = resolveRewriteSource();
+                    var promptText = (source && source.text) ? String(source.text).trim() : '';
+
+                    if (!promptText) {
+                        var missingMessage = strings.rewriteMissingSource || 'Highlight text in Elementor or enter a prompt to rewrite.';
+                        $result.html('<p style="color:#b91c1c;">' + escapeHtml(missingMessage) + '</p>');
+                        return;
+                    }
+
+                    var knowledgeSelection = sanitizeKnowledgeSelection($knowledgeSelect.val());
+                    modalState.knowledge = knowledgeSelection;
+                    if ($knowledgeSummary.length) {
+                        if (!knowledgeStore.length) {
+                            $knowledgeSummary.text(knowledgeEmpty);
+                        } else {
+                            updateKnowledgeSelectionSummary($knowledgeSummary, knowledgeSelection);
+                        }
+                    }
+
+                    if (api.state && api.state.widgets) {
+                        Object.keys(api.state.widgets).forEach(function(key) {
+                            var widgetEntry = api.state.widgets[key];
+                            if (widgetEntry && typeof widgetEntry === 'object') {
+                                widgetEntry.knowledge = knowledgeSelection.slice();
+                            }
+                        });
+                    }
+
+                    modalState.tier = sanitizeTier($tier.val());
+                    if ($tier.length) {
+                        $tier.val(modalState.tier);
+                    }
+
+                    var requestTask = sanitizeTask($task.val(), allowCanvas);
+                    if (requestTask !== 'content') {
+                        requestTask = 'content';
+                        if ($task.length) {
+                            $task.val('content');
+                        }
+                    }
+                    modalState.task = requestTask;
+
+                    var providerValue = modalState.provider;
+                    if ($providerRadios.length) {
+                        var selectedProvider = $providerRadios.filter(':checked').val();
+                        if (selectedProvider) {
+                            providerValue = sanitizeProvider(selectedProvider);
+                        }
+                        $providerRadios.prop('checked', false);
+                        $providerRadios.filter('[value="' + providerValue + '"]').prop('checked', true);
+                    }
+                    modalState.provider = providerValue;
+                    applyProviderMeta(providerValue, ui);
+                    updateSummaryText($summary, providerValue, modalState);
+
+                    var actionLabel = action.menuLabel || action.name || slug;
+                    var workingLabel = strings.quickActionWorking ? strings.quickActionWorking.replace('%s', actionLabel) : 'Running "' + actionLabel + '"…';
+                    var originalLabel = $button.text();
+
+                    $button.prop('disabled', true).text(workingLabel);
+                    $result.html('<p>' + escapeHtml(workingLabel) + '</p>');
+                    updateCooldownNotice($cooldownNotice, null);
+
+                    var requestPayload = {
+                        action: 'aimentor_generate_page',
+                        prompt: promptText,
+                        provider: providerValue,
+                        task: requestTask,
+                        tier: modalState.tier,
+                        nonce: aimentorData.nonce,
+                        action_type: slug
+                    };
+
+                    if (modalState.knowledge && modalState.knowledge.length) {
+                        requestPayload.knowledge_ids = modalState.knowledge.slice();
+                    }
+
+                    if (action.prompt) {
+                        requestPayload.prompt_override = action.prompt;
+                    }
+
+                    if (action.system) {
+                        requestPayload.system_override = action.system;
+                    }
+
+                    executeModalGeneration(requestPayload, {
+                        $trigger: $button,
+                        resetTriggerLabel: function() {
+                            $button.text(originalLabel);
+                        },
+                        providerValue: providerValue,
+                        requestedTask: requestTask,
+                        requestedTier: modalState.tier,
+                        promptValue: promptText,
+                        quickActionSlug: slug
+                    });
+                });
+            }
         };
 
         $(document).on('aimentor:saved-prompts-updated', function(event, payload) {
