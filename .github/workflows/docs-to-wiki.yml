@@ -1,0 +1,51 @@
+name: Sync Docs to Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs-to-wiki.yml'
+  workflow_dispatch:
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    env:
+      WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify wiki token
+        run: |
+          if [ -z "$WIKI_TOKEN" ]; then
+            echo "Missing WIKI_TOKEN secret with repo access to push to the wiki."
+            exit 1
+          fi
+
+      - name: Prepare wiki content
+        run: |
+          rm -rf wiki
+          mkdir -p wiki
+          rsync -av --delete docs/ wiki/
+          if [ -f docs/README.md ]; then
+            cp docs/README.md wiki/Home.md
+          fi
+
+      - name: Push to GitHub Wiki
+        env:
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          cd wiki
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git commit -m "Sync docs from ${REPO}@${SHA}"; then
+            git remote add origin https://x-access-token:${WIKI_TOKEN}@github.com/${REPO}.wiki.git
+            git push --force origin HEAD:master
+          else
+            echo "No wiki changes detected; skipping push."
+          fi
