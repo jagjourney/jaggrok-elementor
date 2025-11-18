@@ -14,3 +14,11 @@ Document any deviation from these steps in the pull request summary so reviewers
 
 ## Scope
 These instructions apply to the entire repository. Future contributors should extend this file if additional global policies are introduced.
+
+## Documentation Domains
+- User-facing manuals, landing/marketing content, showcase assets, and automation guardrails belong in `docs/product-experience/`.
+- Developer quick actions, API/schema notes, and engineering specs live in `docs/platform-engineering/`.
+- Release guides, version notes, QA/deployment/rollback procedures belong in `docs/operational-readiness/`.
+- Collateral, templates, or partner enablement material should go under `docs/enablement/`.
+- Drafts, experimental write-ups, and items awaiting review must stay in `docs/wip-backlog/`.
+- Update `docs/README.md` and, if needed, the wiki home/sidebar whenever you introduce a new domain or major guide so navigation stays consistent.
