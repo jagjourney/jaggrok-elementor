@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'docs/**'
-      - '.github/workflows/docs-to-wiki.yml'
+      - '.github/workflows/docs-upgrade-to-wiki.yml'
   workflow_dispatch:
 
 jobs:
